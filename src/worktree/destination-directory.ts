@@ -8,7 +8,7 @@
  * Cross-platform trash functionality using the trash package.
  *
  * Platform-specific behavior:
- * - macOS: Uses Finder's trash (~/. Trash)
+ * - macOS: Uses Finder's trash (~/.Trash)
  * - Windows: Uses Recycle Bin
  * - Linux: Uses freedesktop.org trash specification (~/.local/share/Trash)
  *
