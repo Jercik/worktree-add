@@ -9,7 +9,7 @@ Running `worktree-add <branch>` from inside a repo:
 1. Normalizes `<branch>` (supports `origin/foo`, `refs/heads/foo`, etc.).
 2. Refuses if that branch is already checked out in any worktree.
 3. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
-4. If the destination exists, asks before removing it with `rm -rf`.
+4. If the destination exists, asks before moving it to the system trash.
 5. Fetches `origin/<branch>` when needed and creates a git worktree:
    - reuses an existing local branch
    - or creates a tracking branch from `origin/<branch>`
@@ -27,7 +27,6 @@ Your original checkout is left untouched.
 
 - Node.js ≥ 22.14.0
 - Git with `git worktree` support
-- POSIX‑like shell (uses `rm -rf` for cleaning the destination)
 
 ## Install / run
 
