@@ -4,7 +4,7 @@
  * Utilities for managing worktree directories
  */
 
-import { spawnSync } from "node:child_process";
+import trash from "trash";
 import path from "node:path";
 import { fileExists, confirm, exitWithMessage } from "../git/git.js";
 
@@ -20,7 +20,7 @@ export async function handleExistingDirectory(
   }
 
   const proceed = await confirm(
-    `Directory '${path.basename(destinationDirectory)}' already exists. Remove and recreate?`,
+    `Directory '${path.basename(destinationDirectory)}' already exists. Move to trash and recreate?`,
   );
 
   if (!proceed) {
@@ -29,14 +29,13 @@ export async function handleExistingDirectory(
     process.exit(0);
   }
 
-  // Remove the existing directory
-  console.log(`➤ Removing existing directory...`);
-  const result = spawnSync("rm", ["-rf", destinationDirectory], {
-    encoding: "utf8",
-  });
-
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    exitWithMessage(`Failed to remove existing directory: ${result.stderr}`);
+  // Move the existing directory to trash
+  console.log(`➤ Moving existing directory to trash...`);
+  try {
+    await trash(destinationDirectory);
+  } catch (error) {
+    exitWithMessage(
+      `Failed to move existing directory to trash: ${error instanceof Error ? error.message : String(error)}`,
+    );
   }
 }
