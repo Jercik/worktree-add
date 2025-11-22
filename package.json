@@ -6,11 +6,11 @@
   "description": "",
   "repository": {
     "type": "git",
-    "url": "https://github.com/Jercik/worktree-add.git"
+    "url": "git+https://github.com/Jercik/worktree-add.git"
   },
   "type": "module",
   "bin": {
-    "worktree-add": "./bin/worktree-add"
+    "worktree-add": "bin/worktree-add"
   },
   "files": [
     "bin/",
