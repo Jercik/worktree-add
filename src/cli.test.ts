@@ -63,6 +63,7 @@ describe("isEditorCommandSafe", () => {
     expect(isEditorCommandSafe("code\tfile")).toBe(false);
     expect(isEditorCommandSafe("code\rfile")).toBe(false);
     expect(isEditorCommandSafe("code\0file")).toBe(false);
+    expect(isEditorCommandSafe(String.raw`code\file`)).toBe(false);
   });
 
   it("accepts simple editor command names", () => {

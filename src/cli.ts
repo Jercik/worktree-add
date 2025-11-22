@@ -38,7 +38,7 @@ export function resolveEditor({
 
 export function isEditorCommandSafe(editor: string): boolean {
   // Reject common shell metacharacters and control characters to prevent injection
-  const unsafeCharacters = /[;&|`$(){}<>\n\r\t]/u;
+  const unsafeCharacters = /[\\;&|`$(){}<>\n\r\t]/u;
   return !unsafeCharacters.test(editor) && !editor.includes("\0");
 }
 

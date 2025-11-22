@@ -95,6 +95,12 @@ Tip: add a shell helper with your preferred editor in `~/.zprofile` (or similar)
 worktree-add() { WORKTREE_ADD_EDITOR=cursor command worktree-add "$@" }
 ```
 
+Add it to your shell profile:
+
+- zsh: `~/.zshrc` or `~/.zprofile`
+- bash: `~/.bashrc` or `~/.bash_profile`
+- fish: `~/.config/fish/config.fish`
+
 ## License
 
 MIT
