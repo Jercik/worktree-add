@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.base.json",
   "compilerOptions": {
+    /* Project References */
+    "composite": true,
+
     /* Not transpiling with TypeScript */
     "noEmit": true,
 

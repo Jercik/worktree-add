@@ -24,11 +24,16 @@ import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
-export function resolveEditor(
-  optionsEditor: string | undefined,
-  envEditor: string | undefined,
-): string {
-  return optionsEditor ?? envEditor ?? "code";
+interface ResolveEditorInput {
+  optionEditor?: string;
+  environmentEditor?: string;
+}
+
+export function resolveEditor({
+  optionEditor,
+  environmentEditor,
+}: ResolveEditorInput = {}): string {
+  return optionEditor ?? environmentEditor ?? "code";
 }
 
 export function isEditorCommandSafe(editor: string): boolean {
@@ -42,7 +47,10 @@ export function isEditorCommandSafe(editor: string): boolean {
   );
 }
 
-async function main(branchRaw: string, options: { editor?: string }): Promise<void> {
+async function main(
+  branchRaw: string,
+  options: { editor?: string },
+): Promise<void> {
   const branch = normalizeBranchName(branchRaw);
 
   // Prevent attempting to add a worktree for a branch that is already checked out
@@ -80,7 +88,10 @@ async function main(branchRaw: string, options: { editor?: string }): Promise<vo
   await setupProject(destinationDirectory);
 
   // Step 5: Open the new worktree in the editor
-  const editor = resolveEditor(options.editor, process.env.WORKTREE_ADD_EDITOR);
+  const editor = resolveEditor({
+    optionEditor: options.editor,
+    environmentEditor: process.env.WORKTREE_ADD_EDITOR,
+  });
 
   // Validate editor command to prevent injection attacks
   if (!isEditorCommandSafe(editor)) {

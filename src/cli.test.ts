@@ -28,15 +28,17 @@ describe("globToRegExp", () => {
 
 describe("resolveEditor", () => {
   it("prefers an explicit option over env var and default", () => {
-    expect(resolveEditor("vim", "cursor")).toBe("vim");
+    expect(
+      resolveEditor({ optionEditor: "vim", environmentEditor: "cursor" }),
+    ).toBe("vim");
   });
 
   it("falls back to env var when option is absent", () => {
-    expect(resolveEditor(undefined, "cursor")).toBe("cursor");
+    expect(resolveEditor({ environmentEditor: "cursor" })).toBe("cursor");
   });
 
   it("uses 'code' when neither option nor env var is provided", () => {
-    expect(resolveEditor(undefined, undefined)).toBe("code");
+    expect(resolveEditor()).toBe("code");
   });
 });
 
