@@ -56,6 +56,13 @@ describe("isEditorCommandSafe", () => {
     expect(isEditorCommandSafe("code; rm -rf /")).toBe(false);
     expect(isEditorCommandSafe("code | less")).toBe(false);
     expect(isEditorCommandSafe("cursor\nvim")).toBe(false);
+    expect(isEditorCommandSafe("code$(whoami)")).toBe(false);
+    expect(isEditorCommandSafe("code<file")).toBe(false);
+    expect(isEditorCommandSafe("code>file")).toBe(false);
+    expect(isEditorCommandSafe("code{1..2}")).toBe(false);
+    expect(isEditorCommandSafe("code\tfile")).toBe(false);
+    expect(isEditorCommandSafe("code\rfile")).toBe(false);
+    expect(isEditorCommandSafe("code\0file")).toBe(false);
   });
 
   it("accepts simple editor command names", () => {

@@ -25,7 +25,7 @@ Your original checkout is left untouched.
 
 ## Requirements
 
-- Node.js ≥ 22
+- Node.js ≥ 22.14.0
 - Git with `git worktree` support
 - POSIX‑like shell (uses `rm -rf` for cleaning the destination)
 
