@@ -3,7 +3,7 @@
   "author": "Łukasz Jerciński",
   "license": "MIT",
   "version": "1.0.0",
-  "description": "",
+  "description": "Create a sibling Git worktree for a branch, copy useful local files, install deps, and open it in your editor.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jercik/worktree-add.git"

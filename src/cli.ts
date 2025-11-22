@@ -62,7 +62,7 @@ async function main(branchRaw: string, options: { editor?: string }) {
   await setupProject(destinationDirectory);
 
   // Step 5: Open the new worktree in the editor
-  const editor = options.editor ?? process.env.WORKTREE_ADD_EDITOR ?? "cursor";
+  const editor = options.editor ?? process.env.WORKTREE_ADD_EDITOR ?? "code";
 
   // Validate editor command to prevent injection attacks
   if (
