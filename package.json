@@ -8,6 +8,10 @@
     "type": "git",
     "url": "git+https://github.com/Jercik/worktree-add.git"
   },
+  "homepage": "https://github.com/Jercik/worktree-add#readme",
+  "bugs": {
+    "url": "https://github.com/Jercik/worktree-add/issues"
+  },
   "type": "module",
   "bin": {
     "worktree-add": "bin/worktree-add"
@@ -38,7 +42,7 @@
   "keywords": [],
   "packageManager": "pnpm@10.22.0",
   "engines": {
-    "node": ">=22.0.0"
+    "node": ">=22.14.0"
   },
   "dependencies": {
     "commander": "^14.0.2",
