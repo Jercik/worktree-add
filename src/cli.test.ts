@@ -48,6 +48,9 @@ describe("resolveEditor", () => {
     expect(resolveEditor({ optionEditor: "", environmentEditor: "" })).toBe(
       "code",
     );
+    expect(
+      resolveEditor({ optionEditor: "   ", environmentEditor: "cursor" }),
+    ).toBe("cursor");
   });
 });
 
@@ -64,10 +67,15 @@ describe("isEditorCommandSafe", () => {
     expect(isEditorCommandSafe("code\rfile")).toBe(false);
     expect(isEditorCommandSafe("code\0file")).toBe(false);
     expect(isEditorCommandSafe(String.raw`code\file`)).toBe(false);
+    expect(isEditorCommandSafe(" ")).toBe(false);
+    expect(isEditorCommandSafe("a".repeat(257))).toBe(false);
   });
 
   it("accepts simple editor command names", () => {
     expect(isEditorCommandSafe("code")).toBe(true);
     expect(isEditorCommandSafe("vim")).toBe(true);
+    expect(isEditorCommandSafe("code-insiders")).toBe(true);
+    expect(isEditorCommandSafe("vim.exe")).toBe(true);
+    expect(isEditorCommandSafe("nvim-qt")).toBe(true);
   });
 });

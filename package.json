@@ -39,7 +39,14 @@
     "knip": "knip",
     "fta:check": "fta-check --threshold 55"
   },
-  "keywords": [],
+  "keywords": [
+    "git",
+    "worktree",
+    "cli",
+    "workflow",
+    "git-worktree",
+    "development"
+  ],
   "packageManager": "pnpm@10.22.0",
   "engines": {
     "node": ">=22.14.0"

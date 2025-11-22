@@ -89,7 +89,7 @@ WORKTREE_ADD_EDITOR=vim worktree-add feature/foo
 
 If launching the editor fails, the worktree still stays created and ready.
 
-Tip: add a shell helper with your preferred editor in `~/.zprofile` (or similar). Example snippet to add:
+Tip: add a shell helper with your preferred editor in your shell profile. Example snippet to add:
 
 ```bash
 worktree-add() { WORKTREE_ADD_EDITOR=cursor command worktree-add "$@" }

@@ -33,13 +33,23 @@ export function resolveEditor({
   optionEditor,
   environmentEditor,
 }: ResolveEditorInput = {}): string {
-  return optionEditor || environmentEditor || "code";
+  const normalizedOption = optionEditor?.trim();
+  const normalizedEnvironment = environmentEditor?.trim();
+  return normalizedOption || normalizedEnvironment || "code";
 }
 
 export function isEditorCommandSafe(editor: string): boolean {
-  // Reject common shell metacharacters and control characters to prevent injection
-  const unsafeCharacters = /[\\;&|`$(){}<>\n\r\t]/u;
-  return !unsafeCharacters.test(editor) && !editor.includes("\0");
+  const normalized = editor.normalize("NFKC");
+  const trimmed = normalized.trim();
+
+  // Reject empty or excessively long commands
+  if (trimmed.length === 0 || trimmed.length > 256) {
+    return false;
+  }
+
+  // Reject common shell metacharacters, whitespace, and control characters to prevent injection
+  const unsafeCharacters = /[\\;&|`$(){}<>\s]|\p{Cc}/u;
+  return !unsafeCharacters.test(trimmed);
 }
 
 async function main(
