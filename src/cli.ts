@@ -61,10 +61,35 @@ async function main(branchRaw: string, options: { editor?: string }) {
   // Step 4: Install dependencies and run project-specific setup
   await setupProject(destinationDirectory);
 
-  // Step 6: Open the new worktree in the editor
+  // Step 5: Open the new worktree in the editor
   const editor = options.editor ?? process.env.WORKTREE_ADD_EDITOR ?? "cursor";
+
+  // Validate editor command to prevent injection attacks
+  if (
+    editor.includes(";") ||
+    editor.includes("&") ||
+    editor.includes("|") ||
+    editor.includes("`") ||
+    editor.includes("$") ||
+    editor.includes("\n")
+  ) {
+    exitWithMessage(
+      "Invalid editor command: shell metacharacters not allowed.\n" +
+        "Please use a simple editor name (e.g., 'code', 'cursor', 'vim').",
+    );
+  }
+
   console.log(`➤ Opening ${editor} …`);
-  spawnSync(editor, [destinationDirectory], { stdio: "inherit" });
+  const result = spawnSync(editor, [destinationDirectory], {
+    stdio: "inherit",
+  });
+
+  if (result.error) {
+    console.error(`Failed to open ${editor}: ${result.error.message}`);
+    console.error(
+      "The worktree was created successfully, but the editor could not be opened.",
+    );
+  }
 }
 
 const program = new Command()
@@ -74,7 +99,10 @@ const program = new Command()
   )
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
-  .option("-e, --editor <command>", "Editor to open the worktree with")
+  .option(
+    "-e, --editor <command>",
+    "Editor to open the worktree with (default: WORKTREE_ADD_EDITOR env var or 'cursor')",
+  )
   .action(async (branch: string, options: { editor?: string }) => {
     try {
       await main(branch, options);
