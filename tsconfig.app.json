@@ -1,0 +1,14 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    /* Transpiling with TypeScript */
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "composite": true,
+
+    /* Not running in the DOM */
+    "lib": ["es2022"]
+  },
+  "include": ["src/**/*.ts", "types/**/*.d.ts"],
+  "exclude": ["node_modules", "dist", "**/*.test.*", "**/*.spec.*"]
+}
