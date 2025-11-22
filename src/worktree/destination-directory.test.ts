@@ -59,8 +59,7 @@ describe("handleExistingDirectory", () => {
   it("moves directory to trash when user confirms", async () => {
     (fileExists as Mock).mockResolvedValue(true);
     (confirm as Mock).mockResolvedValue(true);
-    // eslint-disable-next-line unicorn/no-useless-undefined -- mockResolvedValue requires an argument
-    (trash as Mock).mockResolvedValue(undefined);
+    (trash as Mock).mockResolvedValue(void 0);
 
     await handleExistingDirectory("/test/path");
 
