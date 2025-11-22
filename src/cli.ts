@@ -24,7 +24,25 @@ import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
-async function main(branchRaw: string, options: { editor?: string }) {
+export function resolveEditor(
+  optionsEditor: string | undefined,
+  envEditor: string | undefined,
+): string {
+  return optionsEditor ?? envEditor ?? "code";
+}
+
+export function isEditorCommandSafe(editor: string): boolean {
+  return !(
+    editor.includes(";") ||
+    editor.includes("&") ||
+    editor.includes("|") ||
+    editor.includes("`") ||
+    editor.includes("$") ||
+    editor.includes("\n")
+  );
+}
+
+async function main(branchRaw: string, options: { editor?: string }): Promise<void> {
   const branch = normalizeBranchName(branchRaw);
 
   // Prevent attempting to add a worktree for a branch that is already checked out
@@ -62,17 +80,10 @@ async function main(branchRaw: string, options: { editor?: string }) {
   await setupProject(destinationDirectory);
 
   // Step 5: Open the new worktree in the editor
-  const editor = options.editor ?? process.env.WORKTREE_ADD_EDITOR ?? "code";
+  const editor = resolveEditor(options.editor, process.env.WORKTREE_ADD_EDITOR);
 
   // Validate editor command to prevent injection attacks
-  if (
-    editor.includes(";") ||
-    editor.includes("&") ||
-    editor.includes("|") ||
-    editor.includes("`") ||
-    editor.includes("$") ||
-    editor.includes("\n")
-  ) {
+  if (!isEditorCommandSafe(editor)) {
     exitWithMessage(
       "Invalid editor command: shell metacharacters not allowed.\n" +
         "Please use a simple editor name (e.g., 'code', 'cursor', 'vim').",
@@ -101,7 +112,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-e, --editor <command>",
-    "Editor to open the worktree with (default: WORKTREE_ADD_EDITOR env var or 'cursor')",
+    "Editor to open the worktree with (default: WORKTREE_ADD_EDITOR env var or 'code')",
   )
   .action(async (branch: string, options: { editor?: string }) => {
     try {
@@ -112,4 +123,6 @@ const program = new Command()
     }
   });
 
-program.parse();
+if (!process.env.VITEST) {
+  program.parse();
+}

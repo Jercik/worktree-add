@@ -1,6 +1,6 @@
 # worktree-add
 
-Create a sibling Git worktree for a branch, copy useful local files, install deps, and open it in your editor.
+Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your editor.
 
 ## What it does
 
@@ -97,4 +97,4 @@ worktree-add() { WORKTREE_ADD_EDITOR=cursor command worktree-add "$@" }
 
 ## License
 
-# MIT
+MIT

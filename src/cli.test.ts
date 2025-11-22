@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { isEditorCommandSafe, resolveEditor } from "./cli.js";
 import { globToRegExp } from "./worktree/file-patterns.js";
 
 describe("globToRegExp", () => {
@@ -22,5 +23,32 @@ describe("globToRegExp", () => {
     expect(regex.test("file1.txt")).toBe(true);
     expect(regex.test("fileA.txt")).toBe(true);
     expect(regex.test("file10.txt")).toBe(false);
+  });
+});
+
+describe("resolveEditor", () => {
+  it("prefers an explicit option over env var and default", () => {
+    expect(resolveEditor("vim", "cursor")).toBe("vim");
+  });
+
+  it("falls back to env var when option is absent", () => {
+    expect(resolveEditor(undefined, "cursor")).toBe("cursor");
+  });
+
+  it("uses 'code' when neither option nor env var is provided", () => {
+    expect(resolveEditor(undefined, undefined)).toBe("code");
+  });
+});
+
+describe("isEditorCommandSafe", () => {
+  it("rejects editor commands containing shell metacharacters", () => {
+    expect(isEditorCommandSafe("code; rm -rf /")).toBe(false);
+    expect(isEditorCommandSafe("code | less")).toBe(false);
+    expect(isEditorCommandSafe("cursor\nvim")).toBe(false);
+  });
+
+  it("accepts simple editor command names", () => {
+    expect(isEditorCommandSafe("code")).toBe(true);
+    expect(isEditorCommandSafe("vim")).toBe(true);
   });
 });
