@@ -40,6 +40,15 @@ describe("resolveEditor", () => {
   it("uses 'code' when neither option nor env var is provided", () => {
     expect(resolveEditor()).toBe("code");
   });
+
+  it("treats empty strings as absent and falls back in order", () => {
+    expect(
+      resolveEditor({ optionEditor: "", environmentEditor: "cursor" }),
+    ).toBe("cursor");
+    expect(resolveEditor({ optionEditor: "", environmentEditor: "" })).toBe(
+      "code",
+    );
+  });
 });
 
 describe("isEditorCommandSafe", () => {

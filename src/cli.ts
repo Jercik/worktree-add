@@ -33,7 +33,7 @@ export function resolveEditor({
   optionEditor,
   environmentEditor,
 }: ResolveEditorInput = {}): string {
-  return optionEditor ?? environmentEditor ?? "code";
+  return optionEditor || environmentEditor || "code";
 }
 
 export function isEditorCommandSafe(editor: string): boolean {
