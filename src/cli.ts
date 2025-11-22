@@ -24,7 +24,7 @@ import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
-async function main(branchRaw: string) {
+async function main(branchRaw: string, options: { editor?: string }) {
   const branch = normalizeBranchName(branchRaw);
 
   // Prevent attempting to add a worktree for a branch that is already checked out
@@ -61,9 +61,10 @@ async function main(branchRaw: string) {
   // Step 4: Install dependencies and run project-specific setup
   await setupProject(destinationDirectory);
 
-  // Step 6: Open the new worktree in Cursor
-  console.log("➤ Opening Cursor …");
-  spawnSync("cursor", [destinationDirectory], { stdio: "inherit" });
+  // Step 6: Open the new worktree in the editor
+  const editor = options.editor ?? process.env.WORKTREE_ADD_EDITOR ?? "cursor";
+  console.log(`➤ Opening ${editor} …`);
+  spawnSync(editor, [destinationDirectory], { stdio: "inherit" });
 }
 
 const program = new Command()
@@ -73,9 +74,10 @@ const program = new Command()
   )
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
-  .action(async (branch: string) => {
+  .option("-e, --editor <command>", "Editor to open the worktree with")
+  .action(async (branch: string, options: { editor?: string }) => {
     try {
-      await main(branch);
+      await main(branch, options);
     } catch (error: unknown) {
       console.error(error);
       process.exitCode = 1;
