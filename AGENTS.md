@@ -20,7 +20,7 @@ Use concise prompts for quick facts and focused questions for deeper topics. If 
 
 # Rule: Child Process Selection
 
-Choose the appropriate `node:child_process` function based on synchronicity, shell requirements, output size, and error handling. (Defaults from Node.js 25.2.1 docs.)
+Choose the appropriate `node:child_process` function based on synchronicity, shell requirements, output size, and error handling. (Defaults from Node.js 25.x docs.)
 
 | Function       | Type  | Default shell?      | Output style                        | Best for                                                           |
 | :------------- | :---- | :------------------ | :---------------------------------- | :----------------------------------------------------------------- |
@@ -70,10 +70,17 @@ execFile("node", ["--version"], (error, stdout) => {
   console.log(stdout);
 });
 
-// Shell injection protection: input with shell metacharacters treated as literal
+// Shell injection protection: compare exec vs execFile
 const userInput = "hello; echo pwned";
+
+// UNSAFE: exec runs through a shell, so metacharacters execute
+exec(`grep ${userInput} data.txt`, (error, stdout) => {
+  if (error) return console.error(error);
+  console.log(stdout);
+});
+
+// Safe: execFile passes args literally, so metacharacters are not executed
 execFile("grep", [userInput, "data.txt"], (error, stdout) => {
-  // Safe: userInput is passed as argument, not interpreted by shell
   if (error) return console.error(error);
   console.log(stdout);
 });
@@ -102,7 +109,7 @@ When validating that a file path stays within an expected directory (path traver
 
 ## The Problem
 
-On Windows, file paths are **case-insensitive** (`C:\Users` and `c:\users` are the same), but string comparison with `startsWith` is case-sensitive. This causes false positives:
+On Windows, file paths are **case-insensitive** (`C:\Users` and `c:\users` are the same), but string comparison with `startsWith` is case-sensitive. This causes false negatives:
 
 ```ts
 // Windows: resolve() might return different cases
@@ -142,8 +149,8 @@ function isWithinDirectory(base: string, target: string): boolean {
   if (rel === "") return true;
   // Absolute means different drive (Windows)
   if (isAbsolute(rel)) return false;
-  // Starts with ".." followed by separator means path escapes the base directory
-  // Use sep to avoid false positives on paths like "..foo/bar.txt"
+  // If rel is ".." or starts with ".." + separator, the target escapes the base directory (path traversal).
+  // Using sep ensures we don't block valid filenames like "..foo/bar.txt" that do not traverse upward.
   if (rel === ".." || rel.startsWith(`..${sep}`)) return false;
   return true;
 }
@@ -167,7 +174,7 @@ function isWithinDirectory(base: string, target: string): boolean {
 
 1. **Use `relative()` not `startsWith()`** - avoids manual separator handling and different-drive detection
 2. **Check for absolute result** - indicates different drive/root on Windows
-3. **Check for `..` prefix with `sep`** - use `rel === ".." || rel.startsWith(`..${sep}`)` to avoid false positives on paths like `..foo/bar.txt`
+3. **Check for `..` prefix with `sep`** - use `rel === ".." || rel.startsWith(`..${sep}`)` to detect upward traversal without blocking names like `..foo/bar.txt`
 4. **Empty string is valid** - means the paths are equal
 5. **Symlinks are not resolved** - `resolve()` and `relative()` operate lexically; use `fs.realpathSync()` if symlink traversal is a concern
 
@@ -747,7 +754,7 @@ Use explicit `include`/`exclude` patterns in environment-specific configs. Exclu
 
 ## Glob Support
 
-TypeScript globs are limited: `*`, `**`, `{a,b}` work; extended patterns (`?(x)`, `!(x)`) do not. Use `**/*.test.*` instead of `**/*.{test,spec}.?(c|m)[jt]s?(x)`.
+TypeScript globs are intentionally limited and differ from bash/zsh globs: `*`, `**`, `{a,b}` work; extended patterns (`?(x)`, `!(x)`) do not. Use `**/*.test.*` instead of `**/*.{test,spec}.?(c|m)[jt]s?(x)`.
 
 ## Resolution Priority
 
