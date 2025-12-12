@@ -1,138 +1,191 @@
+# Rule: `askpplx` CLI Usage
+
+**MANDATORY:** Run `npx -y askpplx --help` at the start of every agent session to learn available options and confirm the tool is working.
+
+Use `askpplx` to query Perplexity, an AI search engine combining real-time web search with advanced language models.
+
+## Why This Matters
+
+- **Ground your knowledge:** Your training data has a cutoff date. Real-time search ensures you work with current information—correct API signatures, latest versions, up-to-date best practices.
+- **Save time and resources:** A quick lookup is far cheaper than debugging hallucinated code or explaining why an approach failed. When in doubt, verify first.
+- **Reduce false confidence:** Even when you feel certain, external verification catches subtle errors before they compound into larger problems.
+- **Stay current:** Libraries change, APIs deprecate, patterns evolve. What was correct six months ago may be wrong today.
+
+## Usage Guidelines
+
+Use concise prompts for quick facts and focused questions for deeper topics. If results are unexpected, refine your query and ask again. Verification is fast and cheap—prefer looking up information over making assumptions.
+
+
+---
+
 # Rule: Child Process Selection
 
-When working with the Node.js `node:child_process` module, follow these guidelines to select the appropriate function for executing commands. The choice depends on factors like synchronicity, access to streams, output handling, shell usage, and error management. Always prefer the function that best matches your needs to avoid unnecessary complexity or performance issues.
+Choose the appropriate `node:child_process` function based on synchronicity, shell requirements, output size, and error handling. (Defaults from Node.js 25.x docs.)
 
-## General Guidelines
+| Function       | Type  | Default shell?      | Output style                        | Best for                                                           |
+| :------------- | :---- | :------------------ | :---------------------------------- | :----------------------------------------------------------------- |
+| `spawn`        | Async | No (`shell: false`) | Streams                             | Long-running processes, real-time I/O, large output.               |
+| `exec`         | Async | Yes                 | Buffered (`maxBuffer` 1 MB default) | Simple commands needing shell features (pipes, globs).             |
+| `execFile`     | Async | No                  | Buffered (`maxBuffer` 1 MB default) | Direct binary execution with arg array; safer for user input.      |
+| `spawnSync`    | Sync  | No                  | Buffers + detailed result object    | Blocking scripts needing status/signal without exceptions.         |
+| `execSync`     | Sync  | Yes                 | Buffered                            | Blocking shell commands returning stdout; throws on non-zero exit. |
+| `execFileSync` | Sync  | No                  | Buffered                            | Blocking direct binary execution; throws on non-zero exit.         |
 
-- **Asynchronous vs. Synchronous Execution**:
-  - Use **asynchronous functions** (`spawn`, `exec`, `execFile`) if other tasks should run concurrently while the command executes, or if you need non-blocking I/O.
-  - Use **synchronous functions** (`spawnSync`, `execSync`, `execFileSync`) only if you execute one command at a time and can afford to block the event loop (e.g., in scripts or non-server environments).
+## Decision checklist
 
-- **Access to Streams (stdin/stdout/stderr)**:
-  - If you need to interact with the child process via streams in real-time (e.g., piping input/output), use asynchronous functions like `spawn()`. Synchronous functions cannot provide live stream access—you get the complete output only after execution finishes.
+- **Async vs sync:** Prefer async (`spawn`, `exec`, `execFile`) to keep the event loop free. Use sync only in short-lived CLI/setup scripts where blocking is acceptable.
+- **Streaming vs buffered:** If you need live stdin/stdout/stderr or expect output near/over `maxBuffer` (1 MB), use `spawn` (or `spawnSync` if you must block). `exec`/`execFile` buffer output and error if the buffer fills.
+- **Shell needs:** Use `exec`/`execSync` when you need shell features (pipes, globs, env expansion). Prefer `execFile`/`execFileSync` for direct binaries; set `shell: true` only when required.
+- **Security:** Never pass unsanitized user input when a shell is involved (`exec`, `execSync`, or any `{ shell: true }`). Prefer `execFile*` with an args array to avoid injection.
+- **Error handling:** `exec*` callbacks get an `error` on non-zero exit; sync `exec*` throw. `spawn` emits `'error'` only if the process fails to start; exit codes arrive via `'close'`/`'exit'`. `spawnSync` returns `{ status, signal, stdout, stderr, error }` without throwing on non-zero exit.
 
-- **Capturing Output as Strings**:
-  - For asynchronous: Use `exec()` or `execFile()` to get `stdout` and `stderr` as strings via callbacks.
-  - For synchronous: Use `execSync()` or `execFileSync()` for direct string returns of `stdout`. Use `spawnSync()` for more detailed output objects.
+## Shell behavior summary
 
-## Asynchronous Functions: Choosing Between `spawn()`, `exec()`, and `execFile()`
+| Function                   | Default `shell` | Notes                                                            |
+| :------------------------- | :-------------- | :--------------------------------------------------------------- |
+| `spawn`, `spawnSync`       | `false`         | Set `shell: true` to run through a shell.                        |
+| `exec`, `execSync`         | `true`          | Always uses a shell.                                             |
+| `execFile`, `execFileSync` | `false`         | Direct execution; `shell: true` opt-in removes injection safety. |
 
-- Prefer `exec()` or `execFile()` if:
-  - You need simple error handling (all failures reported via the callback's first parameter).
-  - You want `stdout` and `stderr` captured as strings automatically (default buffer limit: 200KB).
-- Use `spawn()` if:
-  - You don't need the callback-based output handling (its signature is simpler).
-  - You require direct stream access without buffering limits.
-  - Your output may exceed the 200KB default buffer limit of `exec()`/`execFile()`.
-
-Example:
+## Examples
 
 ```ts
-import { spawn, exec, execFile } from "node:child_process";
+import { spawn, exec, execFile, spawnSync, execSync } from "node:child_process";
 
-// spawn: Direct stream access, no buffering limits, no callback
+// Stream large or long-running output (no buffer cap)
 const child = spawn("find", ["/", "-name", "*.log"]);
-child.stdout.on("data", (chunk) => process.stdout.write(chunk));
-child.stderr.on("data", (chunk) => process.stderr.write(chunk));
+child.stdout.pipe(process.stdout);
+child.stderr.pipe(process.stderr);
 
-// exec: Shell features, buffered callback with error handling
-exec("ls -la | grep .js", (error, stdout, stderr) => {
-  if (error) return console.error(error); // All failures here
-  console.log(stdout); // Both outputs as strings
+// Shell features (pipes/globs); avoid unsanitized input
+exec("ls *.js | head -5", (error, stdout, stderr) => {
+  if (error) return console.error(error);
+  console.log(stdout);
+  console.error(stderr);
 });
 
-// execFile: No shell by default, safer with args array
-execFile("node", ["--version"], (error, stdout, stderr) => {
+// Safe direct execution with args array (no shell by default)
+execFile("node", ["--version"], (error, stdout) => {
   if (error) return console.error(error);
   console.log(stdout);
 });
-```
 
-## Synchronous Functions: Choosing Between `spawnSync()`, `execSync()`, and `execFileSync()`
+// Shell injection protection: compare exec vs execFile
+const userInput = "hello; echo pwned";
 
-- Prefer `execSync()` or `execFileSync()` if:
-  - You only need `stdout` as a string return value.
-  - Errors should be handled uniformly via exceptions (throws on non-zero exit).
-- Use `spawnSync()` if:
-  - You need a detailed result object (including `status`, `signal`, `stdout`, `stderr` as Buffers, and `error` property).
-  - You want to handle different exit codes programmatically without exceptions.
+// UNSAFE: exec runs through a shell, so metacharacters execute
+exec(`grep ${userInput} data.txt`, (error, stdout) => {
+  if (error) return console.error(error);
+  console.log(stdout);
+});
 
-Example:
+// Safe: execFile passes args literally, so metacharacters are not executed
+execFile("grep", [userInput, "data.txt"], (error, stdout) => {
+  if (error) return console.error(error);
+  console.log(stdout);
+});
 
-```ts
-import { execSync, spawnSync } from "node:child_process";
-
-// execSync: Blocking with shell, throws on error
+// Blocking shell command (use sparingly in scripts)
 try {
-  const output = execSync("git status").toString();
-  console.log(output);
+  const summary = execSync("git status --short").toString();
+  console.log(summary);
 } catch (error) {
   console.error(error);
 }
 
-// spawnSync: Detailed result object, no live streams
+// Blocking with programmatic exit-code handling (no throw on non-zero)
 const result = spawnSync("ls", ["-la"]);
 if (result.error) console.error(result.error);
 if (result.status !== 0) console.error(`Exit code: ${result.status}`);
 console.log(result.stdout.toString());
 ```
 
-## Choosing Between `exec()`/`execSync()` and `execFile()`/`execFileSync()`
-
-- Use `exec()`/`execSync()` if:
-  - You need shell features like pipes (`|`), wildcards (`*`), or environment variable expansion.
-  - Commands are executed through a shell by default (internally sets `shell: true`).
-- Use `execFile()`/`execFileSync()` if:
-  - You want direct binary execution without shell interpretation (`shell: false` by default).
-  - You need to avoid shell injection risks by passing arguments as an array.
-  - You can explicitly set `shell: true` but this defeats the security benefit.
-
-Example:
-
-```ts
-import { exec, execFile } from "node:child_process";
-
-// exec: Shell interprets the command, enables pipes and wildcards
-exec("ls *.js | head -5", (error, stdout) => {
-  if (error) return console.error(error);
-  console.log(stdout);
-});
-
-// execFile: Direct execution, arguments safely passed as array
-const userInput = "file; rm -rf /";
-execFile("grep", [userInput, "data.txt"], (error, stdout) => {
-  // Safe: userInput treated as literal argument, not shell command
-  if (error) return console.error(error);
-  console.log(stdout);
-});
-```
-
-## Key Shell Behavior Summary
-
-| Function                       | Default `shell`     | Notes                                           |
-| ------------------------------ | ------------------- | ----------------------------------------------- |
-| `spawn()`, `spawnSync()`       | `false`             | Direct execution, no shell unless `shell: true` |
-| `exec()`, `execSync()`         | `true` (internally) | Always uses shell, enables pipes/wildcards      |
-| `execFile()`, `execFileSync()` | `false`             | Direct execution, safer for user input          |
-
-Consider security implications, especially with user-provided inputs to avoid shell injection.
-
 
 ---
 
-# Rule: Dynamic Imports
+# Rule: Cross-Platform Path Validation
 
-Use dynamic `import()` to conditionally load modules at runtime, reducing bundle size and initial load time for features users might never need.
+When validating that a file path stays within an expected directory (path traversal prevention), use `path.relative` instead of `startsWith` checks. This handles Windows case-insensitivity correctly.
+
+## The Problem
+
+On Windows, file paths are **case-insensitive** (`C:\Users` and `c:\users` are the same), but string comparison with `startsWith` is case-sensitive. This causes false negatives:
 
 ```ts
-export async function loadAnalytics() {
-  if (process.env.ENABLE_ANALYTICS === "true") {
-    const mod = await import("#features/analytics.js");
-    return mod.default;
-  }
-  return null;
+// Windows: resolve() might return different cases
+const base = "C:\\Users\\alice\\project";
+const target = "c:\\users\\alice\\project\\file.txt"; // Same location, different case
+
+// FAILS even though target is within base
+target.startsWith(base); // false - case mismatch
+```
+
+## Incorrect Implementation
+
+```ts
+import { resolve, sep } from "node:path";
+
+function isWithinDirectory(base: string, target: string): boolean {
+  const resolvedBase = resolve(base);
+  const resolvedTarget = resolve(target);
+  // BAD: Case-sensitive comparison fails on Windows
+  return (
+    resolvedTarget.startsWith(resolvedBase + sep) ||
+    resolvedTarget === resolvedBase
+  );
 }
 ```
+
+## Correct Implementation
+
+```ts
+import { resolve, relative, isAbsolute, sep } from "node:path";
+
+function isWithinDirectory(base: string, target: string): boolean {
+  const resolvedBase = resolve(base);
+  const resolvedTarget = resolve(target);
+  const rel = relative(resolvedBase, resolvedTarget);
+  // Empty string means they're equal
+  if (rel === "") return true;
+  // Absolute means different drive (Windows)
+  if (isAbsolute(rel)) return false;
+  // If rel is ".." or starts with ".." + separator, the target escapes the base directory (path traversal).
+  // Using sep ensures we don't block valid filenames like "..foo/bar.txt" that do not traverse upward.
+  if (rel === ".." || rel.startsWith(`..${sep}`)) return false;
+  return true;
+}
+```
+
+## Why `path.relative` Works
+
+`path.relative(from, to)` computes the relative path from `from` to `to`:
+
+| Scenario        | `relative(base, target)` | Meaning        |
+| --------------- | ------------------------ | -------------- |
+| Same path       | `""`                     | Equal paths    |
+| Inside base     | `"subdir/file.txt"`      | Valid child    |
+| Parent of base  | `"../file.txt"`          | Escapes upward |
+| Sibling         | `"../other/file.txt"`    | Escapes upward |
+| Different drive | `"D:\\other"` (absolute) | Different root |
+
+**Note:** On Windows, `path.relative()` performs case-insensitive comparison (e.g., `path.win32.relative('C:/Foo', 'c:/foo/bar')` returns `'bar'`). This makes it suitable for path containment checks without manual case normalization.
+
+## Key Points
+
+1. **Use `relative()` not `startsWith()`** - avoids manual separator handling and different-drive detection
+2. **Check for absolute result** - indicates different drive/root on Windows
+3. **Check for `..` prefix with `sep`** - use `rel === ".." || rel.startsWith(`..${sep}`)` to detect upward traversal without blocking names like `..foo/bar.txt`
+4. **Empty string is valid** - means the paths are equal
+5. **Symlinks are not resolved** - `resolve()` and `relative()` operate lexically; use `fs.realpathSync()` if symlink traversal is a concern
+
+## When to Apply
+
+Use this pattern when:
+
+- Validating user-provided file paths
+- Preventing path traversal attacks (e.g., `../../../etc/passwd`)
+- Ensuring files stay within a sandbox directory
+- Any path containment check that must work on Windows
 
 
 ---
@@ -169,53 +222,17 @@ Use `package.json` "imports" field with `#` prefixes to create stable internal m
 
 ---
 
-# Rule: GitHub PR Review Comments
+# Rule: Run TypeScript Natively
 
-Use `pr-review-post` to create line-specific review comments, `pr-review-reply` to respond to existing comments, and `pr-comments` to list comment IDs. These tools handle authentication, provide clear errors, and accept messages via argument, stdin, or file.
-
-Post a new review comment on a specific line:
+Run TypeScript files directly with `node`. Do not use `tsx`, `ts-node`, or other external runners.
 
 ```bash
-pr-review-post 123 src/component.tsx 42 "Consider using twMerge here"
-pr-review-post 123 src/app.ts 100 -f comment.txt          # Read from file
-pr-review-post 123 src/old.ts 50 "Why removed?" --side LEFT  # Comment on deletions
+node script.ts           # ✅ Correct
+tsx script.ts            # ❌ Unnecessary
+pnpm exec tsx script.ts  # ❌ Unnecessary
 ```
 
-For code suggestions GitHub can apply inline, wrap code in triple backticks with `suggestion`:
-
-```bash
-pr-review-post 123 src/component.tsx 42 "Use twMerge:
-\`\`\`suggestion
-className={twMerge('flex gap-3', className)}
-\`\`\`"
-```
-
-Reply to an existing top-level comment (cannot reply to replies):
-
-```bash
-pr-review-reply 456789 'Good catch, I'\''ll fix this'  # Escape apostrophe in single quotes
-pr-review-reply 456789 'Good catch, I will fix this'   # Or avoid contractions
-pr-review-reply 456789 -f reply.txt
-pr-review-reply 456789 'Thanks!' --pr 123  # Specify PR number to speed up search
-```
-
-**Important**: Always use **single quotes** around Markdown content to preserve backticks and code fences. Double quotes trigger shell command substitution (`$(...)` and backticks), which will break backticked text and can execute unintended commands. For multiline replies with code blocks:
-
-````bash
-pr-review-reply 123 'Fixed in commit abc123.
-
-Code:
-```ts
-if (x) { }
-```' --pr 2 --yes
-````
-
-List comment IDs for a PR:
-
-```bash
-pr-comments 123
-pr-comments 123 --json  # For parsing
-```
+Node.js 22.18+ and 24+ run `.ts` files natively without flags. External TypeScript runners add unnecessary dependencies and complexity.
 
 
 ---
@@ -467,6 +484,27 @@ if (result.ok) {
 
 ---
 
+# Rule: ESLint Print Config
+
+Use `eslint --print-config` to check if a rule is enabled in the resolved configuration. This queries ESLint's actual computed config rather than searching config files for text strings.
+
+```bash
+# Simple example
+pnpm exec eslint --print-config src/index.ts | jq -e '.rules["no-console"][0]'
+```
+
+```bash
+# Complex example (namespaced rule)
+pnpm exec eslint --print-config src/index.ts | jq -e '.rules["@typescript-eslint/no-unnecessary-type-parameters"][0]'
+# Returns: 2 (error), 1 (warn), 0 (off)
+# Exit code 1 if rule not found
+```
+
+The `-e` flag makes jq exit with code 1 when the result is null, useful for scripting.
+
+
+---
+
 # Rule: Import Type
 
 Use import type whenever you are importing a type.
@@ -662,13 +700,6 @@ Avoid this pattern for:
 
 ---
 
-# Rule: Package Manager Detection
-
-Prefer the package.json "packageManager" field to determine the intended package manager (and version); if missing, fall back to lockfiles (pnpm-lock.yaml, package-lock.json, yarn.lock, bun.lockb), otherwise default to npm. On conflicts, trust "packageManager" and warn; in monorepos, read the nearest package.json for the targeted workspace.
-
-
----
-
 # Rule: Package Manager Execution
 
 In pnpm projects, use `pnpm exec` to run locally installed binaries. Do not use `pnpx`, which is an alias for `pnpm dlx` that downloads packages from the registry and ignores local installations. Use `pnpx` only for one-off commands where you want to run a package without installing it locally.
@@ -711,70 +742,23 @@ For React hooks returning objects, annotate: `(): { state: string; }`.
 
 # Rule: TypeScript Config File Patterns
 
-Use explicit `include` and `exclude` patterns in environment-specific TypeScript configs to ensure production builds exclude test files and test configs include all necessary sources.
-
-## App/Library Config Pattern
+Use explicit `include`/`exclude` patterns in environment-specific configs. Exclude test files from production; include them in test configs.
 
 ```json
-{
-  "include": ["src/**/*.ts", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist", "**/*.test.*", "**/*.spec.*"]
-}
+// tsconfig.json (production)
+{ "include": ["src/**/*.ts"], "exclude": ["**/*.test.*", "**/*.spec.*"] }
+
+// tsconfig.test.json
+{ "include": ["**/*.test.*", "**/*.spec.*"], "exclude": ["node_modules", "dist"] }
 ```
 
-**Why:**
+## Glob Support
 
-- `include` captures all source files and type definitions
-- `exclude` prevents test files from being compiled into your production bundle
-- Test files would add unnecessary code and test framework type dependencies to the build
-- Keeps the output bundle clean and minimal
+TypeScript globs are intentionally limited and differ from bash/zsh globs: `*`, `**`, `{a,b}` work; extended patterns (`?(x)`, `!(x)`) do not. Use `**/*.test.*` instead of `**/*.{test,spec}.?(c|m)[jt]s?(x)`.
 
-## Test Config Pattern
+## Resolution Priority
 
-```json
-{
-  "include": ["**/*.test.*", "**/*.spec.*", "types/**/*.d.ts"],
-  "exclude": ["node_modules", "dist"]
-}
-```
-
-**Why:**
-
-- `include` explicitly matches test files (`.test.*` and `.spec.*` patterns)
-- Includes type definitions needed by both app and test code
-- Allows test-specific compiler options (like vitest/globals types)
-- `exclude` prevents duplicate compilation of dependencies and build artifacts
-
-## Pattern Limitations
-
-TypeScript's glob support is **limited** compared to bash or other tools:
-
-**✅ Supported:**
-
-- `*` - matches any characters except `/`
-- `**` - matches any directory depth
-- `{a,b}` - brace expansion (alternatives)
-
-**❌ Not Supported:**
-
-- `?(pattern)` - optional groups
-- `+(pattern)` - one or more
-- `@(pattern)` - exactly one
-- `!(pattern)` - negation
-
-**Use simple patterns:** `**/*.test.*` instead of `**/*.{test,spec}.?(c|m)[jt]s?(x)`
-
-## File Selection Priority
-
-TypeScript prioritizes files using this hierarchy:
-
-1. **`files`** (highest priority): Explicitly listed files are always included and cannot be excluded
-2. **`include`**: Defines broad sets of files to compile using glob patterns
-3. **`exclude`**: Filters out files from those matched by `include`
-
-**Key principle**: If a file matches both `include` and `exclude`, it is **excluded**. Use `exclude` to filter out unwanted files from broad `include` patterns.
-
-**Exception**: Files referenced via `import` statements or triple-slash directives (`/// <reference path="..." />`) can be included even if they match `exclude` patterns
+`files` > `include` > `exclude`. If a file matches both `include` and `exclude`, it is excluded. Exception: imported files bypass `exclude`.
 
 
 ---
