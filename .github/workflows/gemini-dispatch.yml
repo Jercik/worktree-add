@@ -59,6 +59,7 @@ jobs:
       command: "${{ steps.extract_command.outputs.command }}"
       request: "${{ steps.extract_command.outputs.request }}"
       additional_context: "${{ steps.extract_command.outputs.additional_context }}"
+      checkout_ref: "${{ steps.extract_command.outputs.checkout_ref }}"
       issue_number: "${{ github.event.pull_request.number || github.event.issue.number }}"
     steps:
       - name: "Mint identity token"
@@ -82,8 +83,26 @@ jobs:
         with:
           script: |
             const eventType = process.env.EVENT_TYPE;
-            const request = process.env.REQUEST;
+            const request = process.env.REQUEST || "";
             core.setOutput('request', request);
+
+            let checkoutRef;
+            if (context.payload.pull_request) {
+              const pr = context.payload.pull_request;
+              checkoutRef = pr.head.repo.fork
+                ? `refs/pull/${pr.number}/merge`
+                : pr.head.sha;
+            } else if (context.payload.issue?.pull_request && request.startsWith("@gemini-cli")) {
+              const { owner, repo } = context.repo;
+              const pull_number = context.issue.number;
+              const pr = await github.rest.pulls.get({ owner, repo, pull_number });
+              checkoutRef = pr.data.head.repo.fork
+                ? `refs/pull/${pr.data.number}/merge`
+                : pr.data.head.sha;
+            }
+            if (checkoutRef) {
+              core.setOutput('checkout_ref', checkoutRef);
+            }
 
             if (eventType === 'pull_request_target.opened') {
               core.setOutput('command', 'review');
@@ -123,6 +142,7 @@ jobs:
       pull-requests: "write"
     with:
       additional_context: "${{ needs.dispatch.outputs.additional_context }}"
+      checkout_ref: "${{ needs.dispatch.outputs.checkout_ref }}"
     secrets: "inherit"
 
   invoke:
@@ -137,6 +157,7 @@ jobs:
       pull-requests: "write"
     with:
       additional_context: "${{ needs.dispatch.outputs.additional_context }}"
+      checkout_ref: "${{ needs.dispatch.outputs.checkout_ref }}"
     secrets: "inherit"
 
   fallthrough:
