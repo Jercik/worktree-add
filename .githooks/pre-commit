@@ -25,7 +25,7 @@ fi
 
 git diff --cached --name-only --diff-filter=ACMR -z \
   | xargs -0 -I{} sh -c 'test -L "$1" || printf "%s\0" "$1"' _ {} \
-  | xargs -0 $PRETTIER_CMD --write --ignore-unknown --log-level warn --
+  | xargs -0 sh -c "$PRETTIER_CMD --write --ignore-unknown --log-level warn -- \"\$@\"" _
 git update-index --again
 
 run_script() {
