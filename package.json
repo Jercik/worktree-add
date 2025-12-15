@@ -29,7 +29,7 @@
     "clean": "rm -rf dist *.tsbuildinfo",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "fta": "fta-check --threshold 55",
+    "fta": "fta-check",
     "knip": "knip",
     "lint": "eslint",
     "rebuild": "pnpm run clean && pnpm run build",
