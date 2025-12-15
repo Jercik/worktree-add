@@ -24,7 +24,7 @@ else
 fi
 
 git diff --cached --name-only --diff-filter=ACMR -z \
-  | xargs -0 -I{} sh -c 'test -L "$1" || printf "%s\0" "$1"' _ {} \
+  | xargs -0 bash -c 'for f; do [[ -L "$f" ]] || printf "%s\0" "$f"; done' _ \
   | xargs -0 "${PRETTIER_CMD[@]}" --write --ignore-unknown --log-level warn --
 git update-index --again
 
@@ -53,4 +53,11 @@ run_script "knip"
 run_script "typecheck"
 run_script "lint"
 run_script "fta"
-run_script "test"
+
+# Run tests quietly - only show output on failure
+if output=$(run_script "test" 2>&1); then
+  : # Success, stay silent
+else
+  echo "$output"
+  exit 1
+fi
