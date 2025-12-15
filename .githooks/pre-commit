@@ -15,9 +15,9 @@ fi
 
 # Format staged files with prettier (filter out symlinks - prettier refuses to format them)
 if command -v pnpm >/dev/null 2>&1; then
-  PRETTIER_CMD="pnpm exec prettier"
+  PRETTIER_CMD=(pnpm exec prettier)
 elif command -v npm >/dev/null 2>&1; then
-  PRETTIER_CMD="npx prettier"
+  PRETTIER_CMD=(npx prettier)
 else
   echo "No package manager available to run prettier" >&2
   exit 1
@@ -25,7 +25,7 @@ fi
 
 git diff --cached --name-only --diff-filter=ACMR -z \
   | xargs -0 -I{} sh -c 'test -L "$1" || printf "%s\0" "$1"' _ {} \
-  | xargs -0 sh -c "$PRETTIER_CMD --write --ignore-unknown --log-level warn -- \"\$@\"" _
+  | xargs -0 "${PRETTIER_CMD[@]}" --write --ignore-unknown --log-level warn --
 git update-index --again
 
 run_script() {
