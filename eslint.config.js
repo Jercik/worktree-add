@@ -1,6 +1,6 @@
 import path from "node:path";
-import { axpoint } from "eslint-config-axpoint";
+import { axkit } from "eslint-config-axkit";
 
 const gitignorePath = path.join(import.meta.dirname, ".gitignore");
 
-export default axpoint({ gitignorePath });
+export default axkit({ gitignorePath });
