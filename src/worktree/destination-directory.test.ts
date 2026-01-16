@@ -1,5 +1,4 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { Mock } from "vitest";
 
 import { handleExistingDirectory } from "./destination-directory.js";
 
@@ -23,7 +22,7 @@ describe("handleExistingDirectory", () => {
   });
 
   it("returns early when directory does not exist", async () => {
-    (fileExists as Mock).mockResolvedValue(false);
+    vi.mocked(fileExists).mockResolvedValue(false);
 
     await handleExistingDirectory("/test/path");
 
@@ -33,15 +32,15 @@ describe("handleExistingDirectory", () => {
   });
 
   it("exits cleanly when user declines to remove directory", async () => {
-    (fileExists as Mock).mockResolvedValue(true);
-    (confirm as Mock).mockResolvedValue(false);
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(confirm).mockResolvedValue(false);
 
     // Mock process.exit to throw an error to stop execution
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("Process exit");
     });
 
-    await expect(handleExistingDirectory("/test/path")).rejects.toThrow(
+    await expect(handleExistingDirectory("/test/path")).rejects.toThrowError(
       "Process exit",
     );
 
@@ -57,9 +56,9 @@ describe("handleExistingDirectory", () => {
   });
 
   it("moves directory to trash when user confirms", async () => {
-    (fileExists as Mock).mockResolvedValue(true);
-    (confirm as Mock).mockResolvedValue(true);
-    (trash as Mock).mockResolvedValue(void 0);
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(confirm).mockResolvedValue(true);
+    vi.mocked(trash).mockResolvedValue(void 0);
 
     await handleExistingDirectory("/test/path");
 
@@ -77,10 +76,10 @@ describe("handleExistingDirectory", () => {
   });
 
   it("logs error details and exits when trash operation fails", async () => {
-    (fileExists as Mock).mockResolvedValue(true);
-    (confirm as Mock).mockResolvedValue(true);
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(confirm).mockResolvedValue(true);
     const trashError = new Error("Permission denied");
-    (trash as Mock).mockRejectedValue(trashError);
+    vi.mocked(trash).mockRejectedValue(trashError);
 
     await handleExistingDirectory("/test/path");
 
@@ -96,9 +95,9 @@ describe("handleExistingDirectory", () => {
   });
 
   it("handles non-Error exceptions from trash operation", async () => {
-    (fileExists as Mock).mockResolvedValue(true);
-    (confirm as Mock).mockResolvedValue(true);
-    (trash as Mock).mockRejectedValue("String error");
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(confirm).mockResolvedValue(true);
+    vi.mocked(trash).mockRejectedValue("String error");
 
     await handleExistingDirectory("/test/path");
 
@@ -112,16 +111,16 @@ describe("handleExistingDirectory", () => {
   });
 
   it("includes recovery hint in confirmation message", async () => {
-    (fileExists as Mock).mockResolvedValue(true);
-    (confirm as Mock).mockResolvedValue(false);
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(confirm).mockResolvedValue(false);
 
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("Process exit");
     });
 
-    await expect(handleExistingDirectory("/test/my-worktree")).rejects.toThrow(
-      "Process exit",
-    );
+    await expect(
+      handleExistingDirectory("/test/my-worktree"),
+    ).rejects.toThrowError("Process exit");
 
     expect(confirm).toHaveBeenCalledWith(
       expect.stringContaining("You can restore it from your system trash"),
