@@ -54,7 +54,7 @@ export function isEditorCommandSafe(editor: string): boolean {
 
 async function main(
   branchRaw: string,
-  options: { editor?: string },
+  options: { editor?: string; ide?: boolean },
 ): Promise<void> {
   const branch = normalizeBranchName(branchRaw);
 
@@ -92,30 +92,32 @@ async function main(
   // Step 4: Install dependencies and run project-specific setup
   await setupProject(destinationDirectory);
 
-  // Step 5: Open the new worktree in the editor
-  const editor = resolveEditor({
-    optionEditor: options.editor,
-    environmentEditor: process.env.WORKTREE_ADD_EDITOR,
-  });
+  // Step 5: Open the new worktree in the editor (if --ide flag is set)
+  if (options.ide) {
+    const editor = resolveEditor({
+      optionEditor: options.editor,
+      environmentEditor: process.env.WORKTREE_ADD_EDITOR,
+    });
 
-  // Validate editor command to prevent injection attacks
-  if (!isEditorCommandSafe(editor)) {
-    exitWithMessage(
-      "Invalid editor command: shell metacharacters not allowed.\n" +
-        "Please use a simple editor name (e.g., 'code', 'cursor', 'vim').",
-    );
-  }
+    // Validate editor command to prevent injection attacks
+    if (!isEditorCommandSafe(editor)) {
+      exitWithMessage(
+        "Invalid editor command: shell metacharacters not allowed.\n" +
+          "Please use a simple editor name (e.g., 'code', 'cursor', 'vim').",
+      );
+    }
 
-  console.log(`➤ Opening ${editor} …`);
-  const result = spawnSync(editor, [destinationDirectory], {
-    stdio: "inherit",
-  });
+    console.log(`➤ Opening ${editor} …`);
+    const result = spawnSync(editor, [destinationDirectory], {
+      stdio: "inherit",
+    });
 
-  if (result.error) {
-    console.error(`Failed to open ${editor}: ${result.error.message}`);
-    console.error(
-      "The worktree was created successfully, but the editor could not be opened.",
-    );
+    if (result.error) {
+      console.error(`Failed to open ${editor}: ${result.error.message}`);
+      console.error(
+        "The worktree was created successfully, but the editor could not be opened.",
+      );
+    }
   }
 }
 
@@ -130,14 +132,17 @@ const program = new Command()
     "-e, --editor <command>",
     "Editor to open the worktree with (default: WORKTREE_ADD_EDITOR env var or 'code')",
   )
-  .action(async (branch: string, options: { editor?: string }) => {
-    try {
-      await main(branch, options);
-    } catch (error: unknown) {
-      console.error(error);
-      process.exitCode = 1;
-    }
-  });
+  .option("--ide", "Open the worktree in the editor after creation")
+  .action(
+    async (branch: string, options: { editor?: string; ide?: boolean }) => {
+      try {
+        await main(branch, options);
+      } catch (error: unknown) {
+        console.error(error);
+        process.exitCode = 1;
+      }
+    },
+  );
 
 if (!process.env.VITEST) {
   program.parse();
