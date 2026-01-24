@@ -12,7 +12,7 @@ import {
 } from "./git.js";
 
 /**
- * Fetch a remote branch if it exists locally but not remotely
+ * Fetch a remote branch if it exists remotely but not locally.
  */
 export function fetchRemoteBranch(branch: string): void {
   if (!localBranchExists(branch) && remoteBranchExists(branch)) {
