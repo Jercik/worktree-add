@@ -18,63 +18,17 @@ import {
   stashChanges,
 } from "./git.js";
 
-type ResolutionChoice = "keep-local" | "update-local" | "abort";
-type UncommittedChoice = "stash" | "continue" | "abort";
+import {
+  parseResolutionChoice,
+  parseUncommittedChoice,
+} from "./parse-branch-head-mismatch-choice.js";
+
+import type {
+  ResolutionChoice,
+  UncommittedChoice,
+} from "./parse-branch-head-mismatch-choice.js";
 
 const shortHash = (value: string): string => value.slice(0, 7);
-
-const parseResolutionChoice = (
-  input: string,
-  defaultChoice: ResolutionChoice,
-): ResolutionChoice | undefined => {
-  const normalized = input.trim().toLowerCase();
-  if (normalized === "") return defaultChoice;
-  if (normalized === "1" || normalized === "keep" || normalized === "local") {
-    return "keep-local";
-  }
-  if (
-    normalized === "2" ||
-    normalized === "update" ||
-    normalized === "remote"
-  ) {
-    return "update-local";
-  }
-  if (
-    normalized === "3" ||
-    normalized === "abort" ||
-    normalized === "a" ||
-    normalized === "q" ||
-    normalized === "quit"
-  ) {
-    return "abort";
-  }
-  return undefined;
-};
-
-const parseUncommittedChoice = (
-  input: string,
-  defaultChoice: UncommittedChoice,
-): UncommittedChoice | undefined => {
-  const normalized = input.trim().toLowerCase();
-  if (normalized === "") return defaultChoice;
-  if (normalized === "s" || normalized === "stash") return "stash";
-  if (
-    normalized === "c" ||
-    normalized === "continue" ||
-    normalized === "keep"
-  ) {
-    return "continue";
-  }
-  if (
-    normalized === "a" ||
-    normalized === "abort" ||
-    normalized === "q" ||
-    normalized === "quit"
-  ) {
-    return "abort";
-  }
-  return undefined;
-};
 
 const getAheadBehindCounts = (
   localHead: string,
