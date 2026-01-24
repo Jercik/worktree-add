@@ -41,8 +41,8 @@ const getAheadBehindCounts = (
     `${localHead}...${remoteHead}`,
   );
   const [aheadRaw, behindRaw] = output.split(/\s+/u);
-  const ahead = Number.parseInt(aheadRaw ?? "0", 10);
-  const behind = Number.parseInt(behindRaw ?? "0", 10);
+  const ahead = Number.parseInt(aheadRaw ?? "0");
+  const behind = Number.parseInt(behindRaw ?? "0");
   return {
     ahead: Number.isNaN(ahead) ? 0 : ahead,
     behind: Number.isNaN(behind) ? 0 : behind,
@@ -81,7 +81,7 @@ const promptResolution = async (
   console.warn(`  2) ${updateLabel}`);
   console.warn("  3) Abort");
 
-  while (true) {
+  for (;;) {
     const answer = await prompt(`Select an option (default: ${defaultIndex}): `);
     const choice = parseResolutionChoice(answer, defaultChoice);
     if (choice) return choice;
@@ -97,7 +97,7 @@ const handleUncommittedChanges = async (branch: string): Promise<boolean> => {
     "Updating the local branch ref will not touch them, but you can stash first.",
   );
 
-  while (true) {
+  for (;;) {
     const answer = await prompt(
       "Choose: [s]tash, [c]ontinue, [a]bort (default: c): ",
     );
@@ -166,6 +166,6 @@ export async function resolveBranchHeadMismatch(branch: string): Promise<boolean
   }
 
   console.log(`➤ Updating local branch '${normalized}' to origin/${normalized} …`);
-  git("branch", "-f", normalized, `origin/${normalized}`);
+  git("branch", "-f", "--", normalized, `origin/${normalized}`);
   return true;
 }
