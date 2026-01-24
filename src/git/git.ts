@@ -87,12 +87,13 @@ export function remoteBranchExists(branch: string): boolean {
  */
 export function fetchOriginBranch(branch: string): void {
   const normalized = normalizeBranchName(branch);
-  const result = spawnSync("git", ["fetch", "origin", normalized], {
+  const refspec = `+refs/heads/${normalized}:refs/remotes/origin/${normalized}`;
+  const result = spawnSync("git", ["fetch", "origin", refspec], {
     stdio: "inherit",
   });
   if (result.error) throw result.error;
   if (result.status !== 0) {
-    throw new Error(`git fetch origin ${normalized} failed`);
+    throw new Error(`git fetch origin ${refspec} failed`);
   }
 }
 
