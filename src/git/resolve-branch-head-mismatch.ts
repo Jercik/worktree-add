@@ -135,8 +135,8 @@ const promptResolution = async (
   }
 };
 
-const handleUncommittedChanges = async (branch: string): Promise<void> => {
-  if (!hasUncommittedChanges()) return;
+const handleUncommittedChanges = async (branch: string): Promise<boolean> => {
+  if (!hasUncommittedChanges()) return true;
 
   console.warn("⚠️  You have uncommitted changes in the current worktree.");
   console.warn(
@@ -155,21 +155,20 @@ const handleUncommittedChanges = async (branch: string): Promise<void> => {
     if (choice === "stash") {
       console.log("➤ Stashing changes …");
       stashChanges(`worktree-add: before updating ${branch}`);
-      return;
+      return true;
     }
     if (choice === "continue") {
-      return;
+      return true;
     }
     console.log("Operation cancelled.");
-    // eslint-disable-next-line unicorn/no-process-exit -- User requested cancellation
-    process.exit(0);
+    return false;
   }
 };
 
-export async function resolveBranchHeadMismatch(branch: string): Promise<void> {
+export async function resolveBranchHeadMismatch(branch: string): Promise<boolean> {
   const normalized = normalizeBranchName(branch);
   if (!localBranchExists(normalized) || !remoteBranchExists(normalized)) {
-    return;
+    return true;
   }
 
   console.log(`➤ Fetching origin/${normalized} to check for divergence …`);
@@ -178,7 +177,7 @@ export async function resolveBranchHeadMismatch(branch: string): Promise<void> {
   const localHead = getLocalBranchHead(normalized);
   const remoteHead = getRemoteBranchHead(normalized);
   if (!localHead || !remoteHead || localHead === remoteHead) {
-    return;
+    return true;
   }
 
   const { ahead, behind } = getAheadBehindCounts(localHead, remoteHead);
@@ -192,15 +191,15 @@ export async function resolveBranchHeadMismatch(branch: string): Promise<void> {
 
   if (resolution === "abort") {
     console.log("Operation cancelled.");
-    // eslint-disable-next-line unicorn/no-process-exit -- User requested cancellation
-    process.exit(0);
+    return false;
   }
 
   if (resolution === "keep-local") {
-    return;
+    return true;
   }
 
-  await handleUncommittedChanges(normalized);
+  const shouldContinue = await handleUncommittedChanges(normalized);
+  if (!shouldContinue) return false;
 
   if (ahead > 0) {
     const confirmed = await confirm(
@@ -208,11 +207,11 @@ export async function resolveBranchHeadMismatch(branch: string): Promise<void> {
     );
     if (!confirmed) {
       console.log("Operation cancelled.");
-      // eslint-disable-next-line unicorn/no-process-exit -- User requested cancellation
-      process.exit(0);
+      return false;
     }
   }
 
   console.log(`➤ Updating local branch '${normalized}' to origin/${normalized} …`);
   git("branch", "-f", normalized, `origin/${normalized}`);
+  return true;
 }
