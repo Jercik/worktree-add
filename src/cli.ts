@@ -21,6 +21,7 @@ import {
 } from "./git/git.js";
 import { copyUntrackedFiles } from "./worktree/untracked-file-copy.js";
 import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
+import { resolveBranchHeadMismatch } from "./git/resolve-branch-head-mismatch.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
@@ -67,6 +68,8 @@ async function main(
         "Open that worktree instead or remove it before retrying.",
     );
   }
+
+  await resolveBranchHeadMismatch(branch);
 
   // Determine destination directory for the new worktree
   const repoRoot = git("rev-parse", "--show-toplevel");

@@ -8,18 +8,19 @@ Running `worktree-add <branch>` from inside a repo:
 
 1. Normalizes `<branch>` (supports `origin/foo`, `refs/heads/foo`, etc.).
 2. Refuses if that branch is already checked out in any worktree.
-3. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
-4. If the destination exists, asks before moving it to the system trash.
-5. Fetches `origin/<branch>` when needed and creates a git worktree:
+3. Warns if local and `origin/<branch>` heads differ and asks how to resolve.
+4. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
+5. If the destination exists, asks before moving it to the system trash.
+6. Fetches `origin/<branch>` when needed and creates a git worktree:
    - reuses an existing local branch
    - or creates a tracking branch from `origin/<branch>`
    - or creates a new branch from the current `HEAD`
-6. Copies untracked / ignored files into the new worktree, skipping heavy stuff
+7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
    (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
-7. Detects your package manager and installs dependencies with lockfile‑safe flags
+8. Detects your package manager and installs dependencies with lockfile‑safe flags
    (`npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable`, etc.).
-8. If the project uses Next.js and supports it, runs `next typegen`.
-9. Opens the new worktree in your editor.
+9. If the project uses Next.js and supports it, runs `next typegen`.
+10. Opens the new worktree in your editor.
 
 Your original checkout is left untouched.
 
