@@ -10,18 +10,13 @@ import {
   getLocalBranchHead,
   getRemoteBranchHead,
   git,
-  hasUncommittedChanges,
   localBranchExists,
   normalizeBranchName,
   prompt,
   remoteBranchExists,
-  stashChanges,
 } from "./git.js";
 
-import {
-  parseResolutionChoice,
-  parseUncommittedChoice,
-} from "./parse-branch-head-mismatch-choice.js";
+import { parseResolutionChoice } from "./parse-branch-head-mismatch-choice.js";
 
 import type { ResolutionChoice } from "./parse-branch-head-mismatch-choice.js";
 
@@ -88,36 +83,6 @@ const promptResolution = async (
   }
 };
 
-const handleUncommittedChanges = async (branch: string): Promise<boolean> => {
-  if (!hasUncommittedChanges()) return true;
-
-  console.warn("⚠️  You have uncommitted changes in the current worktree.");
-  console.warn(
-    "Updating the local branch ref will not touch them, but you can stash first.",
-  );
-
-  for (;;) {
-    const answer = await prompt(
-      "Choose: [s]tash, [c]ontinue, [a]bort (default: c): ",
-    );
-    const choice = parseUncommittedChoice(answer, "continue");
-    if (!choice) {
-      console.log("Please enter s, c, or a.");
-      continue;
-    }
-    if (choice === "stash") {
-      console.log("➤ Stashing changes …");
-      stashChanges(`worktree-add: before updating ${branch}`);
-      return true;
-    }
-    if (choice === "continue") {
-      return true;
-    }
-    console.log("Operation cancelled.");
-    return false;
-  }
-};
-
 export async function resolveBranchHeadMismatch(
   branch: string,
 ): Promise<boolean> {
@@ -152,9 +117,6 @@ export async function resolveBranchHeadMismatch(
   if (resolution === "keep-local") {
     return true;
   }
-
-  const shouldContinue = await handleUncommittedChanges(normalized);
-  if (!shouldContinue) return false;
 
   if (ahead > 0) {
     const confirmed = await confirm(

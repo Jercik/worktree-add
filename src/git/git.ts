@@ -187,24 +187,6 @@ export async function confirm(message: string): Promise<boolean> {
 /**
  * Check for uncommitted changes in the current worktree.
  */
-export function hasUncommittedChanges(cwd?: string): boolean {
-  const output = cwd
-    ? git("status", "--porcelain", { cwd })
-    : git("status", "--porcelain");
-  return output.length > 0;
-}
-
-/**
- * Stash uncommitted changes, including untracked files.
- */
-export function stashChanges(message: string, cwd?: string): void {
-  if (cwd) {
-    git("stash", "push", "-u", "-m", message, { cwd });
-    return;
-  }
-  git("stash", "push", "-u", "-m", message);
-}
-
 // Re-export worktree parsing functions for backward compatibility
 export {
   getRepositoryName,
