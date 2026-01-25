@@ -79,7 +79,7 @@ const promptResolution = async (
     );
     const choice = parseResolutionChoice(answer, defaultChoice);
     if (choice) return choice;
-    console.log("Please enter 1, 2, or 3.");
+    console.warn("Please enter 1, 2, or 3.");
   }
 };
 
@@ -91,7 +91,7 @@ export async function resolveBranchHeadMismatch(
     return true;
   }
 
-  console.log(`➤ Fetching origin/${normalized} to check for divergence …`);
+  console.warn(`➤ Fetching origin/${normalized} to check for divergence …`);
   fetchOriginBranch(normalized);
 
   const localHead = getLocalBranchHead(normalized);
@@ -110,7 +110,7 @@ export async function resolveBranchHeadMismatch(
   );
 
   if (resolution === "abort") {
-    console.log("Operation cancelled.");
+    console.warn("Operation cancelled.");
     return false;
   }
 
@@ -123,12 +123,12 @@ export async function resolveBranchHeadMismatch(
       `Updating local '${normalized}' will discard ${ahead} local commit${ahead === 1 ? "" : "s"} not on origin. Continue?`,
     );
     if (!confirmed) {
-      console.log("Operation cancelled.");
+      console.warn("Operation cancelled.");
       return false;
     }
   }
 
-  console.log(
+  console.warn(
     `➤ Updating local branch '${normalized}' to origin/${normalized} …`,
   );
   git("branch", "-f", "--", normalized, `origin/${normalized}`);
