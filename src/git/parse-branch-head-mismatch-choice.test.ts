@@ -31,7 +31,7 @@ describe("parseResolutionChoice", () => {
   });
 
   it("returns undefined on invalid input", () => {
-    expect(parseResolutionChoice("nope", "keep-local")).toBe(undefined);
+    expect(parseResolutionChoice("nope", "keep-local")).toBeUndefined();
   });
 });
 
@@ -60,7 +60,6 @@ describe("parseUncommittedChoice", () => {
   });
 
   it("returns undefined on invalid input", () => {
-    expect(parseUncommittedChoice("nope", "continue")).toBe(undefined);
+    expect(parseUncommittedChoice("nope", "continue")).toBeUndefined();
   });
 });
-

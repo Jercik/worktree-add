@@ -23,10 +23,7 @@ import {
   parseUncommittedChoice,
 } from "./parse-branch-head-mismatch-choice.js";
 
-import type {
-  ResolutionChoice,
-  UncommittedChoice,
-} from "./parse-branch-head-mismatch-choice.js";
+import type { ResolutionChoice } from "./parse-branch-head-mismatch-choice.js";
 
 const shortHash = (value: string): string => value.slice(0, 7);
 
@@ -82,7 +79,9 @@ const promptResolution = async (
   console.warn("  3) Abort");
 
   for (;;) {
-    const answer = await prompt(`Select an option (default: ${defaultIndex}): `);
+    const answer = await prompt(
+      `Select an option (default: ${defaultIndex}): `,
+    );
     const choice = parseResolutionChoice(answer, defaultChoice);
     if (choice) return choice;
     console.log("Please enter 1, 2, or 3.");
@@ -119,7 +118,9 @@ const handleUncommittedChanges = async (branch: string): Promise<boolean> => {
   }
 };
 
-export async function resolveBranchHeadMismatch(branch: string): Promise<boolean> {
+export async function resolveBranchHeadMismatch(
+  branch: string,
+): Promise<boolean> {
   const normalized = normalizeBranchName(branch);
   if (!localBranchExists(normalized) || !remoteBranchExists(normalized)) {
     return true;
@@ -165,7 +166,9 @@ export async function resolveBranchHeadMismatch(branch: string): Promise<boolean
     }
   }
 
-  console.log(`➤ Updating local branch '${normalized}' to origin/${normalized} …`);
+  console.log(
+    `➤ Updating local branch '${normalized}' to origin/${normalized} …`,
+  );
   git("branch", "-f", "--", normalized, `origin/${normalized}`);
   return true;
 }
