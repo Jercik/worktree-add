@@ -25,6 +25,7 @@ describe("parseResolutionChoice", () => {
     expect(parseResolutionChoice("a", "keep-local")).toBe("abort");
     expect(parseResolutionChoice("q", "keep-local")).toBe("abort");
     expect(parseResolutionChoice("quit", "keep-local")).toBe("abort");
+    expect(parseResolutionChoice("abort", "keep-local")).toBe("abort");
   });
 
   it("returns undefined on invalid input", () => {
