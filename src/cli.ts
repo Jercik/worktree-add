@@ -70,7 +70,10 @@ async function main(
   }
 
   const shouldContinue = await resolveBranchHeadMismatch(branch);
-  if (!shouldContinue) return;
+  if (!shouldContinue) {
+    process.exitCode = 1;
+    return;
+  }
 
   // Determine destination directory for the new worktree
   const repoRoot = git("rev-parse", "--show-toplevel");

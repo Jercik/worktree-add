@@ -163,7 +163,7 @@ export function exitWithMessage(message: string): never {
 export async function prompt(message: string): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
-    output: process.stdout,
+    output: process.stderr,
   });
 
   try {
