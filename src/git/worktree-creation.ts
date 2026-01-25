@@ -4,18 +4,20 @@
  * Utilities for creating Git worktrees
  */
 
-import { spawnSync } from "node:child_process";
-import { git, localBranchExists, remoteBranchExists } from "./git.js";
+import {
+  fetchOriginBranch,
+  git,
+  localBranchExists,
+  remoteBranchExists,
+} from "./git.js";
 
 /**
- * Fetch a remote branch if it exists locally but not remotely
+ * Fetch a remote branch if it exists remotely but not locally.
  */
 export function fetchRemoteBranch(branch: string): void {
   if (!localBranchExists(branch) && remoteBranchExists(branch)) {
     console.log(`➤ Fetching origin/${branch} …`);
-    spawnSync("git", ["fetch", "origin", branch], {
-      stdio: "inherit",
-    });
+    fetchOriginBranch(branch);
   }
 }
 

@@ -83,6 +83,45 @@ export function remoteBranchExists(branch: string): boolean {
 }
 
 /**
+ * Fetch a branch from origin.
+ */
+export function fetchOriginBranch(branch: string): void {
+  const normalized = normalizeBranchName(branch);
+  const refspec = `+refs/heads/${normalized}:refs/remotes/origin/${normalized}`;
+  const result = spawnSync("git", ["fetch", "origin", "--", refspec], {
+    stdio: "inherit",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`git fetch origin ${refspec} failed`);
+  }
+}
+
+/**
+ * Get the current head commit for a local branch.
+ */
+export function getLocalBranchHead(branch: string): string | undefined {
+  try {
+    const normalized = normalizeBranchName(branch);
+    return git("rev-parse", `refs/heads/${normalized}`);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Get the current head commit for a remote-tracking branch.
+ */
+export function getRemoteBranchHead(branch: string): string | undefined {
+  try {
+    const normalized = normalizeBranchName(branch);
+    return git("rev-parse", `refs/remotes/origin/${normalized}`);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
  * Convert an arbitrary string to a filesystem-safe single path segment.
  *
  * Use this helper when constructing directory names from branch names or other
@@ -119,22 +158,30 @@ export function exitWithMessage(message: string): never {
 }
 
 /**
+ * Prompt for input and return the user's response.
+ */
+export async function prompt(message: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  try {
+    return await rl.question(message);
+  } finally {
+    rl.close();
+  }
+}
+
+/**
  * Prompts user for yes/no confirmation
  * @param message The message to display to the user
  * @returns Promise<boolean> - true if user confirms, false otherwise
  */
 export async function confirm(message: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  try {
-    const answer = await rl.question(`${message} [y/N] `);
-    return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
-  } finally {
-    rl.close();
-  }
+  const answer = await prompt(`${message} [y/N] `);
+  const normalized = answer.trim().toLowerCase();
+  return normalized === "y" || normalized === "yes";
 }
 
 // Re-export worktree parsing functions for backward compatibility

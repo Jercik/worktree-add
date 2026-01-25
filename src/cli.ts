@@ -21,6 +21,7 @@ import {
 } from "./git/git.js";
 import { copyUntrackedFiles } from "./worktree/untracked-file-copy.js";
 import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
+import { resolveBranchHeadMismatch } from "./git/resolve-branch-head-mismatch.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
@@ -66,6 +67,12 @@ async function main(
         "You cannot add another worktree for the same branch.\n" +
         "Open that worktree instead or remove it before retrying.",
     );
+  }
+
+  const shouldContinue = await resolveBranchHeadMismatch(branch);
+  if (!shouldContinue) {
+    process.exitCode = 1;
+    return;
   }
 
   // Determine destination directory for the new worktree
