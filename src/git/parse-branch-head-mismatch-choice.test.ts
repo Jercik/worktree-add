@@ -1,9 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import {
-  parseResolutionChoice,
-  parseUncommittedChoice,
-} from "./parse-branch-head-mismatch-choice.js";
+import { parseResolutionChoice } from "./parse-branch-head-mismatch-choice.js";
 
 describe("parseResolutionChoice", () => {
   it("returns the default on empty input", () => {
@@ -32,34 +29,5 @@ describe("parseResolutionChoice", () => {
 
   it("returns undefined on invalid input", () => {
     expect(parseResolutionChoice("nope", "keep-local")).toBeUndefined();
-  });
-});
-
-describe("parseUncommittedChoice", () => {
-  it("returns the default on empty input", () => {
-    expect(parseUncommittedChoice("", "continue")).toBe("continue");
-    expect(parseUncommittedChoice("   ", "abort")).toBe("abort");
-  });
-
-  it("parses stash", () => {
-    expect(parseUncommittedChoice("s", "continue")).toBe("stash");
-    expect(parseUncommittedChoice("stash", "continue")).toBe("stash");
-  });
-
-  it("parses continue", () => {
-    expect(parseUncommittedChoice("c", "abort")).toBe("continue");
-    expect(parseUncommittedChoice("continue", "abort")).toBe("continue");
-    expect(parseUncommittedChoice("keep", "abort")).toBe("continue");
-  });
-
-  it("parses abort", () => {
-    expect(parseUncommittedChoice("a", "continue")).toBe("abort");
-    expect(parseUncommittedChoice("q", "continue")).toBe("abort");
-    expect(parseUncommittedChoice("quit", "continue")).toBe("abort");
-    expect(parseUncommittedChoice("abort", "continue")).toBe("abort");
-  });
-
-  it("returns undefined on invalid input", () => {
-    expect(parseUncommittedChoice("nope", "continue")).toBeUndefined();
   });
 });

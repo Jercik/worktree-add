@@ -5,7 +5,6 @@
  */
 
 export type ResolutionChoice = "keep-local" | "update-local" | "abort";
-export type UncommittedChoice = "stash" | "continue" | "abort";
 
 export function parseResolutionChoice(
   input: string,
@@ -34,29 +33,3 @@ export function parseResolutionChoice(
   }
   return undefined;
 }
-
-export function parseUncommittedChoice(
-  input: string,
-  defaultChoice: UncommittedChoice,
-): UncommittedChoice | undefined {
-  const normalized = input.trim().toLowerCase();
-  if (normalized === "") return defaultChoice;
-  if (normalized === "s" || normalized === "stash") return "stash";
-  if (
-    normalized === "c" ||
-    normalized === "continue" ||
-    normalized === "keep"
-  ) {
-    return "continue";
-  }
-  if (
-    normalized === "a" ||
-    normalized === "abort" ||
-    normalized === "q" ||
-    normalized === "quit"
-  ) {
-    return "abort";
-  }
-  return undefined;
-}
-

@@ -184,9 +184,6 @@ export async function confirm(message: string): Promise<boolean> {
   return normalized === "y" || normalized === "yes";
 }
 
-/**
- * Check for uncommitted changes in the current worktree.
- */
 // Re-export worktree parsing functions for backward compatibility
 export {
   getRepositoryName,
