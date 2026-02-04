@@ -59,10 +59,12 @@ async function main(
   await handleExistingDirectory(destinationDirectory);
 
   // Step 1: Fetch remote branch if it exists
-  fetchRemoteBranch(branch);
+  const remoteExists = fetchRemoteBranch(branch);
 
   // Step 2: Create the worktree
-  createWorktree(branch, destinationDirectory);
+  createWorktree(branch, destinationDirectory, {
+    remoteBranchExists: remoteExists,
+  });
 
   // Step 3: Copy untracked files, excluding any on the denylist
   await copyUntrackedFiles(repoRoot, destinationDirectory);
@@ -108,7 +110,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <name>",
-    "Repeatable. Apps to open the worktree in (executable names only; or set WORKTREE_ADD_APP env var, comma-separated)",
+    "Repeatable. Apps to open the worktree in (arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated)",
     collectApp,
     [] as string[],
   )

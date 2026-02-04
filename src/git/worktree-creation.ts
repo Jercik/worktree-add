@@ -20,13 +20,15 @@ import {
  * copy is up-to-date.
  *
  * Non-interactive rules:
+ * - Fetch the remote-tracking ref (`origin/<branch>`) for reliable comparisons.
  * - If a local branch exists and is strictly behind origin, fast-forward it.
  * - If a local branch is ahead/diverged, keep it as-is and warn.
  * - If fetching origin fails but the local branch exists, keep local and warn.
  */
-export function fetchRemoteBranch(branch: string): void {
+export function fetchRemoteBranch(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
-  if (!remoteBranchExists(normalized)) return;
+  const remoteExists = remoteBranchExists(normalized);
+  if (!remoteExists) return false;
 
   console.log(`➤ Fetching origin/${normalized} …`);
 
@@ -40,12 +42,12 @@ export function fetchRemoteBranch(branch: string): void {
       console.warn(
         `➤ Warning: failed to fetch origin/${normalized}: ${firstLine}. Using existing local branch.`,
       );
-      return;
+      return true;
     }
 
     const localHead = getLocalBranchHead(normalized);
     const remoteHead = getRemoteBranchHead(normalized);
-    if (!localHead || !remoteHead || localHead === remoteHead) return;
+    if (!localHead || !remoteHead || localHead === remoteHead) return true;
 
     const { ahead, behind } = getAheadBehindCounts(localHead, remoteHead);
 
@@ -54,7 +56,7 @@ export function fetchRemoteBranch(branch: string): void {
         `➤ Fast-forwarding local '${normalized}' to origin/${normalized} …`,
       );
       git("branch", "-f", "--", normalized, `origin/${normalized}`);
-      return;
+      return true;
     }
 
     const descriptors: string[] = [];
@@ -63,11 +65,12 @@ export function fetchRemoteBranch(branch: string): void {
     console.warn(
       `➤ Warning: local branch '${normalized}' has diverged from origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
     );
-    return;
+    return true;
   }
 
   // No local branch: fetch origin/<branch> so createWorktree can create a tracking branch.
   fetchOriginBranch(normalized);
+  return true;
 }
 
 /**
@@ -76,12 +79,13 @@ export function fetchRemoteBranch(branch: string): void {
 export function createWorktree(
   branch: string,
   destinationDirectory: string,
+  options?: { remoteBranchExists?: boolean },
 ): void {
   if (localBranchExists(branch)) {
     // Reuse existing local branch
     console.log(`➤ git worktree add ${destinationDirectory} ${branch}`);
     git("worktree", "add", destinationDirectory, branch);
-  } else if (remoteBranchExists(branch)) {
+  } else if (options?.remoteBranchExists ?? remoteBranchExists(branch)) {
     // Create new local branch tracking the remote branch
     console.log(
       `➤ git worktree add --track -b ${branch} ${destinationDirectory} origin/${branch}`,

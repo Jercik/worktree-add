@@ -78,7 +78,7 @@ Destination directory (assuming repo named `my-app`):
 
 After creating the worktree, the tool can open it in one or more apps. Nothing is opened by default.
 App names are executed on your machine (as application/executable names), so only use values you trust.
-App arguments are not supported (use `code`, not `code -w`).
+Arguments are not parsed: values like `code -w` are treated as part of the app name and will likely fail.
 
 1. `--app <name>` flag (repeatable): `worktree-add feature/foo --app ghostty --app code`
 2. `WORKTREE_ADD_APP` env var (comma-separated): `WORKTREE_ADD_APP=ghostty,code worktree-add feature/foo`
@@ -86,6 +86,8 @@ App arguments are not supported (use `code`, not `code -w`).
 CLI flags take priority over the env var.
 
 If launching an app fails, the worktree still stays created and ready.
+
+Platform note: on macOS the app value is passed to `open -a`, so use an application name like `Visual Studio Code` (or an `.app` path). On Linux/Windows it’s typically treated as an executable name/path.
 
 Tip: add a shell helper with your preferred apps in your shell profile:
 
