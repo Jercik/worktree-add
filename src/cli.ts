@@ -71,6 +71,9 @@ async function main(
 
   // Step 1: Fetch remote branch if it exists
   const remoteBranchExistsHint = fetchRemoteBranch(branch);
+  // `false` means either "does not exist on origin" or "could not be confirmed"
+  // (e.g. offline/auth/origin issues). fetchRemoteBranch prints a warning for
+  // the latter case.
 
   // Step 2: Create the worktree
   createWorktree(branch, destinationDirectory, {

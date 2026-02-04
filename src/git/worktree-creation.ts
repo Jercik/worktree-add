@@ -134,15 +134,23 @@ export function createWorktree(
   destinationDirectory: string,
   options?: { remoteBranchExists?: boolean },
 ): void {
+  // Normalize defensively: callers (including the CLI) often pre-normalize, but
+  // keeping this function robust for other call sites is worth the tiny cost.
   const normalized = normalizeBranchName(branch);
 
   if (localBranchExists(normalized)) {
     // Reuse existing local branch
     console.log(
-      `➤ git worktree add ${destinationDirectory} refs/heads/${normalized}`,
+      `➤ git worktree add -- ${destinationDirectory} refs/heads/${normalized}`,
     );
     // Avoid option-parsing ambiguity for branch names starting with '-'.
-    git("worktree", "add", destinationDirectory, `refs/heads/${normalized}`);
+    git(
+      "worktree",
+      "add",
+      "--",
+      destinationDirectory,
+      `refs/heads/${normalized}`,
+    );
     return;
   }
 
@@ -161,7 +169,7 @@ export function createWorktree(
   if (branchExistsOnOrigin) {
     // Create new local branch tracking the remote branch
     console.log(
-      `➤ git worktree add --track -b ${normalized} ${destinationDirectory} origin/${normalized}`,
+      `➤ git worktree add --track -b ${normalized} -- ${destinationDirectory} origin/${normalized}`,
     );
     git(
       "worktree",
@@ -169,6 +177,7 @@ export function createWorktree(
       "--track",
       "-b",
       normalized,
+      "--",
       destinationDirectory,
       `origin/${normalized}`,
     );
@@ -176,6 +185,6 @@ export function createWorktree(
   }
 
   // Create new branch in the worktree from current HEAD
-  console.log(`➤ git worktree add -b ${normalized} ${destinationDirectory}`);
-  git("worktree", "add", "-b", normalized, destinationDirectory);
+  console.log(`➤ git worktree add -b ${normalized} -- ${destinationDirectory}`);
+  git("worktree", "add", "-b", normalized, "--", destinationDirectory);
 }
