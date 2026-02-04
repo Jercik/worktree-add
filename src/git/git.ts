@@ -179,22 +179,30 @@ export function exitWithMessage(message: string): never {
 }
 
 /**
+ * Prompt for input and return the user's response.
+ */
+async function prompt(message: string): Promise<string> {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stderr,
+  });
+
+  try {
+    return await rl.question(message);
+  } finally {
+    rl.close();
+  }
+}
+
+/**
  * Prompts user for yes/no confirmation
  * @param message The message to display to the user
  * @returns Promise<boolean> - true if user confirms, false otherwise
  */
 export async function confirm(message: string): Promise<boolean> {
-  const rl = readline.createInterface({
-    input: process.stdin,
-    output: process.stdout,
-  });
-
-  try {
-    const answer = await rl.question(`${message} [y/N] `);
-    return answer.toLowerCase() === "y" || answer.toLowerCase() === "yes";
-  } finally {
-    rl.close();
-  }
+  const answer = await prompt(`${message} [y/N] `);
+  const normalized = answer.trim().toLowerCase();
+  return normalized === "y" || normalized === "yes";
 }
 
 // Re-export worktree parsing functions for backward compatibility

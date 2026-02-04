@@ -19,14 +19,10 @@ import {
  * Fetch a remote branch if it exists on origin, ensuring the local
  * copy is up-to-date.
  *
- * When the local branch already exists, uses `git fetch origin
- * branch:branch` to fast-forward it in place. If the local branch
- * has diverged (unpushed commits), the fetch fails safely and the
- * local branch is kept as-is.
- *
- * When the local branch does not exist, fetches the remote tracking
- * ref only so that {@link createWorktree} can create the local branch
- * with proper `--track` configuration.
+ * Non-interactive rules:
+ * - If a local branch exists and is strictly behind origin, fast-forward it.
+ * - If a local branch is ahead/diverged, keep it as-is and warn.
+ * - If fetching origin fails but the local branch exists, keep local and warn.
  */
 export function fetchRemoteBranch(branch: string): void {
   const normalized = normalizeBranchName(branch);
@@ -34,7 +30,6 @@ export function fetchRemoteBranch(branch: string): void {
 
   console.log(`➤ Fetching origin/${normalized} …`);
 
-  // Always refresh the remote-tracking ref so comparisons are reliable (and locale-independent).
   if (localBranchExists(normalized)) {
     try {
       fetchOriginBranch(normalized);
@@ -71,7 +66,7 @@ export function fetchRemoteBranch(branch: string): void {
     return;
   }
 
-  // No local branch yet: fetch the remote-tracking ref so createWorktree can use origin/<branch>.
+  // No local branch: fetch origin/<branch> so createWorktree can create a tracking branch.
   fetchOriginBranch(normalized);
 }
 
