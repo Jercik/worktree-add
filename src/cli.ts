@@ -93,7 +93,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <names...>",
-    "Apps to open the worktree in (or set WORKTREE_ADD_APP env var, comma-separated)",
+    "Apps to open the worktree in (executable names only; or set WORKTREE_ADD_APP env var, comma-separated)",
   )
   .action(async (branch: string, options: { app?: string[] }) => {
     try {

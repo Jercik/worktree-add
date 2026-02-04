@@ -31,9 +31,10 @@ export function fetchRemoteBranch(branch: string): void {
       const trimmed = message.trim();
       const firstLine = trimmed.split("\n")[0] ?? trimmed;
 
+      const normalized = trimmed.toLowerCase();
       const looksLikeNonFastForward =
-        firstLine.includes("non-fast-forward") ||
-        firstLine.includes("rejected");
+        normalized.includes("non-fast-forward") ||
+        normalized.includes("rejected");
 
       if (looksLikeNonFastForward) return;
 

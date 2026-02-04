@@ -75,6 +75,7 @@ Destination directory (assuming repo named `my-app`):
 
 After creating the worktree, the tool can open it in one or more apps. Nothing is opened by default.
 App names are executed on your machine (as application/executable names), so only use values you trust.
+App arguments are not supported (use `code`, not `code -w`).
 
 1. `--app <name>` flag (repeatable): `worktree-add feature/foo --app ghostty --app code`
 2. `WORKTREE_ADD_APP` env var (comma-separated): `WORKTREE_ADD_APP=ghostty,code worktree-add feature/foo`
