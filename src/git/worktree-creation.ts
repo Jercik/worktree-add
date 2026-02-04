@@ -91,12 +91,20 @@ export function fetchRemoteBranch(branch: string): boolean {
       return true;
     }
 
+    if (ahead === 0 && behind === 0) {
+      console.warn(
+        `➤ Warning: local branch '${normalized}' differs from origin/${normalized} (unable to determine ahead/behind); using existing local branch as-is.`,
+      );
+      return true;
+    }
+
     const descriptors: string[] = [];
     if (ahead > 0) descriptors.push(`ahead by ${ahead}`);
     if (behind > 0) descriptors.push(`behind by ${behind}`);
-    if (descriptors.length === 0) descriptors.push("commits differ");
+
+    const relationship = behind > 0 ? "has diverged from" : "is ahead of";
     console.warn(
-      `➤ Warning: local branch '${normalized}' has diverged from origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
+      `➤ Warning: local branch '${normalized}' ${relationship} origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
     );
     return true;
   }

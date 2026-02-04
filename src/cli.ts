@@ -124,7 +124,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <name>",
-    "Repeatable. Apps to open the worktree in (detached; arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated)",
+    'Repeatable. Apps to open the worktree in (detached; arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated). To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".',
     collectApp,
   )
   .action(async (branch: string, options: { app?: string[] }) => {
