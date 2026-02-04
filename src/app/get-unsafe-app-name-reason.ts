@@ -1,13 +1,12 @@
 /**
  * Defense-in-depth filter for app names passed to the `open` package.
  *
- * This is not intended as shell-injection mitigation. The `open` package uses
- * `child_process.spawn()` without `shell: true`; on Windows it spawns PowerShell
- * and escapes/encodes arguments, on macOS it invokes `open -a`, and on Linux it
- * spawns the app directly when an explicit app is provided (otherwise it uses
- * `xdg-open`). These checks primarily prevent confusing/unsafe
- * terminal output (control characters) and reject a few extremely unlikely
- * characters as an extra guardrail (not a security boundary).
+ * This is not intended as shell-injection mitigation. In `open@11` (currently
+ * used by this repo), the implementation uses `child_process.spawn()` without
+ * `shell: true`, but the exact subprocess differs by platform (macOS: `open -a`,
+ * Linux: usually `xdg-open` unless an explicit app is provided, Windows:
+ * PowerShell). This comment is informational, not a guarantee — treat this
+ * filter as a UX/diagnostics guardrail rather than a security boundary.
  */
 export function getUnsafeAppNameReason(appName: string): string | undefined {
   if (appName.includes(";")) return "contains ';'";

@@ -123,7 +123,7 @@ export function fetchRemoteBranch(branch: string): {
   } catch (error) {
     const diagnostic = extractDiagnosticLine(error);
     console.warn(
-      `➤ Warning: failed to reach origin to check whether '${normalized}' exists: ${diagnostic}. Creating a new local branch from current HEAD. (If you expected a remote branch, double-check your network connection and branch name.)`,
+      `➤ Warning: failed to reach origin to check whether '${normalized}' exists: ${diagnostic}. (If you expected a remote branch, double-check your network connection and branch name.)`,
     );
     return { status: "unknown", localExists };
   }
