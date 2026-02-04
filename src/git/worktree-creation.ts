@@ -34,7 +34,8 @@ export function fetchRemoteBranch(branch: string): void {
       const normalized = trimmed.toLowerCase();
       const looksLikeNonFastForward =
         normalized.includes("non-fast-forward") ||
-        normalized.includes("rejected");
+        normalized.includes("non fast-forward") ||
+        normalized.includes("non-fast forward");
 
       if (looksLikeNonFastForward) {
         console.warn(

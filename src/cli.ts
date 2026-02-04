@@ -11,6 +11,7 @@ import path from "node:path";
 import { Command } from "commander";
 import open from "open";
 import packageJson from "../package.json" with { type: "json" };
+import { getUnsafeAppNameReason } from "./app/get-unsafe-app-name-reason.js";
 import { resolveApps } from "./app/resolve-apps.js";
 import {
   git,
@@ -76,9 +77,19 @@ async function main(
   });
 
   for (const app of apps) {
+    const unsafeReason = getUnsafeAppNameReason(app);
+    if (unsafeReason) {
+      console.error(
+        `Skipping app '${app}': ${unsafeReason}. The worktree was created successfully.`,
+      );
+      continue;
+    }
+
     console.log(`➤ Opening ${app} …`);
     try {
-      await open(destinationDirectory, { app: { name: app } });
+      // Best-effort: `open()` resolves when the subprocess is spawned. We do not wait
+      // for apps to finish launching (or exit).
+      await open(destinationDirectory, { app: { name: app }, wait: false });
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(
@@ -97,7 +108,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <name>",
-    "Apps to open the worktree in (executable names only; or set WORKTREE_ADD_APP env var, comma-separated)",
+    "Repeatable. Apps to open the worktree in (executable names only; or set WORKTREE_ADD_APP env var, comma-separated)",
     collectApp,
     [] as string[],
   )
