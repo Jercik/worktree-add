@@ -26,8 +26,20 @@ export function fetchRemoteBranch(branch: string): void {
   if (localBranchExists(branch)) {
     try {
       git("fetch", "origin", `${branch}:${branch}`);
-    } catch {
-      // Local branch has diverged from remote — keep local as-is
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      const trimmed = message.trim();
+      const firstLine = trimmed.split("\n")[0] ?? trimmed;
+
+      const looksLikeNonFastForward =
+        firstLine.includes("non-fast-forward") ||
+        firstLine.includes("rejected");
+
+      if (looksLikeNonFastForward) return;
+
+      console.warn(
+        `➤ Warning: failed to update local branch '${branch}' from origin/${branch}: ${firstLine}. Using existing local branch.`,
+      );
     }
   } else {
     git("fetch", "origin", branch);

@@ -3,6 +3,17 @@ interface ResolveAppsInput {
   environmentApps?: string;
 }
 
+function dedupePreserveOrder(apps: string[]): string[] {
+  const seen = new Set<string>();
+  const deduped: string[] = [];
+  for (const app of apps) {
+    if (seen.has(app)) continue;
+    seen.add(app);
+    deduped.push(app);
+  }
+  return deduped;
+}
+
 export function resolveApps({
   optionApps,
   environmentApps,
@@ -11,15 +22,17 @@ export function resolveApps({
     optionApps?.map((app) => app.trim()).filter(Boolean) ?? [];
 
   if (normalizedOptionApps.length > 0) {
-    return normalizedOptionApps;
+    return dedupePreserveOrder(normalizedOptionApps);
   }
 
   const normalized = environmentApps?.trim();
   if (normalized) {
-    return normalized
-      .split(",")
-      .map((app) => app.trim())
-      .filter(Boolean);
+    return dedupePreserveOrder(
+      normalized
+        .split(",")
+        .map((app) => app.trim())
+        .filter(Boolean),
+    );
   }
 
   return [];

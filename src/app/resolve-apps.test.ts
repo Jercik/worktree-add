@@ -70,4 +70,16 @@ describe("resolveApps", () => {
       "code",
     ]);
   });
+
+  it("de-duplicates apps while preserving order (CLI)", () => {
+    expect(
+      resolveApps({ optionApps: ["code", "code", "ghostty", "code"] }),
+    ).toStrictEqual(["code", "ghostty"]);
+  });
+
+  it("de-duplicates apps while preserving order (env var)", () => {
+    expect(
+      resolveApps({ environmentApps: "code,code,ghostty,code" }),
+    ).toStrictEqual(["code", "ghostty"]);
+  });
 });
