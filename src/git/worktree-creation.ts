@@ -39,7 +39,9 @@ function extractDiagnosticLine(error: unknown): string {
  * - If a local branch is ahead/diverged, keep it as-is and warn.
  * - If fetching origin fails but the local branch exists, keep local and warn.
  *
- * @returns `true` when the branch exists on origin, otherwise `false`.
+ * @returns `true` when the branch is confirmed to exist on origin, otherwise
+ *          `false` (does not exist or could not be confirmed due to origin
+ *          connectivity/auth issues).
  *
  * Note: when a local branch already exists and `remoteBranchExists()` succeeds
  * (i.e. origin was reachable and the branch exists), a subsequent
@@ -132,21 +134,24 @@ export function createWorktree(
   destinationDirectory: string,
   options?: { remoteBranchExists?: boolean },
 ): void {
-  if (localBranchExists(branch)) {
+  const normalized = normalizeBranchName(branch);
+
+  if (localBranchExists(normalized)) {
     // Reuse existing local branch
     console.log(`➤ git worktree add ${destinationDirectory} ${branch}`);
-    git("worktree", "add", destinationDirectory, branch);
+    // Avoid option-parsing ambiguity for branch names starting with '-'.
+    git("worktree", "add", destinationDirectory, `refs/heads/${normalized}`);
     return;
   }
 
   let branchExistsOnOrigin = options?.remoteBranchExists;
   if (branchExistsOnOrigin === undefined) {
     try {
-      branchExistsOnOrigin = remoteBranchExists(branch);
+      branchExistsOnOrigin = remoteBranchExists(normalized);
     } catch (error) {
       const diagnostic = extractDiagnosticLine(error);
       throw new Error(
-        `Failed to reach origin to check whether '${branch}' exists: ${diagnostic}`,
+        `Failed to reach origin to check whether '${normalized}' exists: ${diagnostic}`,
       );
     }
   }
@@ -154,21 +159,21 @@ export function createWorktree(
   if (branchExistsOnOrigin) {
     // Create new local branch tracking the remote branch
     console.log(
-      `➤ git worktree add --track -b ${branch} ${destinationDirectory} origin/${branch}`,
+      `➤ git worktree add --track -b ${normalized} ${destinationDirectory} origin/${normalized}`,
     );
     git(
       "worktree",
       "add",
       "--track",
       "-b",
-      branch,
+      normalized,
       destinationDirectory,
-      `origin/${branch}`,
+      `origin/${normalized}`,
     );
     return;
   }
 
   // Create new branch in the worktree from current HEAD
-  console.log(`➤ git worktree add -b ${branch} ${destinationDirectory}`);
-  git("worktree", "add", "-b", branch, destinationDirectory);
+  console.log(`➤ git worktree add -b ${normalized} ${destinationDirectory}`);
+  git("worktree", "add", "-b", normalized, destinationDirectory);
 }

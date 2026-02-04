@@ -79,7 +79,9 @@ export function localBranchExists(branch: string): boolean {
  */
 export function remoteBranchExists(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
-  return !!git("ls-remote", "--heads", "origin", normalized);
+  // Use a fully-qualified ref to avoid option-parsing ambiguity for branch
+  // names starting with '-'.
+  return !!git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`);
 }
 
 /**
