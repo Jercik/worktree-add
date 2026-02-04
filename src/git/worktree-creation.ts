@@ -8,24 +8,22 @@ import { git, localBranchExists, remoteBranchExists } from "./git.js";
 
 /**
  * Fetch a remote branch if it exists on origin, ensuring the local
- * copy is up-to-date. When a stale local branch exists it is deleted
- * first so the worktree is created from the latest remote state.
+ * copy is up-to-date.
  *
- * Safety: this function is only called after the caller has verified
- * (via {@link findWorktreeByBranchName}) that no worktree has this
- * branch checked out. A branch that is not checked out anywhere
- * cannot have uncommitted changes, so deleting it is safe.
+ * Uses `git fetch origin branch:branch` which fast-forwards the local
+ * ref to match the remote. If the local branch has diverged (unpushed
+ * commits), the fetch fails safely and the local branch is kept as-is
+ * — {@link createWorktree} will then use the existing local branch.
  */
 export function fetchRemoteBranch(branch: string): void {
   if (!remoteBranchExists(branch)) return;
 
-  if (localBranchExists(branch)) {
-    console.log(`➤ Deleting stale local branch ${branch} …`);
-    git("branch", "-D", branch);
-  }
-
   console.log(`➤ Fetching origin/${branch} …`);
-  git("fetch", "origin", branch);
+  try {
+    git("fetch", "origin", `${branch}:${branch}`);
+  } catch {
+    // Local branch has diverged from remote — keep local as-is
+  }
 }
 
 /**
