@@ -83,6 +83,66 @@ export function remoteBranchExists(branch: string): boolean {
 }
 
 /**
+ * Fetch a branch from origin into the remote-tracking ref.
+ *
+ * This does not update any local branch heads.
+ */
+export function fetchOriginBranch(branch: string): void {
+  const normalized = normalizeBranchName(branch);
+  const refspec = `+refs/heads/${normalized}:refs/remotes/origin/${normalized}`;
+  const result = spawnSync("git", ["fetch", "origin", "--", refspec], {
+    stdio: "inherit",
+  });
+  if (result.error) throw result.error;
+  if (result.status !== 0) {
+    throw new Error(`git fetch origin ${refspec} failed`);
+  }
+}
+
+/**
+ * Get the current head commit for a local branch.
+ */
+export function getLocalBranchHead(branch: string): string | undefined {
+  try {
+    const normalized = normalizeBranchName(branch);
+    return git("rev-parse", `refs/heads/${normalized}`);
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Get the current head commit for a remote-tracking branch.
+ */
+export function getRemoteBranchHead(branch: string): string | undefined {
+  try {
+    const normalized = normalizeBranchName(branch);
+    return git("rev-parse", `refs/remotes/origin/${normalized}`);
+  } catch {
+    return undefined;
+  }
+}
+
+export function getAheadBehindCounts(
+  localHead: string,
+  remoteHead: string,
+): { ahead: number; behind: number } {
+  const output = git(
+    "rev-list",
+    "--left-right",
+    "--count",
+    `${localHead}...${remoteHead}`,
+  );
+  const [aheadRaw, behindRaw] = output.split(/\s+/u);
+  const ahead = Number.parseInt(aheadRaw ?? "0");
+  const behind = Number.parseInt(behindRaw ?? "0");
+  return {
+    ahead: Number.isNaN(ahead) ? 0 : ahead,
+    behind: Number.isNaN(behind) ? 0 : behind,
+  };
+}
+
+/**
  * Convert an arbitrary string to a filesystem-safe single path segment.
  *
  * Use this helper when constructing directory names from branch names or other

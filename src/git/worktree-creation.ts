@@ -4,7 +4,16 @@
  * Utilities for creating Git worktrees
  */
 
-import { git, localBranchExists, remoteBranchExists } from "./git.js";
+import {
+  fetchOriginBranch,
+  getAheadBehindCounts,
+  getLocalBranchHead,
+  getRemoteBranchHead,
+  git,
+  localBranchExists,
+  normalizeBranchName,
+  remoteBranchExists,
+} from "./git.js";
 
 /**
  * Fetch a remote branch if it exists on origin, ensuring the local
@@ -20,37 +29,50 @@ import { git, localBranchExists, remoteBranchExists } from "./git.js";
  * with proper `--track` configuration.
  */
 export function fetchRemoteBranch(branch: string): void {
-  if (!remoteBranchExists(branch)) return;
+  const normalized = normalizeBranchName(branch);
+  if (!remoteBranchExists(normalized)) return;
 
-  console.log(`➤ Fetching origin/${branch} …`);
-  if (localBranchExists(branch)) {
+  console.log(`➤ Fetching origin/${normalized} …`);
+
+  // Always refresh the remote-tracking ref so comparisons are reliable (and locale-independent).
+  if (localBranchExists(normalized)) {
     try {
-      git("fetch", "origin", `${branch}:${branch}`);
+      fetchOriginBranch(normalized);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const trimmed = message.trim();
       const firstLine = trimmed.split("\n")[0] ?? trimmed;
-
-      const normalized = trimmed.toLowerCase();
-      const looksLikeNonFastForward =
-        normalized.includes("non-fast-forward") ||
-        normalized.includes("non fast-forward") ||
-        normalized.includes("non-fast forward");
-
-      if (looksLikeNonFastForward) {
-        console.warn(
-          `➤ Warning: local branch '${branch}' has diverged from origin/${branch}; using existing local branch as-is.`,
-        );
-        return;
-      }
-
       console.warn(
-        `➤ Warning: failed to update local branch '${branch}' from origin/${branch}: ${firstLine}. Using existing local branch.`,
+        `➤ Warning: failed to fetch origin/${normalized}: ${firstLine}. Using existing local branch.`,
       );
+      return;
     }
-  } else {
-    git("fetch", "origin", branch);
+
+    const localHead = getLocalBranchHead(normalized);
+    const remoteHead = getRemoteBranchHead(normalized);
+    if (!localHead || !remoteHead || localHead === remoteHead) return;
+
+    const { ahead, behind } = getAheadBehindCounts(localHead, remoteHead);
+
+    if (ahead === 0 && behind > 0) {
+      console.log(
+        `➤ Fast-forwarding local '${normalized}' to origin/${normalized} …`,
+      );
+      git("branch", "-f", "--", normalized, `origin/${normalized}`);
+      return;
+    }
+
+    const descriptors: string[] = [];
+    if (ahead > 0) descriptors.push(`ahead by ${ahead}`);
+    if (behind > 0) descriptors.push(`behind by ${behind}`);
+    console.warn(
+      `➤ Warning: local branch '${normalized}' has diverged from origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
+    );
+    return;
   }
+
+  // No local branch yet: fetch the remote-tracking ref so createWorktree can use origin/<branch>.
+  fetchOriginBranch(normalized);
 }
 
 /**
