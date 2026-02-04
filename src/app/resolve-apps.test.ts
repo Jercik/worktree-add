@@ -49,19 +49,15 @@ describe("resolveApps", () => {
   });
 
   it("treats empty strings as absent", () => {
-    expect(
-      resolveApps({ optionApps: [], environmentApps: "code" }),
-    ).toStrictEqual(["code"]);
-
     expect(resolveApps({ environmentApps: "" })).toStrictEqual([]);
 
     expect(resolveApps({ environmentApps: "   " })).toStrictEqual([]);
   });
 
-  it("falls back to env var when CLI apps are all whitespace", () => {
+  it("overrides env var to open nothing when CLI apps are all whitespace", () => {
     expect(
       resolveApps({ optionApps: ["  ", ""], environmentApps: "code" }),
-    ).toStrictEqual(["code"]);
+    ).toStrictEqual([]);
   });
 
   it("filters out empty entries from comma-separated env var", () => {

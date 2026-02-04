@@ -24,6 +24,9 @@ import {
  * - If a local branch exists and is strictly behind origin, fast-forward it.
  * - If a local branch is ahead/diverged, keep it as-is and warn.
  * - If fetching origin fails but the local branch exists, keep local and warn.
+ *
+ * @returns `true` when the branch exists on origin (and the remote-tracking ref
+ *          is now available locally), otherwise `false`.
  */
 export function fetchRemoteBranch(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
@@ -51,7 +54,7 @@ export function fetchRemoteBranch(branch: string): boolean {
       console.warn(
         `➤ Warning: failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch.`,
       );
-      return true;
+      return false;
     }
 
     const localHead = getLocalBranchHead(normalized);

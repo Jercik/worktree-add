@@ -84,6 +84,7 @@ Arguments are not parsed: values like `code -w` are treated as part of the app n
 2. `WORKTREE_ADD_APP` env var (comma-separated): `WORKTREE_ADD_APP=ghostty,code worktree-add feature/foo`
 
 CLI flags take priority over the env var.
+To explicitly open nothing even when `WORKTREE_ADD_APP` is set, pass `--app ""`.
 
 If launching an app fails, the worktree still stays created and ready.
 

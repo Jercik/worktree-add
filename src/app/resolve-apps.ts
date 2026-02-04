@@ -21,7 +21,7 @@ export function resolveApps({
   const normalizedOptionApps =
     optionApps?.map((app) => app.trim()).filter(Boolean) ?? [];
 
-  if (normalizedOptionApps.length > 0) {
+  if (optionApps !== undefined) {
     return dedupePreserveOrder(normalizedOptionApps);
   }
 

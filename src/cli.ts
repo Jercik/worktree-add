@@ -26,8 +26,8 @@ import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
-function collectApp(app: string, previous: string[]): string[] {
-  return [...previous, app];
+function collectApp(app: string, previous: string[] | undefined): string[] {
+  return [...(previous ?? []), app];
 }
 
 async function main(
@@ -112,7 +112,6 @@ const program = new Command()
     "-a, --app <name>",
     "Repeatable. Apps to open the worktree in (arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated)",
     collectApp,
-    [] as string[],
   )
   .action(async (branch: string, options: { app?: string[] }) => {
     try {
