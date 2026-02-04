@@ -8,15 +8,27 @@ import { spawnSync } from "node:child_process";
 import { git, localBranchExists, remoteBranchExists } from "./git.js";
 
 /**
- * Fetch a remote branch if it exists locally but not remotely
+ * Fetch a remote branch if it exists on origin, ensuring the local
+ * copy is up-to-date. When a stale local branch exists it is deleted
+ * first so the worktree is created from the latest remote state.
+ *
+ * Safety: this function is only called after the caller has verified
+ * (via {@link findWorktreeByBranchName}) that no worktree has this
+ * branch checked out. A branch that is not checked out anywhere
+ * cannot have uncommitted changes, so deleting it is safe.
  */
 export function fetchRemoteBranch(branch: string): void {
-  if (!localBranchExists(branch) && remoteBranchExists(branch)) {
-    console.log(`➤ Fetching origin/${branch} …`);
-    spawnSync("git", ["fetch", "origin", branch], {
-      stdio: "inherit",
-    });
+  if (!remoteBranchExists(branch)) return;
+
+  if (localBranchExists(branch)) {
+    console.log(`➤ Deleting stale local branch ${branch} …`);
+    git("branch", "-D", branch);
   }
+
+  console.log(`➤ Fetching origin/${branch} …`);
+  spawnSync("git", ["fetch", "origin", branch], {
+    stdio: "inherit",
+  });
 }
 
 /**

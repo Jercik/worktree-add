@@ -7,10 +7,11 @@
  * not necessarily the original "main" checkout.
  */
 
-import { spawnSync } from "node:child_process";
 import path from "node:path";
 import { Command } from "commander";
+import open from "open";
 import packageJson from "../package.json" with { type: "json" };
+import { resolveApps } from "./app/resolve-apps.js";
 import {
   git,
   getRepositoryName,
@@ -24,37 +25,9 @@ import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
-interface ResolveEditorInput {
-  optionEditor?: string;
-  environmentEditor?: string;
-}
-
-export function resolveEditor({
-  optionEditor,
-  environmentEditor,
-}: ResolveEditorInput = {}): string {
-  const normalizedOption = optionEditor?.trim();
-  const normalizedEnvironment = environmentEditor?.trim();
-  return normalizedOption || normalizedEnvironment || "code";
-}
-
-export function isEditorCommandSafe(editor: string): boolean {
-  const normalized = editor.normalize("NFKC");
-  const trimmed = normalized.trim();
-
-  // Reject empty or excessively long commands
-  if (trimmed.length === 0 || trimmed.length > 256) {
-    return false;
-  }
-
-  // Reject common shell metacharacters, whitespace, and control characters to prevent injection
-  const unsafeCharacters = /[\\;&|`$(){}<>\s]|\p{Cc}/u;
-  return !unsafeCharacters.test(trimmed);
-}
-
 async function main(
   branchRaw: string,
-  options: { editor?: string },
+  options: { app?: string[] },
 ): Promise<void> {
   const branch = normalizeBranchName(branchRaw);
 
@@ -92,30 +65,15 @@ async function main(
   // Step 4: Install dependencies and run project-specific setup
   await setupProject(destinationDirectory);
 
-  // Step 5: Open the new worktree in the editor
-  const editor = resolveEditor({
-    optionEditor: options.editor,
-    environmentEditor: process.env.WORKTREE_ADD_EDITOR,
+  // Step 5: Open the new worktree in requested apps
+  const apps = resolveApps({
+    optionApps: options.app,
+    environmentApps: process.env.WORKTREE_ADD_APP,
   });
 
-  // Validate editor command to prevent injection attacks
-  if (!isEditorCommandSafe(editor)) {
-    exitWithMessage(
-      "Invalid editor command: shell metacharacters not allowed.\n" +
-        "Please use a simple editor name (e.g., 'code', 'cursor', 'vim').",
-    );
-  }
-
-  console.log(`➤ Opening ${editor} …`);
-  const result = spawnSync(editor, [destinationDirectory], {
-    stdio: "inherit",
-  });
-
-  if (result.error) {
-    console.error(`Failed to open ${editor}: ${result.error.message}`);
-    console.error(
-      "The worktree was created successfully, but the editor could not be opened.",
-    );
+  for (const app of apps) {
+    console.log(`➤ Opening ${app} …`);
+    await open(destinationDirectory, { app: { name: app } });
   }
 }
 
@@ -127,10 +85,10 @@ const program = new Command()
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
   .option(
-    "-e, --editor <command>",
-    "Editor to open the worktree with (default: WORKTREE_ADD_EDITOR env var or 'code')",
+    "-a, --app <names...>",
+    "Apps to open the worktree in (or set WORKTREE_ADD_APP env var, comma-separated)",
   )
-  .action(async (branch: string, options: { editor?: string }) => {
+  .action(async (branch: string, options: { app?: string[] }) => {
     try {
       await main(branch, options);
     } catch (error: unknown) {
