@@ -38,9 +38,18 @@ export function fetchRemoteBranch(branch: string): boolean {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       const trimmed = message.trim();
-      const firstLine = trimmed.split("\n")[0] ?? trimmed;
+      const nonEmptyLines = trimmed
+        .split("\n")
+        .map((line) => line.trim())
+        .filter(Boolean);
+      const diagnostic =
+        nonEmptyLines.find((line) =>
+          /(?:^|\s)(?:fatal:|error:)/iu.test(line),
+        ) ??
+        nonEmptyLines.at(-1) ??
+        trimmed;
       console.warn(
-        `➤ Warning: failed to fetch origin/${normalized}: ${firstLine}. Using existing local branch.`,
+        `➤ Warning: failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch.`,
       );
       return true;
     }
@@ -62,6 +71,7 @@ export function fetchRemoteBranch(branch: string): boolean {
     const descriptors: string[] = [];
     if (ahead > 0) descriptors.push(`ahead by ${ahead}`);
     if (behind > 0) descriptors.push(`behind by ${behind}`);
+    if (descriptors.length === 0) descriptors.push("commits differ");
     console.warn(
       `➤ Warning: local branch '${normalized}' has diverged from origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
     );
@@ -74,9 +84,16 @@ export function fetchRemoteBranch(branch: string): boolean {
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);
     const trimmed = message.trim();
-    const firstLine = trimmed.split("\n")[0] ?? trimmed;
+    const nonEmptyLines = trimmed
+      .split("\n")
+      .map((line) => line.trim())
+      .filter(Boolean);
+    const diagnostic =
+      nonEmptyLines.find((line) => /(?:^|\s)(?:fatal:|error:)/iu.test(line)) ??
+      nonEmptyLines.at(-1) ??
+      trimmed;
     throw new Error(
-      `Failed to reach origin to check whether '${normalized}' exists: ${firstLine}`,
+      `Failed to reach origin to check whether '${normalized}' exists: ${diagnostic}`,
     );
   }
 
