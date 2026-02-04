@@ -16,7 +16,7 @@ Running `worktree-add <branch>` from inside a repo:
 6. Creates a git worktree:
    - reuses an existing local branch
    - or creates a tracking branch from `origin/<branch>`
-   - or creates a new branch from the current `HEAD`
+   - or creates a new branch from the current `HEAD` (only when the branch does not exist on `origin/`, or when you pass `--offline` and `origin/` can’t be reached)
 7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
    (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
 8. Detects your package manager and installs dependencies with lockfile‑safe flags
@@ -66,7 +66,7 @@ worktree-add feature/login-form
 ```
 
 A new branch from the current HEAD is created only when the branch does not already
-exist locally or on `origin/` (or when `origin/` can’t be reached, in which case the tool warns and assumes you want a new local branch).
+exist locally or on `origin/`. If `origin/` can’t be reached and the branch doesn’t exist locally, the tool aborts unless you pass `--offline`.
 
 Destination directory (assuming repo named `my-app`):
 

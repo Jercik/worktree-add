@@ -22,7 +22,7 @@ import {
   exitWithMessage,
 } from "./git/git.js";
 import { copyUntrackedFiles } from "./worktree/untracked-file-copy.js";
-import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
+import { createWorktree, fetchRemoteBranch } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
@@ -36,7 +36,7 @@ function formatForLog(value: string): string {
 
 async function main(
   branchRaw: string,
-  options: { app?: string[] },
+  options: { app?: string[]; offline?: boolean },
 ): Promise<void> {
   const branch = normalizeBranchName(branchRaw);
   if (branch.length === 0) {
@@ -70,14 +70,22 @@ async function main(
   await handleExistingDirectory(destinationDirectory);
 
   // Step 1: Fetch remote branch if it exists
-  const remoteBranchExistsHint = fetchRemoteBranch(branch);
-  // `false` means either "does not exist on origin" or "could not be confirmed"
-  // (e.g. offline/auth/origin issues). fetchRemoteBranch prints a warning for
-  // the latter case.
+  const remoteStatus = fetchRemoteBranch(branch);
+  if (
+    remoteStatus.status === "unknown" &&
+    !remoteStatus.localExists &&
+    !options.offline
+  ) {
+    exitWithMessage(
+      `Could not reach origin to check whether '${branch}' exists, and the branch does not exist locally.\n` +
+        "Refusing to create a new branch from HEAD in this ambiguous state.\n" +
+        `Re-run with --offline to force creating a new local '${branch}' from the current HEAD.`,
+    );
+  }
 
   // Step 2: Create the worktree
   createWorktree(branch, destinationDirectory, {
-    remoteBranchExists: remoteBranchExistsHint,
+    remoteBranchExists: remoteStatus.status === "exists",
   });
 
   // Step 3: Copy untracked files, excluding any on the denylist
@@ -127,14 +135,20 @@ const program = new Command()
     'Repeatable. Apps to open the worktree in (detached; arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated). To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".',
     collectApp,
   )
-  .action(async (branch: string, options: { app?: string[] }) => {
-    try {
-      await main(branch, options);
-    } catch (error: unknown) {
-      console.error(error);
-      process.exitCode = 1;
-    }
-  });
+  .option(
+    "--offline",
+    "Allow creating a new local branch from HEAD when origin cannot be reached and the branch does not exist locally",
+  )
+  .action(
+    async (branch: string, options: { app?: string[]; offline?: boolean }) => {
+      try {
+        await main(branch, options);
+      } catch (error: unknown) {
+        console.error(error);
+        process.exitCode = 1;
+      }
+    },
+  );
 
 if (!process.env.VITEST) {
   program.parse();

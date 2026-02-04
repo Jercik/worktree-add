@@ -15,6 +15,8 @@ import {
   remoteBranchExists,
 } from "./git.js";
 
+export type RemoteBranchStatus = "exists" | "missing" | "unknown";
+
 function extractDiagnosticLine(error: unknown): string {
   const message = error instanceof Error ? error.message : String(error);
   const trimmed = message.trim();
@@ -39,16 +41,20 @@ function extractDiagnosticLine(error: unknown): string {
  * - If a local branch is ahead/diverged, keep it as-is and warn.
  * - If fetching origin fails but the local branch exists, keep local and warn.
  *
- * @returns `true` when the branch is confirmed to exist on origin, otherwise
- *          `false` (does not exist or could not be confirmed due to origin
- *          connectivity/auth issues).
+ * @returns A status object indicating whether the branch exists on origin
+ *          (`exists`/`missing`) or could not be confirmed (`unknown`, e.g.
+ *          connectivity/auth issues), plus whether a local branch exists.
  *
  * Note: when a local branch already exists and `remoteBranchExists()` succeeds
  * (i.e. origin was reachable and the branch exists), a subsequent
- * `fetchOriginBranch()` failure still returns `true`, since callers typically
- * only need the return value as a hint to avoid re-querying origin.
+ * `fetchOriginBranch()` failure still reports `status: "exists"`, since the
+ * existence check already succeeded and callers typically only need a hint to
+ * avoid re-querying origin.
  */
-export function fetchRemoteBranch(branch: string): boolean {
+export function fetchRemoteBranch(branch: string): {
+  status: RemoteBranchStatus;
+  localExists: boolean;
+} {
   const normalized = normalizeBranchName(branch);
   const localExists = localBranchExists(normalized);
 
@@ -61,10 +67,10 @@ export function fetchRemoteBranch(branch: string): boolean {
       console.warn(
         `➤ Warning: failed to query origin for '${normalized}': ${diagnostic}. Using existing local branch.`,
       );
-      return false;
+      return { status: "unknown", localExists };
     }
 
-    if (!remoteExists) return false;
+    if (!remoteExists) return { status: "missing", localExists };
 
     try {
       console.log(`➤ Fetching origin/${normalized} …`);
@@ -74,12 +80,14 @@ export function fetchRemoteBranch(branch: string): boolean {
       console.warn(
         `➤ Warning: failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch.`,
       );
-      return true;
+      return { status: "exists", localExists };
     }
 
     const localHead = getLocalBranchHead(normalized);
     const remoteHead = getRemoteBranchHead(normalized);
-    if (!localHead || !remoteHead || localHead === remoteHead) return true;
+    if (!localHead || !remoteHead || localHead === remoteHead) {
+      return { status: "exists", localExists };
+    }
 
     const { ahead, behind } = getAheadBehindCounts(localHead, remoteHead);
 
@@ -88,14 +96,14 @@ export function fetchRemoteBranch(branch: string): boolean {
         `➤ Fast-forwarding local '${normalized}' to origin/${normalized} …`,
       );
       git("branch", "-f", "--", normalized, `origin/${normalized}`);
-      return true;
+      return { status: "exists", localExists };
     }
 
     if (ahead === 0 && behind === 0) {
       console.warn(
-        `➤ Warning: local branch '${normalized}' differs from origin/${normalized} (unable to determine ahead/behind); using existing local branch as-is.`,
+        `➤ Warning: local branch '${normalized}' differs from origin/${normalized} (ahead/behind counts are both 0); using existing local branch as-is.`,
       );
-      return true;
+      return { status: "exists", localExists };
     }
 
     const descriptors: string[] = [];
@@ -106,7 +114,7 @@ export function fetchRemoteBranch(branch: string): boolean {
     console.warn(
       `➤ Warning: local branch '${normalized}' ${relationship} origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
     );
-    return true;
+    return { status: "exists", localExists };
   }
 
   let remoteExists: boolean;
@@ -117,10 +125,10 @@ export function fetchRemoteBranch(branch: string): boolean {
     console.warn(
       `➤ Warning: failed to reach origin to check whether '${normalized}' exists: ${diagnostic}. Creating a new local branch from current HEAD. (If you expected a remote branch, double-check your network connection and branch name.)`,
     );
-    return false;
+    return { status: "unknown", localExists };
   }
 
-  if (!remoteExists) return false;
+  if (!remoteExists) return { status: "missing", localExists };
 
   console.log(`➤ Fetching origin/${normalized} …`);
   try {
@@ -131,7 +139,7 @@ export function fetchRemoteBranch(branch: string): boolean {
       `Failed to fetch origin/${normalized}: ${diagnostic}. Cannot proceed without a local branch.`,
     );
   }
-  return true;
+  return { status: "exists", localExists };
 }
 
 /**
