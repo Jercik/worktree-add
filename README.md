@@ -19,7 +19,7 @@ Running `worktree-add <branch>` from inside a repo:
 7. Detects your package manager and installs dependencies with lockfile‑safe flags
    (`npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable`, etc.).
 8. If the project uses Next.js and supports it, runs `next typegen`.
-9. Opens the new worktree in your editor.
+9. Opens the new worktree in your requested apps (if any).
 
 Your original checkout is left untouched.
 
@@ -71,27 +71,21 @@ Destination directory (assuming repo named `my-app`):
 /my/path/my-app-feature-login-form  # new worktree for branch "feature/login-form"
 ```
 
-## Editor control
+## App control
 
-By default the tool opens the new worktree in:
+After creating the worktree, the tool can open it in one or more apps. Nothing is opened by default.
 
-1. `--editor <command>` if passed
-2. `WORKTREE_ADD_EDITOR` env var
-3. otherwise `code`
+1. `--app <name>` flag (repeatable): `worktree-add feature/foo --app ghostty --app code`
+2. `WORKTREE_ADD_APP` env var (comma-separated): `WORKTREE_ADD_APP=ghostty,code worktree-add feature/foo`
 
-Only simple command names are allowed (no `;`, `&`, pipes, etc.) to avoid shell injection. Examples:
+CLI flags take priority over the env var.
 
-```bash
-worktree-add feature/foo -e code
-WORKTREE_ADD_EDITOR=vim worktree-add feature/foo
-```
+If launching an app fails, the worktree still stays created and ready.
 
-If launching the editor fails, the worktree still stays created and ready.
-
-Tip: add a shell helper with your preferred editor in your shell profile. Example snippet to add:
+Tip: add a shell helper with your preferred apps in your shell profile:
 
 ```bash
-worktree-add() { WORKTREE_ADD_EDITOR=cursor command worktree-add "$@" }
+worktree-add() { WORKTREE_ADD_APP=ghostty,code command worktree-add "$@" }
 ```
 
 Add it to your shell profile:

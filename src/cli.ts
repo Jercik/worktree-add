@@ -73,7 +73,13 @@ async function main(
 
   for (const app of apps) {
     console.log(`➤ Opening ${app} …`);
-    await open(destinationDirectory, { app: { name: app } });
+    try {
+      await open(destinationDirectory, { app: { name: app } });
+    } catch {
+      console.error(
+        `Failed to open ${app}. The worktree was created successfully.`,
+      );
+    }
   }
 }
 

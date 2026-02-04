@@ -4,7 +4,6 @@
  * Utilities for creating Git worktrees
  */
 
-import { spawnSync } from "node:child_process";
 import { git, localBranchExists, remoteBranchExists } from "./git.js";
 
 /**
@@ -26,9 +25,7 @@ export function fetchRemoteBranch(branch: string): void {
   }
 
   console.log(`➤ Fetching origin/${branch} …`);
-  spawnSync("git", ["fetch", "origin", branch], {
-    stdio: "inherit",
-  });
+  git("fetch", "origin", branch);
 }
 
 /**

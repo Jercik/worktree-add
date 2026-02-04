@@ -58,6 +58,12 @@ describe("resolveApps", () => {
     expect(resolveApps({ environmentApps: "   " })).toStrictEqual([]);
   });
 
+  it("falls back to env var when CLI apps are all whitespace", () => {
+    expect(
+      resolveApps({ optionApps: ["  ", ""], environmentApps: "code" }),
+    ).toStrictEqual(["code"]);
+  });
+
   it("filters out empty entries from comma-separated env var", () => {
     expect(resolveApps({ environmentApps: "ghostty,,code," })).toStrictEqual([
       "ghostty",

@@ -7,8 +7,11 @@ export function resolveApps({
   optionApps,
   environmentApps,
 }: ResolveAppsInput): string[] {
-  if (optionApps && optionApps.length > 0) {
-    return optionApps.map((app) => app.trim()).filter(Boolean);
+  const normalizedOptionApps =
+    optionApps?.map((app) => app.trim()).filter(Boolean) ?? [];
+
+  if (normalizedOptionApps.length > 0) {
+    return normalizedOptionApps;
   }
 
   const normalized = environmentApps?.trim();
