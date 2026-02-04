@@ -75,9 +75,10 @@ async function main(
     console.log(`➤ Opening ${app} …`);
     try {
       await open(destinationDirectory, { app: { name: app } });
-    } catch {
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `Failed to open ${app}. The worktree was created successfully.`,
+        `Failed to open ${app}: ${message}. The worktree was created successfully.`,
       );
     }
   }

@@ -1,6 +1,6 @@
 # worktree-add
 
-Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your editor.
+Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your apps.
 
 ## What it does
 
