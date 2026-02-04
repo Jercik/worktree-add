@@ -138,7 +138,9 @@ export function createWorktree(
 
   if (localBranchExists(normalized)) {
     // Reuse existing local branch
-    console.log(`➤ git worktree add ${destinationDirectory} ${branch}`);
+    console.log(
+      `➤ git worktree add ${destinationDirectory} refs/heads/${normalized}`,
+    );
     // Avoid option-parsing ambiguity for branch names starting with '-'.
     git("worktree", "add", destinationDirectory, `refs/heads/${normalized}`);
     return;
