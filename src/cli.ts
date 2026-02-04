@@ -25,6 +25,10 @@ import { fetchRemoteBranch, createWorktree } from "./git/worktree-creation.js";
 import { handleExistingDirectory } from "./worktree/destination-directory.js";
 import { setupProject } from "./project/setup.js";
 
+function collectApp(app: string, previous: string[]): string[] {
+  return [...previous, app];
+}
+
 async function main(
   branchRaw: string,
   options: { app?: string[] },
@@ -92,8 +96,10 @@ const program = new Command()
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
   .option(
-    "-a, --app <names...>",
+    "-a, --app <name>",
     "Apps to open the worktree in (executable names only; or set WORKTREE_ADD_APP env var, comma-separated)",
+    collectApp,
+    [] as string[],
   )
   .action(async (branch: string, options: { app?: string[] }) => {
     try {

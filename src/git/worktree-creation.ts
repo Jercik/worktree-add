@@ -36,7 +36,12 @@ export function fetchRemoteBranch(branch: string): void {
         normalized.includes("non-fast-forward") ||
         normalized.includes("rejected");
 
-      if (looksLikeNonFastForward) return;
+      if (looksLikeNonFastForward) {
+        console.warn(
+          `➤ Warning: local branch '${branch}' has diverged from origin/${branch}; using existing local branch as-is.`,
+        );
+        return;
+      }
 
       console.warn(
         `➤ Warning: failed to update local branch '${branch}' from origin/${branch}: ${firstLine}. Using existing local branch.`,
