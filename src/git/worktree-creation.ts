@@ -41,9 +41,10 @@ function extractDiagnosticLine(error: unknown): string {
  *
  * @returns `true` when the branch exists on origin, otherwise `false`.
  *
- * Note: when a local branch already exists, a fetch failure still returns `true`
- * (remote existence was confirmed), since callers typically only need the return
- * value as a hint to avoid re-querying origin.
+ * Note: when a local branch already exists and `remoteBranchExists()` succeeds
+ * (i.e. origin was reachable and the branch exists), a subsequent
+ * `fetchOriginBranch()` failure still returns `true`, since callers typically
+ * only need the return value as a hint to avoid re-querying origin.
  */
 export function fetchRemoteBranch(branch: string): boolean {
   const normalized = normalizeBranchName(branch);

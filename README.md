@@ -79,6 +79,7 @@ Destination directory (assuming repo named `my-app`):
 
 After creating the worktree, the tool can open it in one or more apps. Nothing is opened by default.
 App names are executed on your machine (as application/executable names), so only use values you trust.
+The app-name validation is a guardrail, not a security boundary.
 Arguments are not parsed: values like `code -w` are treated as part of the app name and will likely fail.
 
 1. `--app <name>` flag (repeatable): `worktree-add feature/foo --app ghostty --app code`

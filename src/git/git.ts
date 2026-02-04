@@ -72,6 +72,10 @@ export function localBranchExists(branch: string): boolean {
 
 /**
  * Check if a remote branch exists on origin.
+ *
+ * Note: this function may throw on network/auth failures or when the `origin`
+ * remote is missing/misconfigured. Callers that want a degraded-mode fallback
+ * should wrap it in try/catch.
  */
 export function remoteBranchExists(branch: string): boolean {
   const normalized = normalizeBranchName(branch);

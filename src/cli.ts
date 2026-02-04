@@ -39,6 +39,13 @@ async function main(
   options: { app?: string[] },
 ): Promise<void> {
   const branch = normalizeBranchName(branchRaw);
+  if (branch.length === 0) {
+    exitWithMessage(
+      "Branch name is empty.\n" +
+        "Examples: `feature/foo`, `origin/feature/foo`, `refs/heads/feature/foo`.\n" +
+        "Note: `origin/` without a branch name is not valid.",
+    );
+  }
 
   // Prevent attempting to add a worktree for a branch that is already checked out
   const existingWorktree = findWorktreeByBranchName(branch);
