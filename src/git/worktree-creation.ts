@@ -15,6 +15,20 @@ import {
   remoteBranchExists,
 } from "./git.js";
 
+function extractDiagnosticLine(error: unknown): string {
+  const message = error instanceof Error ? error.message : String(error);
+  const trimmed = message.trim();
+  const nonEmptyLines = trimmed
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  return (
+    nonEmptyLines.find((line) => /(?:^|\s)(?:fatal:|error:)/iu.test(line)) ??
+    nonEmptyLines.at(-1) ??
+    trimmed
+  );
+}
+
 /**
  * Fetch a remote branch if it exists on origin, ensuring the local
  * copy is up-to-date.
@@ -39,18 +53,7 @@ export function fetchRemoteBranch(branch: string): boolean {
       console.log(`➤ Fetching origin/${normalized} …`);
       fetchOriginBranch(normalized);
     } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      const trimmed = message.trim();
-      const nonEmptyLines = trimmed
-        .split("\n")
-        .map((line) => line.trim())
-        .filter(Boolean);
-      const diagnostic =
-        nonEmptyLines.find((line) =>
-          /(?:^|\s)(?:fatal:|error:)/iu.test(line),
-        ) ??
-        nonEmptyLines.at(-1) ??
-        trimmed;
+      const diagnostic = extractDiagnosticLine(error);
       console.warn(
         `➤ Warning: failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch.`,
       );
@@ -81,26 +84,16 @@ export function fetchRemoteBranch(branch: string): boolean {
     return true;
   }
 
-  let remoteExists: boolean;
   try {
-    remoteExists = remoteBranchExists(normalized);
+    const remoteExists = remoteBranchExists(normalized);
+    if (!remoteExists) return false;
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    const trimmed = message.trim();
-    const nonEmptyLines = trimmed
-      .split("\n")
-      .map((line) => line.trim())
-      .filter(Boolean);
-    const diagnostic =
-      nonEmptyLines.find((line) => /(?:^|\s)(?:fatal:|error:)/iu.test(line)) ??
-      nonEmptyLines.at(-1) ??
-      trimmed;
-    throw new Error(
-      `Failed to reach origin to check whether '${normalized}' exists: ${diagnostic}`,
+    const diagnostic = extractDiagnosticLine(error);
+    console.warn(
+      `➤ Warning: failed to reach origin to check whether '${normalized}' exists: ${diagnostic}. Creating a new local branch from current HEAD.`,
     );
+    return false;
   }
-
-  if (!remoteExists) return false;
 
   console.log(`➤ Fetching origin/${normalized} …`);
   fetchOriginBranch(normalized);
