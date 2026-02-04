@@ -98,7 +98,7 @@ async function main(
       continue;
     }
 
-    console.log(`➤ Opening ${app} …`);
+    console.log(`➤ Opening ${formatForLog(app)} …`);
     try {
       // Best-effort: `open()` resolves when the subprocess is spawned. We do not wait
       // for apps to finish launching (or exit).

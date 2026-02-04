@@ -1,10 +1,12 @@
 /**
  * Defense-in-depth filter for app names passed to the `open` package.
  *
- * This is not intended as shell-injection mitigation (the `open` package uses
- * `spawn()` without `shell: true`). These checks primarily prevent confusing or
- * unsafe terminal output (control characters) and reject a few extremely unlikely
- * characters as an extra guardrail.
+ * This is not intended as shell-injection mitigation. The `open` package uses
+ * `child_process.spawn()` without `shell: true`; on Windows it spawns PowerShell
+ * and escapes/encodes arguments, on macOS it invokes `open -a`, and on Linux it
+ * spawns the app directly. These checks primarily prevent confusing/unsafe
+ * terminal output (control characters) and reject a few extremely unlikely
+ * characters as an extra guardrail (not a security boundary).
  */
 export function getUnsafeAppNameReason(appName: string): string | undefined {
   if (appName.includes(";")) return "contains ';'";
