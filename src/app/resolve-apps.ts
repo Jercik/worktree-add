@@ -18,11 +18,18 @@ export function resolveApps({
   optionApps,
   environmentApps,
 }: ResolveAppsInput): string[] {
+  const hasExplicitEmptyOption = optionApps?.includes("") ?? false;
   const normalizedOptionApps =
     optionApps?.map((app) => app.trim()).filter(Boolean) ?? [];
 
   if (optionApps !== undefined) {
-    return dedupePreserveOrder(normalizedOptionApps);
+    if (normalizedOptionApps.length > 0) {
+      return dedupePreserveOrder(normalizedOptionApps);
+    }
+
+    if (hasExplicitEmptyOption) {
+      return [];
+    }
   }
 
   const normalized = environmentApps?.trim();

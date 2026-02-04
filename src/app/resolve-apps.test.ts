@@ -54,9 +54,15 @@ describe("resolveApps", () => {
     expect(resolveApps({ environmentApps: "   " })).toStrictEqual([]);
   });
 
-  it("overrides env var to open nothing when CLI apps are all whitespace", () => {
+  it("falls back to env var when CLI apps normalize to an empty list", () => {
     expect(
-      resolveApps({ optionApps: ["  ", ""], environmentApps: "code" }),
+      resolveApps({ optionApps: ["  "], environmentApps: "code" }),
+    ).toStrictEqual(["code"]);
+  });
+
+  it("overrides env var to open nothing when CLI apps include an explicit empty string", () => {
+    expect(
+      resolveApps({ optionApps: [""], environmentApps: "code" }),
     ).toStrictEqual([]);
   });
 

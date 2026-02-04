@@ -30,6 +30,10 @@ function collectApp(app: string, previous: string[] | undefined): string[] {
   return [...(previous ?? []), app];
 }
 
+function formatForLog(value: string): string {
+  return JSON.stringify(value);
+}
+
 async function main(
   branchRaw: string,
   options: { app?: string[] },
@@ -59,11 +63,11 @@ async function main(
   await handleExistingDirectory(destinationDirectory);
 
   // Step 1: Fetch remote branch if it exists
-  const remoteExists = fetchRemoteBranch(branch);
+  const remoteBranchExistsHint = fetchRemoteBranch(branch);
 
   // Step 2: Create the worktree
   createWorktree(branch, destinationDirectory, {
-    remoteBranchExists: remoteExists,
+    remoteBranchExists: remoteBranchExistsHint,
   });
 
   // Step 3: Copy untracked files, excluding any on the denylist
@@ -82,7 +86,7 @@ async function main(
     const unsafeReason = getUnsafeAppNameReason(app);
     if (unsafeReason) {
       console.error(
-        `Skipping app '${app}': ${unsafeReason}. The worktree was created successfully.`,
+        `Skipping app ${formatForLog(app)}: ${unsafeReason}. The worktree was created successfully.`,
       );
       continue;
     }
@@ -95,7 +99,7 @@ async function main(
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
       console.error(
-        `Failed to open ${app}: ${message}. The worktree was created successfully.`,
+        `Failed to open ${formatForLog(app)}: ${message}. The worktree was created successfully.`,
       );
     }
   }
@@ -110,7 +114,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <name>",
-    "Repeatable. Apps to open the worktree in (arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated)",
+    "Repeatable. Apps to open the worktree in (detached; arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated)",
     collectApp,
   )
   .action(async (branch: string, options: { app?: string[] }) => {

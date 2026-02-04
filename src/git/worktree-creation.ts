@@ -39,17 +39,31 @@ function extractDiagnosticLine(error: unknown): string {
  * - If a local branch is ahead/diverged, keep it as-is and warn.
  * - If fetching origin fails but the local branch exists, keep local and warn.
  *
- * @returns `true` when the branch exists on origin (and the remote-tracking ref
- *          is now available locally), otherwise `false`.
+ * @returns `true` when the branch exists on origin, otherwise `false`.
+ *
+ * Note: when a local branch already exists, a fetch failure still returns `true`
+ * (remote existence was confirmed), since callers typically only need the return
+ * value as a hint to avoid re-querying origin.
  */
 export function fetchRemoteBranch(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
   const localExists = localBranchExists(normalized);
 
   if (localExists) {
+    let remoteExists: boolean;
     try {
-      if (!remoteBranchExists(normalized)) return false;
+      remoteExists = remoteBranchExists(normalized);
+    } catch (error) {
+      const diagnostic = extractDiagnosticLine(error);
+      console.warn(
+        `➤ Warning: failed to query origin for '${normalized}': ${diagnostic}. Using existing local branch.`,
+      );
+      return false;
+    }
 
+    if (!remoteExists) return false;
+
+    try {
       console.log(`➤ Fetching origin/${normalized} …`);
       fetchOriginBranch(normalized);
     } catch (error) {
@@ -57,7 +71,7 @@ export function fetchRemoteBranch(branch: string): boolean {
       console.warn(
         `➤ Warning: failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch.`,
       );
-      return false;
+      return true;
     }
 
     const localHead = getLocalBranchHead(normalized);
@@ -84,19 +98,28 @@ export function fetchRemoteBranch(branch: string): boolean {
     return true;
   }
 
+  let remoteExists: boolean;
   try {
-    const remoteExists = remoteBranchExists(normalized);
-    if (!remoteExists) return false;
+    remoteExists = remoteBranchExists(normalized);
   } catch (error) {
     const diagnostic = extractDiagnosticLine(error);
     console.warn(
-      `➤ Warning: failed to reach origin to check whether '${normalized}' exists: ${diagnostic}. Creating a new local branch from current HEAD.`,
+      `➤ Warning: failed to reach origin to check whether '${normalized}' exists: ${diagnostic}. Creating a new local branch from current HEAD. (If you expected a remote branch, double-check your network connection and branch name.)`,
     );
     return false;
   }
 
+  if (!remoteExists) return false;
+
   console.log(`➤ Fetching origin/${normalized} …`);
-  fetchOriginBranch(normalized);
+  try {
+    fetchOriginBranch(normalized);
+  } catch (error) {
+    const diagnostic = extractDiagnosticLine(error);
+    throw new Error(
+      `Failed to fetch origin/${normalized}: ${diagnostic}. Cannot proceed without a local branch.`,
+    );
+  }
   return true;
 }
 
@@ -112,7 +135,22 @@ export function createWorktree(
     // Reuse existing local branch
     console.log(`➤ git worktree add ${destinationDirectory} ${branch}`);
     git("worktree", "add", destinationDirectory, branch);
-  } else if (options?.remoteBranchExists ?? remoteBranchExists(branch)) {
+    return;
+  }
+
+  let branchExistsOnOrigin = options?.remoteBranchExists;
+  if (branchExistsOnOrigin === undefined) {
+    try {
+      branchExistsOnOrigin = remoteBranchExists(branch);
+    } catch (error) {
+      const diagnostic = extractDiagnosticLine(error);
+      throw new Error(
+        `Failed to reach origin to check whether '${branch}' exists: ${diagnostic}`,
+      );
+    }
+  }
+
+  if (branchExistsOnOrigin) {
     // Create new local branch tracking the remote branch
     console.log(
       `➤ git worktree add --track -b ${branch} ${destinationDirectory} origin/${branch}`,
@@ -126,9 +164,10 @@ export function createWorktree(
       destinationDirectory,
       `origin/${branch}`,
     );
-  } else {
-    // Create new branch in the worktree from current HEAD
-    console.log(`➤ git worktree add -b ${branch} ${destinationDirectory}`);
-    git("worktree", "add", "-b", branch, destinationDirectory);
+    return;
   }
+
+  // Create new branch in the worktree from current HEAD
+  console.log(`➤ git worktree add -b ${branch} ${destinationDirectory}`);
+  git("worktree", "add", "-b", branch, destinationDirectory);
 }

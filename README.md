@@ -30,6 +30,7 @@ Your original checkout is left untouched.
 
 - Node.js ≥ 22.14.0
 - Git with `git worktree` support
+- Git credentials configured for `origin/` (the tool is non-interactive and won’t prompt for authentication)
 
 ## Install / run
 
@@ -65,7 +66,7 @@ worktree-add feature/login-form
 ```
 
 A new branch from the current HEAD is created only when the branch does not already
-exist locally or on `origin/`.
+exist locally or on `origin/` (or when `origin/` can’t be reached, in which case the tool warns and assumes you want a new local branch).
 
 Destination directory (assuming repo named `my-app`):
 
@@ -89,6 +90,8 @@ To explicitly open nothing even when `WORKTREE_ADD_APP` is set, pass `--app ""`.
 If launching an app fails, the worktree still stays created and ready.
 
 Platform note: on macOS the app value is passed to `open -a`, so use an application name like `Visual Studio Code` (or an `.app` path). On Linux/Windows it’s typically treated as an executable name/path.
+
+Terminal-based editors (vim/nvim/nano) are not supported via `--app` — apps are launched detached from the current terminal.
 
 Tip: add a shell helper with your preferred apps in your shell profile:
 
