@@ -10,19 +10,27 @@ import { git, localBranchExists, remoteBranchExists } from "./git.js";
  * Fetch a remote branch if it exists on origin, ensuring the local
  * copy is up-to-date.
  *
- * Uses `git fetch origin branch:branch` which fast-forwards the local
- * ref to match the remote. If the local branch has diverged (unpushed
- * commits), the fetch fails safely and the local branch is kept as-is
- * — {@link createWorktree} will then use the existing local branch.
+ * When the local branch already exists, uses `git fetch origin
+ * branch:branch` to fast-forward it in place. If the local branch
+ * has diverged (unpushed commits), the fetch fails safely and the
+ * local branch is kept as-is.
+ *
+ * When the local branch does not exist, fetches the remote tracking
+ * ref only so that {@link createWorktree} can create the local branch
+ * with proper `--track` configuration.
  */
 export function fetchRemoteBranch(branch: string): void {
   if (!remoteBranchExists(branch)) return;
 
   console.log(`➤ Fetching origin/${branch} …`);
-  try {
-    git("fetch", "origin", `${branch}:${branch}`);
-  } catch {
-    // Local branch has diverged from remote — keep local as-is
+  if (localBranchExists(branch)) {
+    try {
+      git("fetch", "origin", `${branch}:${branch}`);
+    } catch {
+      // Local branch has diverged from remote — keep local as-is
+    }
+  } else {
+    git("fetch", "origin", branch);
   }
 }
 
