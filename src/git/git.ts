@@ -74,12 +74,8 @@ export function localBranchExists(branch: string): boolean {
  * Check if a remote branch exists on origin.
  */
 export function remoteBranchExists(branch: string): boolean {
-  try {
-    const normalized = normalizeBranchName(branch);
-    return !!git("ls-remote", "--heads", "origin", normalized);
-  } catch {
-    return false;
-  }
+  const normalized = normalizeBranchName(branch);
+  return !!git("ls-remote", "--heads", "origin", normalized);
 }
 
 /**

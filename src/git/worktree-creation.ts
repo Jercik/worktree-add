@@ -27,13 +27,13 @@ import {
  */
 export function fetchRemoteBranch(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
-  const remoteExists = remoteBranchExists(normalized);
-  if (!remoteExists) return false;
+  const localExists = localBranchExists(normalized);
 
-  console.log(`➤ Fetching origin/${normalized} …`);
-
-  if (localBranchExists(normalized)) {
+  if (localExists) {
     try {
+      if (!remoteBranchExists(normalized)) return false;
+
+      console.log(`➤ Fetching origin/${normalized} …`);
       fetchOriginBranch(normalized);
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
@@ -68,7 +68,21 @@ export function fetchRemoteBranch(branch: string): boolean {
     return true;
   }
 
-  // No local branch: fetch origin/<branch> so createWorktree can create a tracking branch.
+  let remoteExists: boolean;
+  try {
+    remoteExists = remoteBranchExists(normalized);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    const trimmed = message.trim();
+    const firstLine = trimmed.split("\n")[0] ?? trimmed;
+    throw new Error(
+      `Failed to reach origin to check whether '${normalized}' exists: ${firstLine}`,
+    );
+  }
+
+  if (!remoteExists) return false;
+
+  console.log(`➤ Fetching origin/${normalized} …`);
   fetchOriginBranch(normalized);
   return true;
 }
