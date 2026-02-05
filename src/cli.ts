@@ -114,27 +114,29 @@ async function main(
     environmentApps: process.env.WORKTREE_ADD_APP,
   });
 
-  for (const app of apps) {
-    const unsafeReason = getUnsafeAppNameReason(app);
-    if (unsafeReason) {
-      console.error(
-        `Skipping app ${formatForLog(app)}: ${unsafeReason}. The worktree was created successfully.`,
-      );
-      continue;
-    }
+  await Promise.allSettled(
+    apps.map(async (app) => {
+      const unsafeReason = getUnsafeAppNameReason(app);
+      if (unsafeReason) {
+        console.error(
+          `Skipping app ${formatForLog(app)}: ${unsafeReason}. The worktree was created successfully.`,
+        );
+        return;
+      }
 
-    console.log(`➤ Opening ${formatForLog(app)} …`);
-    try {
-      // Best-effort: `open()` resolves when the subprocess is spawned. We do not wait
-      // for apps to finish launching (or exit).
-      await open(destinationDirectory, { app: { name: app }, wait: false });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      console.error(
-        `Failed to open ${formatForLog(app)}: ${message}. The worktree was created successfully.`,
-      );
-    }
-  }
+      console.log(`➤ Opening ${formatForLog(app)} …`);
+      try {
+        // Best-effort: `open()` resolves when the subprocess is spawned. We do not wait
+        // for apps to finish launching (or exit).
+        await open(destinationDirectory, { app: { name: app }, wait: false });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(
+          `Failed to open ${formatForLog(app)}: ${message}. The worktree was created successfully.`,
+        );
+      }
+    }),
+  );
 }
 
 const program = new Command()
