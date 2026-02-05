@@ -35,9 +35,9 @@ type HandleExistingDirectoryOptions = {
 export async function handleExistingDirectory(
   destinationDirectory: string,
   options: HandleExistingDirectoryOptions = {},
-): Promise<void> {
+): Promise<boolean> {
   if (!(await fileExists(destinationDirectory))) {
-    return;
+    return true;
   }
 
   const logger = getStatusLogger(options.logger);
@@ -56,7 +56,7 @@ export async function handleExistingDirectory(
         logger.warn(
           `Dry run: directory '${directoryName}' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.`,
         );
-        return;
+        return false;
       }
 
       if (!interactive) {
@@ -64,24 +64,24 @@ export async function handleExistingDirectory(
         logger.warn(
           `Dry run: directory '${directoryName}' already exists${ciHint}. Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.`,
         );
-        return;
+        return false;
       }
 
       if (!isTty) {
         logger.warn(
           `Dry run: directory '${directoryName}' already exists, but stdin is not a TTY. Re-run with --yes to move it to trash, or remove it manually.`,
         );
-        return;
+        return false;
       }
 
       logger.step(
         `Would prompt to move existing directory '${directoryName}' to trash`,
       );
-      return;
+      return false;
     }
 
     logger.step(`Would move existing directory '${directoryName}' to trash`);
-    return;
+    return true;
   }
 
   if (!assumeYes) {
@@ -157,7 +157,7 @@ export async function handleExistingDirectory(
   }
 
   if (!shouldPruneWorktree) {
-    return;
+    return true;
   }
 
   logger.detail(`Pruning stale worktree registration for '${directoryName}'.`);
@@ -171,4 +171,6 @@ export async function handleExistingDirectory(
       `Failed to prune stale worktree registration for '${directoryName}'. Run 'git worktree prune' and retry.`,
     );
   }
+
+  return true;
 }

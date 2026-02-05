@@ -49,12 +49,18 @@ export async function runWorktreeAdd(
   });
 
   try {
-    await handleExistingDirectory(context.destinationDirectory, {
-      dryRun,
-      assumeYes,
-      interactive,
-      logger,
-    });
+    const shouldContinue = await handleExistingDirectory(
+      context.destinationDirectory,
+      {
+        dryRun,
+        assumeYes,
+        interactive,
+        logger,
+      },
+    );
+    if (!shouldContinue) {
+      return;
+    }
 
     const remoteStatus = (() => {
       try {

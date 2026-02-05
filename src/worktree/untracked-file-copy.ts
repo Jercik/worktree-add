@@ -37,7 +37,9 @@ export async function copyUntrackedFiles(
       "ls-files",
       "--others",
       "--exclude-standard",
+      "--full-name",
       "-z", // null-separated output for safe parsing
+      { cwd: repoRoot },
     )
       .split("\0")
       .filter(Boolean),
@@ -46,7 +48,9 @@ export async function copyUntrackedFiles(
       "--others",
       "--ignored",
       "--exclude-standard",
+      "--full-name",
       "-z", // null-separated output for safe parsing
+      { cwd: repoRoot },
     )
       .split("\0")
       .filter(Boolean),
@@ -56,11 +60,21 @@ export async function copyUntrackedFiles(
   }
 
   for (const relativePath of untrackedEntries) {
+    const resolvedSourcePath = path.resolve(repoRoot, relativePath);
+    const relativeToRoot = path.relative(repoRoot, resolvedSourcePath);
+    const escapesRepoRoot =
+      path.isAbsolute(relativeToRoot) ||
+      relativeToRoot === ".." ||
+      relativeToRoot.startsWith(`..${path.sep}`);
+    if (escapesRepoRoot) {
+      logger.warn(`Skipping ${relativePath} (path escapes repo root).`);
+      continue;
+    }
     const posixPath = toPosixPath(relativePath);
     if (extraIgnoredRegexes.some((regex) => regex.test(posixPath))) {
       continue;
     }
-    const sourcePath = path.resolve(repoRoot, relativePath);
+    const sourcePath = resolvedSourcePath;
     const destinationPath = path.join(destinationDirectory, relativePath);
     const destinationExists = await fs
       .stat(destinationPath)

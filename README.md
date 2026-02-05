@@ -9,7 +9,7 @@ Running `worktree-add <branch>` from inside a repo:
 1. Normalizes `<branch>` (supports `origin/foo`, `refs/heads/foo`, etc.).
 2. Refuses if that branch is already checked out in any worktree.
 3. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
-4. If the destination exists, requires `--interactive` to confirm or `--yes` to move it to the system trash.
+4. If the destination exists, pass `--interactive` to be prompted for confirmation, or `--yes` to move it to the system trash without prompting. Without either flag, the command exits.
 5. Fetches `origin/<branch>` and refreshes your local branch when safe:
    - fast-forwards the local branch if it’s strictly behind `origin/<branch>`
    - warns and keeps the local branch as-is if it’s ahead/diverged
