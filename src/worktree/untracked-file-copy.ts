@@ -29,15 +29,29 @@ export async function copyUntrackedFiles(
     globToRegExp(pattern),
   );
 
-  const untrackedEntries = git(
-    "ls-files",
-    "--others", // untracked files
-    "--ignored", // ignored files
-    "--exclude-standard", // respect .gitignore rules
-    "-z", // null-separated output for safe parsing
-  )
-    .split("\0")
-    .filter(Boolean);
+  const untrackedEntries = new Set<string>();
+  const untrackedPaths = [
+    ...git(
+      "ls-files",
+      "--others",
+      "--exclude-standard",
+      "-z", // null-separated output for safe parsing
+    )
+      .split("\0")
+      .filter(Boolean),
+    ...git(
+      "ls-files",
+      "--others",
+      "--ignored",
+      "--exclude-standard",
+      "-z", // null-separated output for safe parsing
+    )
+      .split("\0")
+      .filter(Boolean),
+  ];
+  for (const entry of untrackedPaths) {
+    untrackedEntries.add(entry);
+  }
 
   for (const relativePath of untrackedEntries) {
     const posixPath = toPosixPath(relativePath);
