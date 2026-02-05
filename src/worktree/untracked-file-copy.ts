@@ -30,6 +30,7 @@ export async function copyUntrackedFiles(
   );
 
   const untrackedEntries = new Set<string>();
+  // `--others --ignored` excludes untracked entries, so combine both calls.
   const untrackedPaths = [
     ...git(
       "ls-files",
