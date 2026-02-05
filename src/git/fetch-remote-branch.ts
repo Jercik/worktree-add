@@ -83,6 +83,8 @@ export function fetchRemoteBranch(
     }
 
     if (ahead === 0 && behind === 0) {
+      // Defensive: rev-list should report differences when heads differ,
+      // but shallow/corrupted refs can yield 0/0 counts.
       logger.warn(
         `Local branch '${normalized}' differs from origin/${normalized}, but Git reports no ahead/behind differences. Using existing local branch; if you encounter issues, try re-cloning the repository.`,
       );
