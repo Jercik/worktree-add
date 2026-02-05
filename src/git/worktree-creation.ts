@@ -41,6 +41,9 @@ function extractDiagnosticLine(error: unknown): string {
  * - If a local branch is ahead/diverged, keep it as-is and warn.
  * - If fetching origin fails but the local branch exists, keep local and warn.
  *
+ * Note: fast-forwarding updates the local branch head before worktree creation.
+ * If `git worktree add` fails later, the branch update still stands.
+ *
  * @returns A status object indicating whether the branch exists on origin
  *          (`exists`/`missing`) or could not be confirmed (`unknown`, e.g.
  *          connectivity/auth issues), plus whether a local branch exists.
