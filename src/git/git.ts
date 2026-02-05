@@ -30,6 +30,8 @@ export function git(
   const result = spawnSync("git", gitArguments, {
     encoding: "utf8",
     maxBuffer: 100 * 1024 * 1024, // 100 MB to accommodate large outputs
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     ...(cwd && { cwd }),
   });
   if (result.error) throw result.error;

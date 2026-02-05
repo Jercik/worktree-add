@@ -61,9 +61,20 @@ export function fetchRemoteBranch(
       return { status: "exists", localExists };
     }
 
-    const { ahead, behind } = getAheadBehindCounts(localHead, remoteHead);
+    let counts: { ahead: number; behind: number };
+    try {
+      counts = getAheadBehindCounts(localHead, remoteHead);
+    } catch (error) {
+      const diagnostic = extractDiagnosticLine(error);
+      logger.warn(
+        `Failed to compare local '${normalized}' with origin/${normalized}: ${diagnostic}. Using existing local branch as-is.`,
+      );
+      return { status: "exists", localExists };
+    }
+    const { ahead, behind } = counts;
 
     if (ahead === 0 && behind > 0) {
+      // dryRun returns before fetching, so this path always mutates the branch.
       logger.step(
         `Fast-forwarding local '${normalized}' to origin/${normalized} …`,
       );

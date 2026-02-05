@@ -29,9 +29,9 @@ describe("getUnsafeAppNameReason", () => {
     );
   });
 
-  it("rejects shell metacharacters with clear reasons", () => {
-    expect(getUnsafeAppNameReason("code;rm")).toBe("contains ';'");
-    expect(getUnsafeAppNameReason("code|rm")).toBe("contains '|'");
-    expect(getUnsafeAppNameReason("code`rm`")).toBe("contains '`'");
+  it("allows punctuation characters in app names", () => {
+    expect(getUnsafeAppNameReason("code;rm")).toBeUndefined();
+    expect(getUnsafeAppNameReason("code|rm")).toBeUndefined();
+    expect(getUnsafeAppNameReason("code`rm`")).toBeUndefined();
   });
 });

@@ -9,10 +9,6 @@
  * filter as a UX/diagnostics guardrail rather than a security boundary.
  */
 export function getUnsafeAppNameReason(appName: string): string | undefined {
-  if (appName.includes(";")) return "contains ';'";
-  if (appName.includes("|")) return "contains '|'";
-  if (appName.includes("`")) return "contains '`'";
-
   for (const character of appName) {
     const codePoint = character.codePointAt(0);
     if (codePoint === undefined) continue;
