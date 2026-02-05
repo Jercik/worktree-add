@@ -19,7 +19,7 @@ export function registerSigintHandler(
     options.logger.warn("Received SIGINT. Aborting.");
     options.onCleanup();
     console.error(
-      `Worktree setup may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`,
+      `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`,
     );
     // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
     process.exit(130);
