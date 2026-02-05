@@ -62,6 +62,24 @@ export async function copyUntrackedFiles(
     }
     const sourcePath = path.resolve(repoRoot, relativePath);
     const destinationPath = path.join(destinationDirectory, relativePath);
+    const destinationExists = await fs
+      .stat(destinationPath)
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (
+          error &&
+          typeof error === "object" &&
+          "code" in error &&
+          (error as NodeJS.ErrnoException).code === "ENOENT"
+        ) {
+          return false;
+        }
+        throw error;
+      });
+    if (destinationExists) {
+      logger.detail(`Skipped ${relativePath} (destination already exists).`);
+      continue;
+    }
     if (dryRun) {
       logger.detail(`Would copy ${relativePath}`);
       continue;

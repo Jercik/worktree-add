@@ -18,7 +18,7 @@
  */
 import path from "node:path";
 import trash from "trash";
-import { fileExists, confirm, exitWithMessage } from "../git/git.js";
+import { fileExists, confirm, exitWithMessage, git } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
 
@@ -121,6 +121,27 @@ export async function handleExistingDirectory(
     }
   }
 
+  const resolvedDestination = path.resolve(destinationDirectory);
+  let shouldPruneWorktree = false;
+  try {
+    const worktreeList = git("worktree", "list", "--porcelain");
+    const lines = worktreeList.split(/\n/u);
+    for (const line of lines) {
+      if (!line.startsWith("worktree ")) continue;
+      const worktreePath = line.replace(/^worktree\s+/u, "").trim();
+      if (path.resolve(worktreePath) === resolvedDestination) {
+        shouldPruneWorktree = true;
+        break;
+      }
+    }
+  } catch (error) {
+    const details =
+      error instanceof Error ? (error.stack ?? error.message) : String(error);
+    logger.detail(
+      `Error checking for existing worktree registration: ${details}`,
+    );
+  }
+
   // Move the existing directory to trash
   logger.step(`Moving existing directory '${directoryName}' to trash...`);
   try {
@@ -132,6 +153,22 @@ export async function handleExistingDirectory(
     logger.detail(`Error details: ${details}`);
     exitWithMessage(
       `Failed to move existing directory to trash: ${error instanceof Error ? error.message : String(error)}`,
+    );
+  }
+
+  if (!shouldPruneWorktree) {
+    return;
+  }
+
+  logger.detail(`Pruning stale worktree registration for '${directoryName}'.`);
+  try {
+    git("worktree", "prune");
+  } catch (error) {
+    const details =
+      error instanceof Error ? (error.stack ?? error.message) : String(error);
+    logger.detail(`Error details: ${details}`);
+    exitWithMessage(
+      `Failed to prune stale worktree registration for '${directoryName}'. Run 'git worktree prune' and retry.`,
     );
   }
 }

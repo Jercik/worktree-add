@@ -29,7 +29,8 @@ export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
     exitWithMessage(
       `Branch '${branch}' is already checked out in: ${existingWorktree}\n` +
         "You cannot add another worktree for the same branch.\n" +
-        "Open that worktree instead or remove it before retrying.",
+        "Open that worktree instead or remove it before retrying.\n" +
+        "If that path no longer exists, run `git worktree prune` and retry.",
     );
   }
 

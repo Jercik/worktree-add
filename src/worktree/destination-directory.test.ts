@@ -11,7 +11,7 @@ vi.mock("../git/git.js");
 const gitModule = await import("../git/git.js");
 const trashModule = await import("trash");
 
-const { fileExists, confirm, exitWithMessage } = gitModule;
+const { fileExists, confirm, exitWithMessage, git } = gitModule;
 const trash = trashModule.default;
 
 const createLogger = (): StatusLogger => ({
@@ -34,6 +34,7 @@ describe("handleExistingDirectory", () => {
     vi.clearAllMocks();
     // Reset console mocks
     vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.mocked(git).mockReturnValue("");
   });
 
   it("returns early when directory does not exist", async () => {

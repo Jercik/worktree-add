@@ -28,7 +28,10 @@ export async function openWorktreeApps(
 
       logger.step(`Opening ${JSON.stringify(app)} …`);
       try {
-        await open(destinationDirectory, { app: { name: app }, wait: false });
+        await open(destinationDirectory, {
+          app: { name: [app] },
+          wait: false,
+        });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
         const looksLikeArguments = /\s--?\S/u.test(app);
