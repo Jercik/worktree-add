@@ -29,7 +29,13 @@ export async function openWorktreeApps(
         await open(destinationDirectory, { app: { name: app }, wait: false });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        logger.warn(`Failed to open ${JSON.stringify(app)}: ${message}.`);
+        const hasWhitespace = /\s/u.test(app);
+        const argumentHint = hasWhitespace
+          ? ' Note: application arguments are not supported; pass only the application name (for example, "code" instead of "code --wait").'
+          : "";
+        logger.warn(
+          `Failed to open ${JSON.stringify(app)}: ${message}.${argumentHint}`,
+        );
       }
     }),
   );

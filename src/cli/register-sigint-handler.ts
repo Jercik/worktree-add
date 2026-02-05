@@ -9,7 +9,13 @@ type SigintHandlerOptions = {
 export function registerSigintHandler(
   options: SigintHandlerOptions,
 ): () => void {
+  let handled = false;
   const handler = (): void => {
+    if (handled) {
+      // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
+      process.exit(130);
+    }
+    handled = true;
     options.logger.warn("Received SIGINT. Aborting.");
     options.onCleanup();
     console.error(
@@ -19,7 +25,7 @@ export function registerSigintHandler(
     process.exit(130);
   };
 
-  process.once("SIGINT", handler);
+  process.on("SIGINT", handler);
   return () => {
     process.off("SIGINT", handler);
   };

@@ -33,7 +33,7 @@ export function fetchRemoteBranch(
     } catch (error) {
       const diagnostic = extractDiagnosticLine(error);
       logger.warn(
-        `Failed to query origin for '${normalized}': ${diagnostic}. Using existing local branch.`,
+        `Failed to query origin for '${normalized}': ${diagnostic}. Using existing local branch. (If you expected a remote branch, double-check your network connection and branch name.)`,
       );
       return { status: "unknown", localExists };
     }
@@ -74,7 +74,7 @@ export function fetchRemoteBranch(
     const { ahead, behind } = counts;
 
     if (ahead === 0 && behind > 0) {
-      // dryRun returns before fetching, so this path always mutates the branch.
+      // Note: dryRun returns before fetching, so this path only runs when dryRun is false.
       logger.step(
         `Fast-forwarding local '${normalized}' to origin/${normalized} …`,
       );
@@ -84,7 +84,7 @@ export function fetchRemoteBranch(
 
     if (ahead === 0 && behind === 0) {
       logger.warn(
-        `Local branch '${normalized}' differs from origin/${normalized} (unexpected ahead/behind: 0 and 0). This can indicate unrelated histories or corrupted/shallow refs. Using existing local branch as-is.`,
+        `Local branch '${normalized}' differs from origin/${normalized}, but Git reports no ahead/behind differences. Using existing local branch; if you encounter issues, try re-cloning the repository.`,
       );
       return { status: "exists", localExists };
     }
