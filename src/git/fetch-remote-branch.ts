@@ -79,6 +79,7 @@ export function fetchRemoteBranch(
 
     if (ahead === 0 && behind > 0) {
       // Note: dryRun returns before fetching, so this path only runs when dryRun is false.
+      // resolveWorktreeContext already blocks this, but keep as a defensive check.
       const activeWorktree = findWorktreeByBranchName(normalized);
       if (activeWorktree) {
         logger.warn(
