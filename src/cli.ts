@@ -25,7 +25,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <name>",
-    'Repeatable. Apps to open the worktree in (detached; arguments are not parsed; app names are executed, so only use values you trust; or set WORKTREE_ADD_APP env var, comma-separated). To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".',
+    "Open the worktree in an app (repeatable)",
     collectApp,
   )
   .option(
@@ -46,6 +46,12 @@ Examples:
   $ worktree-add feature/api --app code
   $ WORKTREE_ADD_APP=ghostty,code worktree-add feature/new-branch
   $ git branch --format="%(refname:short)" | head -n1 | xargs worktree-add
+
+App notes:
+  - App names are executed on your machine; only use values you trust.
+  - Arguments are not parsed; pass only the app name (e.g., "code", not "code --wait").
+  - WORKTREE_ADD_APP is a comma-separated list of apps (alternative to repeating --app).
+  - To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".
 
 Dependencies:
   - git (with worktree support)
