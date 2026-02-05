@@ -87,6 +87,7 @@ Arguments are not parsed: values like `code -w` are treated as part of the app n
 
 CLI flags take priority over the env var.
 To explicitly open nothing even when `WORKTREE_ADD_APP` is set, pass `--app ""`.
+Whitespace-only values like `--app "   "` are treated as absent and do not override `WORKTREE_ADD_APP`.
 
 If launching an app fails, the worktree still stays created and ready.
 
