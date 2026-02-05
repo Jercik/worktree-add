@@ -95,6 +95,10 @@ async function main(
 
   // Step 2: Create the worktree
   createWorktree(branch, destinationDirectory, {
+    // Intentionally treat "unknown" as false:
+    // - unknown + no local + no --offline => we exit above (avoid ambiguity)
+    // - unknown + local exists => createWorktree reuses local branch
+    // - unknown + --offline => caller explicitly opts into new branch from HEAD
     remoteBranchExists: remoteStatus.status === "exists",
   });
 
