@@ -56,17 +56,18 @@ export async function runWorktreeAdd(
       logger,
     });
 
-    let remoteStatus: ReturnType<typeof fetchRemoteBranch>;
-    try {
-      remoteStatus = fetchRemoteBranch(context.branch, { dryRun, logger });
-    } catch (error) {
-      const message = error instanceof Error ? error.message : String(error);
-      exitWithMessage(
-        `Failed to fetch origin/${context.branch}: ${message}\n` +
-          "If you expected this to work, check your network/credentials and retry.\n" +
-          "If you want a new local branch from HEAD instead, pass --offline.",
-      );
-    }
+    const remoteStatus = (() => {
+      try {
+        return fetchRemoteBranch(context.branch, { dryRun, logger });
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        exitWithMessage(
+          `Failed to fetch origin/${context.branch}: ${message}\n` +
+            "If you expected this to work, check your network/credentials and retry.\n" +
+            "If you want a new local branch from HEAD instead, pass --offline.",
+        );
+      }
+    })();
     if (
       remoteStatus.status === "unknown" &&
       !remoteStatus.localExists &&
