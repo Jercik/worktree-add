@@ -294,11 +294,6 @@ type PositiveInt = z.infer<typeof PositiveInt>;
 
 ---
 
-Read the project's readme: @README.md
-
-
----
-
 # Rule: Test Functional Core
 
 Focus testing efforts on the functional core—pure functions with no side effects that operate only on provided data. These tests are fast, deterministic, and provide high value per line of test code. Do not write tests for the imperative shell (I/O, database calls, external services) unless the user explicitly requests them.

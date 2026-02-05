@@ -60,7 +60,7 @@ export async function getInstallCommand(
  */
 export function getInstallMessage(cmd: InstallCommand): string {
   if (cmd.command === "npm" && cmd.args[0] === "ci") {
-    return "➤ Running npm ci (using package-lock.json) …";
+    return "Running npm ci (using package-lock.json) …";
   }
-  return `➤ Running ${formatCommand(cmd.command, cmd.args)} …`;
+  return `Running ${formatCommand(cmd.command, cmd.args)} …`;
 }

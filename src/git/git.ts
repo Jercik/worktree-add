@@ -30,6 +30,8 @@ export function git(
   const result = spawnSync("git", gitArguments, {
     encoding: "utf8",
     maxBuffer: 100 * 1024 * 1024, // 100 MB to accommodate large outputs
+    stdio: ["ignore", "pipe", "pipe"],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     ...(cwd && { cwd }),
   });
   if (result.error) throw result.error;
@@ -72,29 +74,27 @@ export function localBranchExists(branch: string): boolean {
 
 /**
  * Check if a remote branch exists on origin.
+ *
+ * Note: this function may throw on network/auth failures or when the `origin`
+ * remote is missing/misconfigured. Callers that want a degraded-mode fallback
+ * should wrap it in try/catch.
  */
 export function remoteBranchExists(branch: string): boolean {
-  try {
-    const normalized = normalizeBranchName(branch);
-    return !!git("ls-remote", "--heads", "origin", normalized);
-  } catch {
-    return false;
-  }
+  const normalized = normalizeBranchName(branch);
+  // Use a fully-qualified ref to avoid option-parsing ambiguity for branch
+  // names starting with '-'.
+  return !!git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`);
 }
 
 /**
- * Fetch a branch from origin.
+ * Fetch a branch from origin into the remote-tracking ref.
+ *
+ * This does not update any local branch heads.
  */
 export function fetchOriginBranch(branch: string): void {
   const normalized = normalizeBranchName(branch);
   const refspec = `+refs/heads/${normalized}:refs/remotes/origin/${normalized}`;
-  const result = spawnSync("git", ["fetch", "origin", "--", refspec], {
-    stdio: "inherit",
-  });
-  if (result.error) throw result.error;
-  if (result.status !== 0) {
-    throw new Error(`git fetch origin ${refspec} failed`);
-  }
+  git("fetch", "origin", "--", refspec);
 }
 
 /**
@@ -119,6 +119,25 @@ export function getRemoteBranchHead(branch: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+export function getAheadBehindCounts(
+  localHead: string,
+  remoteHead: string,
+): { ahead: number; behind: number } {
+  const output = git(
+    "rev-list",
+    "--left-right",
+    "--count",
+    `${localHead}...${remoteHead}`,
+  );
+  const [aheadRaw, behindRaw] = output.split(/\s+/u);
+  const ahead = Number.parseInt(aheadRaw ?? "0");
+  const behind = Number.parseInt(behindRaw ?? "0");
+  return {
+    ahead: Number.isNaN(ahead) ? 0 : ahead,
+    behind: Number.isNaN(behind) ? 0 : behind,
+  };
 }
 
 /**
@@ -160,7 +179,7 @@ export function exitWithMessage(message: string): never {
 /**
  * Prompt for input and return the user's response.
  */
-export async function prompt(message: string): Promise<string> {
+async function prompt(message: string): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
     output: process.stderr,

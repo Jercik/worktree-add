@@ -12,9 +12,13 @@ import {
   getBinaryRunCommand,
 } from "./package-manager-commands.js";
 import { getInstallCommand, getInstallMessage } from "./install-commands.js";
+import type { StatusLogger } from "../output/create-status-logger.js";
+import { getStatusLogger } from "../output/get-status-logger.js";
 
 interface RunOptions {
   readonly stdio?: "inherit" | "pipe";
+  readonly dryRun?: boolean;
+  readonly logger?: StatusLogger;
 }
 
 interface RunBinaryResult {
@@ -74,10 +78,16 @@ async function detectPackageManager(
 /**
  * Install dependencies for a project using the detected package manager.
  */
-export async function installDependencies(cwd: string): Promise<void> {
+export async function installDependencies(
+  cwd: string,
+  options: { dryRun?: boolean; logger?: StatusLogger } = {},
+): Promise<void> {
+  const logger = getStatusLogger(options.logger);
+  const dryRun = options.dryRun ?? false;
   const pm = await detectPackageManager(cwd);
   const cmd = await getInstallCommand(pm, cwd);
-  console.log(getInstallMessage(cmd));
+  logger.step(getInstallMessage(cmd));
+  if (dryRun) return;
   runOrThrow(cmd.command, cmd.args, cwd);
 }
 
@@ -87,13 +97,16 @@ export async function runPackageManagerBinary(
   arguments_: string[] = [],
   options: RunOptions = {},
 ): Promise<RunBinaryResult | undefined> {
+  const logger = getStatusLogger(options.logger);
+  const dryRun = options.dryRun ?? false;
   const pm = await detectPackageManager(cwd);
   const { command, args: commandArguments } = getBinaryRunCommand(
     pm,
     binary,
     arguments_,
   );
-  console.log(`➤ Running ${formatCommand(command, commandArguments)} …`);
+  logger.step(`Running ${formatCommand(command, commandArguments)} …`);
+  if (dryRun) return undefined;
   const result = runOrThrow(command, commandArguments, cwd, options);
 
   if (options.stdio === "pipe") {

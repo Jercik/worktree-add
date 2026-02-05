@@ -6,6 +6,8 @@
 
 import path from "node:path";
 import { fileExists } from "../git/git.js";
+import type { StatusLogger } from "../output/create-status-logger.js";
+import { getStatusLogger } from "../output/get-status-logger.js";
 import {
   installDependencies,
   runPackageManagerBinary,
@@ -17,25 +19,35 @@ import { isNextProject, isNextTypegenSupported } from "./next.js";
  */
 export async function setupProject(
   destinationDirectory: string,
+  options: { dryRun?: boolean; logger?: StatusLogger } = {},
 ): Promise<void> {
+  const logger = getStatusLogger(options.logger);
+  const dryRun = options.dryRun ?? false;
   const packageJsonPath = path.join(destinationDirectory, "package.json");
   if (!(await fileExists(packageJsonPath))) {
     return;
   }
 
-  await installDependencies(destinationDirectory);
+  await installDependencies(destinationDirectory, { dryRun, logger });
 
   // Run Next.js type generation if applicable
   if (await isNextProject(destinationDirectory)) {
-    console.log("➤ Checking Next.js CLI typegen support …");
-    const hasTypegenSupport =
-      await isNextTypegenSupported(destinationDirectory);
+    if (dryRun) {
+      logger.step("Would run next typegen if supported");
+      return;
+    }
+    logger.step("Checking Next.js CLI typegen support …");
+    const hasTypegenSupport = await isNextTypegenSupported(
+      destinationDirectory,
+      { logger },
+    );
     if (hasTypegenSupport) {
-      console.log("➤ Running next typegen …");
-      await runPackageManagerBinary(destinationDirectory, "next", ["typegen"]);
+      await runPackageManagerBinary(destinationDirectory, "next", ["typegen"], {
+        logger,
+      });
     } else {
-      console.warn(
-        "! Skipping next typegen: installed Next.js CLI does not support this command.",
+      logger.warn(
+        "Skipping next typegen: installed Next.js CLI does not support this command.",
       );
     }
   }

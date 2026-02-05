@@ -3,7 +3,7 @@
   "author": "Łukasz Jerciński",
   "license": "MIT",
   "version": "1.0.0",
-  "description": "Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your editor.",
+  "description": "Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your apps.",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/Jercik/worktree-add.git"
@@ -52,7 +52,9 @@
     "node": ">=22.14.0"
   },
   "dependencies": {
+    "@commander-js/extra-typings": "^14.0.0",
     "commander": "^14.0.2",
+    "open": "^11.0.0",
     "package-manager-detector": "^1.6.0",
     "trash": "^10.0.1"
   },

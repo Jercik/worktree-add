@@ -7,6 +7,7 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { runPackageManagerBinary } from "./package-manager.js";
+import type { StatusLogger } from "../output/create-status-logger.js";
 
 type DependencyMap = Readonly<Record<string, string>>;
 
@@ -42,13 +43,14 @@ export const isNextProject = async (directory: string): Promise<boolean> => {
 
 export const isNextTypegenSupported = async (
   directory: string,
+  options: { logger?: StatusLogger } = {},
 ): Promise<boolean> => {
   try {
     const result = await runPackageManagerBinary(
       directory,
       "next",
       ["--help"],
-      { stdio: "pipe" },
+      { stdio: "pipe", logger: options.logger },
     );
     if (!result) {
       return false;
