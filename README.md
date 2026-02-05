@@ -116,7 +116,7 @@ CLI flags take priority over the env var.
 To explicitly open nothing even when `WORKTREE_ADD_APP` is set, pass `--app ""`.
 Whitespace-only values like `--app "   "` are treated as absent and do not override `WORKTREE_ADD_APP`.
 
-If launching an app fails, the worktree still stays created and ready.
+If launching an app fails to start, the worktree still stays created and ready.
 
 Platform note: on macOS the app value is passed to `open -a`, so use an application name like `Visual Studio Code` (or an `.app` path). On Linux/Windows it’s typically treated as an executable name/path.
 

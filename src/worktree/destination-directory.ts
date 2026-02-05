@@ -50,6 +50,35 @@ export async function handleExistingDirectory(
   const directoryName = path.basename(destinationDirectory);
 
   if (dryRun) {
+    if (!assumeYes) {
+      if (isCi && interactive && !isTty) {
+        logger.warn(
+          `Dry run: directory '${directoryName}' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.`,
+        );
+        return;
+      }
+
+      if (!interactive) {
+        const ciHint = isCi ? " (CI is enabled)" : "";
+        logger.warn(
+          `Dry run: directory '${directoryName}' already exists${ciHint}. Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.`,
+        );
+        return;
+      }
+
+      if (!isTty) {
+        logger.warn(
+          `Dry run: directory '${directoryName}' already exists, but stdin is not a TTY. Re-run with --yes to move it to trash, or remove it manually.`,
+        );
+        return;
+      }
+
+      logger.step(
+        `Would prompt to move existing directory '${directoryName}' to trash`,
+      );
+      return;
+    }
+
     logger.step(`Would move existing directory '${directoryName}' to trash`);
     return;
   }
