@@ -52,6 +52,7 @@
     "node": ">=22.14.0"
   },
   "dependencies": {
+    "@commander-js/extra-typings": "^14.0.0",
     "commander": "^14.0.2",
     "open": "^11.0.0",
     "package-manager-detector": "^1.6.0",

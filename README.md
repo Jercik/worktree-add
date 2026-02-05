@@ -9,7 +9,7 @@ Running `worktree-add <branch>` from inside a repo:
 1. Normalizes `<branch>` (supports `origin/foo`, `refs/heads/foo`, etc.).
 2. Refuses if that branch is already checked out in any worktree.
 3. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
-4. If the destination exists, asks before moving it to the system trash.
+4. If the destination exists, requires `--interactive` to confirm or `--yes` to move it to the system trash.
 5. Fetches `origin/<branch>` and refreshes your local branch when safe:
    - fast-forwards the local branch if it’s strictly behind `origin/<branch>`
    - warns and keeps the local branch as-is if it’s ahead/diverged
@@ -52,7 +52,7 @@ Run it from anywhere inside an existing worktree of the repo.
 
 ```bash
 # inside /my/path/my-app
-worktree-add <branch>
+worktree-add <branch> [options]
 ```
 
 Run this inside an existing worktree of your project—the tool discovers the repo root from your current directory and creates the sibling worktree next to it.
@@ -65,6 +65,17 @@ Example:
 worktree-add feature/login-form
 ```
 
+Common options:
+
+```text
+  -a, --app <name>   Open the worktree in an app (repeatable)
+  --offline          Create from HEAD when origin can't be reached
+  -y, --yes          Skip confirmation and replace existing destination
+  --interactive      Allow confirmation prompts (requires a TTY)
+  --dry-run          Show what would happen without making changes
+  --verbose          Show progress messages on stderr
+```
+
 A new branch from the current HEAD is created only when the branch does not already
 exist locally or on `origin/`. If `origin/` can’t be reached and the branch doesn’t exist locally, the tool aborts unless you pass `--offline`.
 
@@ -73,6 +84,21 @@ Destination directory (assuming repo named `my-app`):
 ```text
 /my/path/my-app                     # current checkout
 /my/path/my-app-feature-login-form  # new worktree for branch "feature/login-form"
+```
+
+## Pipeline examples
+
+```bash
+# create a worktree for the newest local branch
+git for-each-ref --sort=-committerdate --format="%(refname:short)" refs/heads \
+  | head -n1 \
+  | xargs worktree-add
+
+# create a worktree for the first feature branch
+git branch --format="%(refname:short)" \
+  | grep '^feature/' \
+  | head -n1 \
+  | xargs worktree-add
 ```
 
 ## App control
@@ -106,6 +132,10 @@ Add it to your shell profile:
 - zsh: `~/.zshrc` or `~/.zprofile`
 - bash: `~/.bashrc` or `~/.bash_profile`
 - fish: `~/.config/fish/config.fish`
+
+## Agent rule
+
+If you are an automated agent, read and follow `AGENTS.md` (and `CLAUDE.md` if present) at the repo root before making changes.
 
 ## License
 

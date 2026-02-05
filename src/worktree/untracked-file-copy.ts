@@ -12,6 +12,8 @@ import {
   globToRegExp,
   toPosixPath,
 } from "./file-patterns.js";
+import type { StatusLogger } from "../output/create-status-logger.js";
+import { getStatusLogger } from "../output/get-status-logger.js";
 
 /**
  * Copy untracked files from source to destination, excluding ignored patterns
@@ -19,7 +21,10 @@ import {
 export async function copyUntrackedFiles(
   repoRoot: string,
   destinationDirectory: string,
+  options?: { dryRun?: boolean; logger?: StatusLogger },
 ): Promise<void> {
+  const logger = getStatusLogger(options?.logger);
+  const dryRun = options?.dryRun ?? false;
   const extraIgnoredRegexes = EXTRA_IGNORED_PATTERNS.map((pattern) =>
     globToRegExp(pattern),
   );
@@ -41,11 +46,15 @@ export async function copyUntrackedFiles(
     }
     const sourcePath = path.resolve(repoRoot, relativePath);
     const destinationPath = path.join(destinationDirectory, relativePath);
+    if (dryRun) {
+      logger.detail(`Would copy ${relativePath}`);
+      continue;
+    }
     await fs.mkdir(path.dirname(destinationPath), { recursive: true });
     await fs.cp(sourcePath, destinationPath, {
       recursive: true,
       errorOnExist: false,
     });
-    console.log(`  • copied ${relativePath}`);
+    logger.detail(`Copied ${relativePath}`);
   }
 }

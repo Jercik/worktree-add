@@ -7,136 +7,13 @@
  * not necessarily the original "main" checkout.
  */
 
-import path from "node:path";
-import { Command } from "commander";
-import open from "open";
+import { Command } from "@commander-js/extra-typings";
 import packageJson from "../package.json" with { type: "json" };
-import { getUnsafeAppNameReason } from "./app/get-unsafe-app-name-reason.js";
-import { resolveApps } from "./app/resolve-apps.js";
-import {
-  git,
-  getRepositoryName,
-  normalizeBranchName,
-  toSafePathSegment,
-  findWorktreeByBranchName,
-  exitWithMessage,
-} from "./git/git.js";
-import { copyUntrackedFiles } from "./worktree/untracked-file-copy.js";
-import { createWorktree, fetchRemoteBranch } from "./git/worktree-creation.js";
-import { handleExistingDirectory } from "./worktree/destination-directory.js";
-import { setupProject } from "./project/setup.js";
+import { runWorktreeAdd } from "./cli/run-worktree-add.js";
+import type { CliOptions } from "./cli/run-worktree-add.js";
 
 function collectApp(app: string, previous: string[] | undefined): string[] {
   return [...(previous ?? []), app];
-}
-
-function formatForLog(value: string): string {
-  return JSON.stringify(value);
-}
-
-async function main(
-  branchRaw: string,
-  options: { app?: string[]; offline?: boolean },
-): Promise<void> {
-  const branch = normalizeBranchName(branchRaw);
-  if (branch.length === 0) {
-    exitWithMessage(
-      "Branch name is empty.\n" +
-        "Examples: `feature/foo`, `origin/feature/foo`, `refs/heads/feature/foo`.\n" +
-        "Note: `origin/` without a branch name is not valid.",
-    );
-  }
-
-  // Prevent attempting to add a worktree for a branch that is already checked out
-  const existingWorktree = findWorktreeByBranchName(branch);
-  if (existingWorktree) {
-    exitWithMessage(
-      `Branch '${branch}' is already checked out in: ${existingWorktree}\n` +
-        "You cannot add another worktree for the same branch.\n" +
-        "Open that worktree instead or remove it before retrying.",
-    );
-  }
-
-  // Determine destination directory for the new worktree
-  const repoRoot = git("rev-parse", "--show-toplevel");
-  const repoName = getRepositoryName();
-  const branchDirectorySegment = toSafePathSegment(branch);
-  const destinationDirectory = path.join(
-    path.dirname(repoRoot),
-    `${repoName}-${branchDirectorySegment}`,
-  );
-
-  // Check if destination directory already exists
-  await handleExistingDirectory(destinationDirectory);
-
-  // Step 1: Fetch remote branch if it exists
-  let remoteStatus: ReturnType<typeof fetchRemoteBranch>;
-  try {
-    remoteStatus = fetchRemoteBranch(branch);
-  } catch (error) {
-    const message = error instanceof Error ? error.message : String(error);
-    exitWithMessage(
-      `Failed to fetch origin/${branch}: ${message}\n` +
-        "If you expected this to work, check your network/credentials and retry.\n" +
-        "If you want a new local branch from HEAD instead, pass --offline.",
-    );
-  }
-  if (
-    remoteStatus.status === "unknown" &&
-    !remoteStatus.localExists &&
-    !options.offline
-  ) {
-    exitWithMessage(
-      `Could not reach origin to check whether '${branch}' exists, and the branch does not exist locally.\n` +
-        "Refusing to create a new branch from HEAD in this ambiguous state.\n" +
-        `Re-run with --offline to force creating a new local '${branch}' from the current HEAD.`,
-    );
-  }
-
-  // Step 2: Create the worktree
-  createWorktree(branch, destinationDirectory, {
-    // Intentionally treat "unknown" as false:
-    // - unknown + no local + no --offline => we exit above (avoid ambiguity)
-    // - unknown + local exists => createWorktree reuses local branch
-    // - unknown + --offline => caller explicitly opts into new branch from HEAD
-    remoteBranchExists: remoteStatus.status === "exists",
-  });
-
-  // Step 3: Copy untracked files, excluding any on the denylist
-  await copyUntrackedFiles(repoRoot, destinationDirectory);
-
-  // Step 4: Install dependencies and run project-specific setup
-  await setupProject(destinationDirectory);
-
-  // Step 5: Open the new worktree in requested apps
-  const apps = resolveApps({
-    optionApps: options.app,
-    environmentApps: process.env.WORKTREE_ADD_APP,
-  });
-
-  await Promise.allSettled(
-    apps.map(async (app) => {
-      const unsafeReason = getUnsafeAppNameReason(app);
-      if (unsafeReason) {
-        console.error(
-          `Skipping app ${formatForLog(app)}: ${unsafeReason}. The worktree was created successfully.`,
-        );
-        return;
-      }
-
-      console.log(`➤ Opening ${formatForLog(app)} …`);
-      try {
-        // Best-effort: `open()` resolves when the subprocess is spawned. We do not wait
-        // for apps to finish launching (or exit).
-        await open(destinationDirectory, { app: { name: app }, wait: false });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        console.error(
-          `Failed to open ${formatForLog(app)}: ${message}. The worktree was created successfully.`,
-        );
-      }
-    }),
-  );
 }
 
 const program = new Command()
@@ -155,17 +32,35 @@ const program = new Command()
     "--offline",
     "Allow creating a new local branch from HEAD when origin cannot be reached and the branch does not exist locally",
   )
-  .action(
-    async (branch: string, options: { app?: string[]; offline?: boolean }) => {
-      try {
-        await main(branch, options);
-      } catch (error: unknown) {
-        console.error(error);
-        process.exitCode = 1;
-      }
-    },
-  );
+  .option("-y, --yes", "Skip confirmation and replace existing destination")
+  .option("--dry-run", "Show what would happen without making changes")
+  .option("--interactive", "Allow confirmation prompts (requires a TTY)")
+  .option("--verbose", "Show progress messages on stderr")
+  .showHelpAfterError("(add --help for additional information)")
+  .showSuggestionAfterError()
+  .addHelpText(
+    "after",
+    `
+Examples:
+  $ worktree-add feature/login-form
+  $ worktree-add feature/api --app code
+  $ WORKTREE_ADD_APP=ghostty,code worktree-add feature/new-branch
+  $ git branch --format="%(refname:short)" | head -n1 | xargs worktree-add
+
+Dependencies:
+  - git (with worktree support)
+  - a package manager when package.json is present (npm, pnpm, yarn, bun, deno)
+`,
+  )
+  .action(async (branch: string, options: CliOptions) => {
+    try {
+      await runWorktreeAdd(branch, options);
+    } catch (error: unknown) {
+      console.error(error);
+      process.exitCode = 1;
+    }
+  });
 
 if (!process.env.VITEST) {
-  program.parse();
+  await program.parseAsync();
 }
