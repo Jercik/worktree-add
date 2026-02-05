@@ -87,6 +87,9 @@ export function fetchRemoteBranch(
         );
         return { status: "exists", localExists };
       }
+      logger.detail(
+        `Fast-forwarding '${normalized}' from ${localHead} to ${remoteHead}.`,
+      );
       logger.step(
         `Fast-forwarding local '${normalized}' to origin/${normalized} …`,
       );

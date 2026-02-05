@@ -20,7 +20,9 @@ export async function openWorktreeApps(
       }
 
       if (dryRun) {
-        logger.step(`Would open ${JSON.stringify(app)}`);
+        logger.step(
+          `Would open ${JSON.stringify(destinationDirectory)} in ${JSON.stringify(app)}`,
+        );
         return;
       }
 

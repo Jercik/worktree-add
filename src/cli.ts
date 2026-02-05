@@ -25,7 +25,7 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option(
     "-a, --app <name>",
-    'Repeatable. Apps to open the worktree in (detached; arguments are not parsed; or set WORKTREE_ADD_APP env var, comma-separated). To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".',
+    'Repeatable. Apps to open the worktree in (detached; arguments are not parsed; app names are executed, so only use values you trust; or set WORKTREE_ADD_APP env var, comma-separated). To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".',
     collectApp,
   )
   .option(
@@ -56,7 +56,12 @@ Dependencies:
     try {
       await runWorktreeAdd(branch, options);
     } catch (error: unknown) {
-      console.error(error);
+      if (options.verbose) {
+        console.error(error);
+      } else {
+        const message = error instanceof Error ? error.message : String(error);
+        console.error(message);
+      }
       process.exitCode = 1;
     }
   });
