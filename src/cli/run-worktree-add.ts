@@ -80,8 +80,10 @@ export async function runWorktreeAdd(
       );
     }
 
+    // Only treat origin as existing when confirmed; "unknown" remains false.
+    const remoteBranchExists = remoteStatus.status === "exists";
     createWorktree(context.branch, context.destinationDirectory, {
-      remoteBranchExists: remoteStatus.status === "exists",
+      remoteBranchExists,
       dryRun,
       logger,
     });
