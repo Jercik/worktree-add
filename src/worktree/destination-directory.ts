@@ -45,7 +45,8 @@ export async function handleExistingDirectory(
   const assumeYes = options.assumeYes ?? false;
   const interactive = options.interactive ?? false;
   const isTty = process.stdin.isTTY;
-  const isCi = Object.hasOwn(process.env, "CI");
+  const ciValue = process.env.CI?.toLowerCase();
+  const isCi = ciValue === "true" || ciValue === "1";
   const directoryName = path.basename(destinationDirectory);
 
   if (dryRun) {
@@ -54,7 +55,7 @@ export async function handleExistingDirectory(
   }
 
   if (!assumeYes) {
-    if (isCi && interactive) {
+    if (isCi && interactive && !isTty) {
       exitWithMessage(
         `Directory '${directoryName}' already exists, and CI mode is enabled.\n` +
           "Interactive prompts are disabled in CI.\n" +
@@ -95,7 +96,9 @@ export async function handleExistingDirectory(
     await trash(destinationDirectory);
     logger.success("Directory moved to trash successfully");
   } catch (error) {
-    console.error("Error details:", error);
+    const details =
+      error instanceof Error ? (error.stack ?? error.message) : String(error);
+    logger.detail(`Error details: ${details}`);
     exitWithMessage(
       `Failed to move existing directory to trash: ${error instanceof Error ? error.message : String(error)}`,
     );

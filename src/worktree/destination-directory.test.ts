@@ -97,6 +97,7 @@ describe("handleExistingDirectory", () => {
     vi.mocked(fileExists).mockResolvedValue(true);
     vi.mocked(confirm).mockResolvedValue(true);
     const trashError = new Error("Permission denied");
+    trashError.stack = "Error: Permission denied";
     vi.mocked(trash).mockRejectedValue(trashError);
     const logger = createLogger();
 
@@ -107,7 +108,9 @@ describe("handleExistingDirectory", () => {
       expect.stringContaining("already exists"),
     );
     expect(trash).toHaveBeenCalledWith("/test/path");
-    expect(console.error).toHaveBeenCalledWith("Error details:", trashError);
+    expect(logger.detail).toHaveBeenCalledWith(
+      "Error details: Error: Permission denied",
+    );
     expect(exitWithMessage).toHaveBeenCalledWith(
       "Failed to move existing directory to trash: Permission denied",
     );
@@ -121,10 +124,7 @@ describe("handleExistingDirectory", () => {
 
     await handleExistingDirectory("/test/path", { interactive: true, logger });
 
-    expect(console.error).toHaveBeenCalledWith(
-      "Error details:",
-      "String error",
-    );
+    expect(logger.detail).toHaveBeenCalledWith("Error details: String error");
     expect(exitWithMessage).toHaveBeenCalledWith(
       "Failed to move existing directory to trash: String error",
     );

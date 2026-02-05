@@ -50,9 +50,9 @@ export function fetchRemoteBranch(
     } catch (error) {
       const diagnostic = extractDiagnosticLine(error);
       logger.warn(
-        `Failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch.`,
+        `Failed to fetch origin/${normalized}: ${diagnostic}. Using existing local branch (origin status unknown).`,
       );
-      return { status: "exists", localExists };
+      return { status: "unknown", localExists };
     }
 
     const localHead = getLocalBranchHead(normalized);
