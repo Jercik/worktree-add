@@ -51,6 +51,7 @@ export async function handleExistingDirectory(
 
   if (dryRun) {
     if (!assumeYes) {
+      // Explicit --interactive in CI without a TTY can't prompt; call it out.
       if (isCi && interactive && !isTty) {
         logger.warn(
           `Dry run: directory '${directoryName}' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.`,
@@ -84,6 +85,7 @@ export async function handleExistingDirectory(
   }
 
   if (!assumeYes) {
+    // Explicit --interactive in CI without a TTY can't prompt; call it out.
     if (isCi && interactive && !isTty) {
       exitWithMessage(
         `Directory '${directoryName}' already exists, and CI mode is enabled.\n` +
