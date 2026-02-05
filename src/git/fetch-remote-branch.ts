@@ -6,6 +6,7 @@ import {
   getLocalBranchHead,
   getRemoteBranchHead,
   git,
+  findWorktreeByBranchName,
   localBranchExists,
   normalizeBranchName,
   remoteBranchExists,
@@ -75,6 +76,13 @@ export function fetchRemoteBranch(
 
     if (ahead === 0 && behind > 0) {
       // Note: dryRun returns before fetching, so this path only runs when dryRun is false.
+      const activeWorktree = findWorktreeByBranchName(normalized);
+      if (activeWorktree) {
+        logger.warn(
+          `Local branch '${normalized}' is checked out in ${activeWorktree}; skipping fast-forward.`,
+        );
+        return { status: "exists", localExists };
+      }
       logger.step(
         `Fast-forwarding local '${normalized}' to origin/${normalized} …`,
       );
