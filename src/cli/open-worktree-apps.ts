@@ -29,8 +29,8 @@ export async function openWorktreeApps(
         await open(destinationDirectory, { app: { name: app }, wait: false });
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error);
-        const hasWhitespace = /\s/u.test(app);
-        const argumentHint = hasWhitespace
+        const looksLikeArguments = /\s--?\S/u.test(app);
+        const argumentHint = looksLikeArguments
           ? ' Note: application arguments are not supported; pass only the application name (for example, "code" instead of "code --wait").'
           : "";
         logger.warn(

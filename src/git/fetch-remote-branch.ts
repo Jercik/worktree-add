@@ -44,6 +44,9 @@ export function fetchRemoteBranch(
     try {
       if (dryRun) {
         logger.step(`Would fetch origin/${normalized}`);
+        logger.detail(
+          `Dry run: local '${normalized}' may be fast-forwarded after fetch if it is behind origin/${normalized}.`,
+        );
         return { status: "exists", localExists };
       }
       logger.step(`Fetching origin/${normalized} …`);

@@ -106,7 +106,7 @@ git branch --format="%(refname:short)" \
 After creating the worktree, the tool can open it in one or more apps. Nothing is opened by default.
 App names are executed on your machine (as application/executable names), so only use values you trust.
 The app-name validation is a guardrail, not a security boundary.
-The guardrail only blocks control characters; other punctuation is allowed because apps are launched without a shell. If that ever changes, this behavior should be revisited.
+The guardrail only blocks control characters; other punctuation is allowed because `open` spawns platform launchers (macOS `open`, Windows PowerShell) and escapes/encodes arguments, but this is still just a UX guardrail—not a security boundary.
 Arguments are not parsed: values like `code -w` are treated as part of the app name and will likely fail.
 
 1. `--app <name>` flag (repeatable): `worktree-add feature/foo --app ghostty --app code`
