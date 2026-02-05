@@ -101,7 +101,7 @@ export function fetchRemoteBranch(branch: string): {
 
     if (ahead === 0 && behind === 0) {
       console.warn(
-        `➤ Warning: local branch '${normalized}' differs from origin/${normalized} (ahead/behind counts are both 0); using existing local branch as-is.`,
+        `➤ Warning: local branch '${normalized}' differs from origin/${normalized} (unexpected ahead/behind counts: 0 and 0); using existing local branch as-is.`,
       );
       return { status: "exists", localExists };
     }

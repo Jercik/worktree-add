@@ -70,7 +70,17 @@ async function main(
   await handleExistingDirectory(destinationDirectory);
 
   // Step 1: Fetch remote branch if it exists
-  const remoteStatus = fetchRemoteBranch(branch);
+  let remoteStatus: ReturnType<typeof fetchRemoteBranch>;
+  try {
+    remoteStatus = fetchRemoteBranch(branch);
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    exitWithMessage(
+      `Failed to fetch origin/${branch}: ${message}\n` +
+        "If you expected this to work, check your network/credentials and retry.\n" +
+        "If you want a new local branch from HEAD instead, pass --offline.",
+    );
+  }
   if (
     remoteStatus.status === "unknown" &&
     !remoteStatus.localExists &&
