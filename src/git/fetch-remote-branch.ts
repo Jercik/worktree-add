@@ -129,13 +129,8 @@ export function fetchRemoteBranch(
       };
     }
 
-    const descriptors: string[] = [];
-    if (ahead > 0) descriptors.push(`ahead by ${ahead}`);
-    if (behind > 0) descriptors.push(`behind by ${behind}`);
-
-    const relationship = behind > 0 ? "has diverged from" : "is ahead of";
     logger.warn(
-      `Local branch '${normalized}' ${relationship} origin/${normalized} (${descriptors.join(" and ")}); using existing local branch as-is.`,
+      `Local branch '${normalized}' is ahead of origin/${normalized} (ahead by ${ahead}); using existing local branch as-is.`,
     );
     return { status: "exists", localExists, divergence: undefined };
   }

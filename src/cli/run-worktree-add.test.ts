@@ -98,12 +98,12 @@ describe("runWorktreeAdd", () => {
     );
     expect(exitWithMessage).toHaveBeenCalledWith(
       expect.stringContaining(
-        "git branch -m -- codex/implement-new-transform-from-workflow.md codex/implement-new-transform-from-workflow.md-old",
+        "git branch -m -- 'codex/implement-new-transform-from-workflow.md' 'codex/implement-new-transform-from-workflow.md-old'",
       ),
     );
     expect(exitWithMessage).toHaveBeenCalledWith(
       expect.stringContaining(
-        "worktree-add codex/implement-new-transform-from-workflow.md",
+        "worktree-add -- 'codex/implement-new-transform-from-workflow.md'",
       ),
     );
     expect(createWorktree).not.toHaveBeenCalled();
