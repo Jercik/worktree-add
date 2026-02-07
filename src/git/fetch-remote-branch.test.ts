@@ -13,6 +13,7 @@ const {
   getRemoteBranchHead,
   git,
   localBranchExists,
+  normalizeBranchName,
   remoteBranchExists,
 } = gitModule;
 
@@ -34,6 +35,11 @@ const createLogger = (): StatusLogger => ({
 describe("fetchRemoteBranch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.mocked(normalizeBranchName).mockImplementation(
+      (name: string): string => {
+        return name;
+      },
+    );
   });
 
   it("returns diverged status when local and origin branch histories diverge", () => {
@@ -57,5 +63,30 @@ describe("fetchRemoteBranch", () => {
 
     expect(git).not.toHaveBeenCalled();
     expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it("explains dry-run divergence limitation when local and remote branch both exist", () => {
+    vi.mocked(localBranchExists).mockReturnValue(true);
+    vi.mocked(remoteBranchExists).mockReturnValue(true);
+    const logger = createLogger();
+
+    expect(
+      fetchRemoteBranch("codex/implement-new-transform-from-workflow.md", {
+        dryRun: true,
+        logger,
+      }),
+    ).toStrictEqual({
+      status: "exists",
+      localExists: true,
+      divergence: undefined,
+    });
+
+    expect(logger.step).toHaveBeenCalledWith(
+      "Would fetch origin/codex/implement-new-transform-from-workflow.md",
+    );
+    expect(logger.detail).toHaveBeenCalledWith(
+      "Dry run does not check local/remote divergence because it skips fetch; a real run may stop with a divergence error.",
+    );
+    expect(fetchOriginBranch).not.toHaveBeenCalled();
   });
 });

@@ -62,6 +62,9 @@ export function fetchRemoteBranch(
         logger.detail(
           `Dry run: local '${normalized}' may be fast-forwarded after fetch if it is behind origin/${normalized}.`,
         );
+        logger.detail(
+          "Dry run does not check local/remote divergence because it skips fetch; a real run may stop with a divergence error.",
+        );
         return { status: "exists", localExists, divergence: undefined };
       }
       logger.step(`Fetching origin/${normalized} …`);

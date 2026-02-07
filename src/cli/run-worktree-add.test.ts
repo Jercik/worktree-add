@@ -106,6 +106,11 @@ describe("runWorktreeAdd", () => {
         "worktree-add -- 'codex/implement-new-transform-from-workflow.md'",
       ),
     );
+    expect(exitWithMessage).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "commands below use POSIX shell quoting. On Windows cmd.exe/PowerShell, adapt quoting for your shell.",
+      ),
+    );
     expect(createWorktree).not.toHaveBeenCalled();
     expect(copyUntrackedFiles).not.toHaveBeenCalled();
     expect(setupProject).not.toHaveBeenCalled();
