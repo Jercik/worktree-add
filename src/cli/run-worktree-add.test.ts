@@ -111,6 +111,21 @@ describe("runWorktreeAdd", () => {
         "commands below use POSIX shell quoting. On Windows cmd.exe/PowerShell, adapt quoting for your shell.",
       ),
     );
+    expect(exitWithMessage).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "This can mean either a stale local branch-name collision or legitimate local commits plus new remote commits.",
+      ),
+    );
+    expect(exitWithMessage).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "git worktree add -- <path> 'codex/implement-new-transform-from-workflow.md'",
+      ),
+    );
+    expect(exitWithMessage).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "# if '<branch>-old' already exists, pick a different archive name.",
+      ),
+    );
     expect(createWorktree).not.toHaveBeenCalled();
     expect(copyUntrackedFiles).not.toHaveBeenCalled();
     expect(setupProject).not.toHaveBeenCalled();

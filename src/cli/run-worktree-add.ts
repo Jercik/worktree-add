@@ -98,11 +98,15 @@ export async function runWorktreeAdd(
       const archivedBranchForShell = quoteForShell(`${context.branch}-old`);
       exitWithMessage(
         `Local branch '${context.branch}' and origin/${context.branch} have diverged (ahead by ${ahead} and behind by ${behind}).\n` +
-          "This usually means a stale local branch is reusing a name now used by a different remote branch.\n" +
+          "This can mean either a stale local branch-name collision or legitimate local commits plus new remote commits.\n" +
           "Refusing to reuse the local branch automatically.\n" +
           "Note: commands below use POSIX shell quoting. On Windows cmd.exe/PowerShell, adapt quoting for your shell.\n" +
+          "If you want to keep local commits, use your local branch directly:\n" +
+          `  git worktree add -- <path> ${branchForShell}\n` +
+          `  # or merge/rebase '${context.branch}' with origin/${context.branch}, then retry.\n` +
           "To work on the remote branch, run:\n" +
           "  git fetch origin --prune\n" +
+          "  # if '<branch>-old' already exists, pick a different archive name.\n" +
           `  git branch -m -- ${branchForShell} ${archivedBranchForShell}\n` +
           "  # or delete the stale local branch instead:\n" +
           `  # git branch -D -- ${branchForShell}\n` +
