@@ -12,7 +12,8 @@ Running `worktree-add <branch>` from inside a repo:
 4. If the destination exists, pass `--interactive` to be prompted for confirmation, or `--yes` to move it to the system trash without prompting. Without either flag, the command exits.
 5. Fetches `origin/<branch>` and refreshes your local branch when safe:
    - fast-forwards the local branch if it’s strictly behind `origin/<branch>`
-   - warns and keeps the local branch as-is if it’s ahead/diverged
+   - warns and keeps the local branch as-is if it’s ahead
+   - exits with recovery steps if local and remote have diverged
 6. Creates a git worktree:
    - reuses an existing local branch
    - or creates a tracking branch from `origin/<branch>`

@@ -89,6 +89,20 @@ export async function runWorktreeAdd(
           `Re-run with --offline to force creating a new local '${context.branch}' from the current HEAD.`,
       );
     }
+    if (remoteStatus.status === "diverged") {
+      const { ahead, behind } = remoteStatus.divergence;
+      exitWithMessage(
+        `Local branch '${context.branch}' and origin/${context.branch} have diverged (ahead by ${ahead} and behind by ${behind}).\n` +
+          "This usually means a stale local branch is reusing a name now used by a different remote branch.\n" +
+          "Refusing to reuse the local branch automatically.\n" +
+          "To work on the remote branch, run:\n" +
+          "  git fetch origin --prune\n" +
+          `  git branch -m -- ${context.branch} ${context.branch}-old\n` +
+          "  # or delete the stale local branch instead:\n" +
+          `  # git branch -D -- ${context.branch}\n` +
+          `  worktree-add ${context.branch}`,
+      );
+    }
 
     // Only treat origin as existing when confirmed; "unknown" remains false.
     const remoteBranchExists = remoteStatus.status === "exists";
