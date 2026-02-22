@@ -47,6 +47,7 @@ export function createWorktree(
       const diagnostic = extractDiagnosticLine(error);
       throw new Error(
         `Failed to reach origin to check whether '${normalized}' exists: ${diagnostic}`,
+        { cause: error },
       );
     }
   }

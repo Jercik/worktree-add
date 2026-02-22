@@ -18,7 +18,7 @@ const parseMajorVersion = (value: string): number | undefined => {
   if (!match) {
     return undefined;
   }
-  const major = Number.parseInt(match[1] ?? "");
+  const major = Number.parseInt(match[1] ?? "", 10);
   return Number.isNaN(major) ? undefined : major;
 };
 

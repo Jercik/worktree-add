@@ -19,7 +19,7 @@ type BranchDivergence = {
   behind: number;
 };
 type NonDivergedRemoteBranchStatus = Exclude<RemoteBranchStatus, "diverged">;
-export type FetchRemoteBranchResult =
+type FetchRemoteBranchResult =
   | {
       status: "diverged";
       localExists: true;
@@ -164,6 +164,7 @@ export function fetchRemoteBranch(
     const diagnostic = extractDiagnosticLine(error);
     throw new Error(
       `Failed to fetch origin/${normalized}: ${diagnostic}. Cannot proceed without a local branch.`,
+      { cause: error },
     );
   }
   return { status: "exists", localExists, divergence: undefined };

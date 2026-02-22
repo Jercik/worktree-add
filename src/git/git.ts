@@ -132,8 +132,8 @@ export function getAheadBehindCounts(
     `${localHead}...${remoteHead}`,
   );
   const [aheadRaw, behindRaw] = output.split(/\s+/u);
-  const ahead = Number.parseInt(aheadRaw ?? "0");
-  const behind = Number.parseInt(behindRaw ?? "0");
+  const ahead = Number.parseInt(aheadRaw ?? "0", 10);
+  const behind = Number.parseInt(behindRaw ?? "0", 10);
   return {
     ahead: Number.isNaN(ahead) ? 0 : ahead,
     behind: Number.isNaN(behind) ? 0 : behind,

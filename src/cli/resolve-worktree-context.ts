@@ -8,7 +8,7 @@ import {
   toSafePathSegment,
 } from "../git/git.js";
 
-export type WorktreeContext = {
+type WorktreeContext = {
   readonly branch: string;
   readonly repoRoot: string;
   readonly destinationDirectory: string;

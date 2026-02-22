@@ -10,7 +10,7 @@ If a file does not exist, skip it silently and continue.
 
 **At session start:** Run `npx -y askpplx --help` to confirm the tool works and learn available options.
 
-Use `askpplx` to query Perplexity search engine for real-time web search. Use it to verify facts before acting. A lookup is far cheaper than debugging hallucinated code or explaining why an approach failed. Verification is fast and cheap—prefer looking up information over making assumptions. When in doubt, verify.
+Use `askpplx` to query Perplexity for real-time web search. Use it to verify external facts before acting—documentation, API behavior, library versions, best practices. A lookup is far cheaper than debugging hallucinated code or explaining why an approach failed. Verification is fast and cheap—prefer looking up information over making assumptions. When in doubt, verify.
 
 # Rule: Avoid Leaky Abstractions
 
@@ -458,17 +458,24 @@ Use `package.json` "imports" field with `#` prefixes to create stable internal m
 }
 ```
 
-# Rule: Run TypeScript Natively
+# Rule: Native TypeScript Execution
 
-Run TypeScript files directly with `node`. Do not use `tsx`, `ts-node`, or other external runners.
+Node.js 22.18+ and 24+ run `.ts` files natively without flags or external tools like `tsx` or `ts-node`.
 
 ```bash
-node script.ts           # ✅ Correct
-tsx script.ts            # ❌ Unnecessary
-pnpm exec tsx script.ts  # ❌ Unnecessary
+node script.ts
 ```
 
-Node.js 22.18+ and 24+ run `.ts` files natively without flags. External TypeScript runners add unnecessary dependencies and complexity.
+For Node.js 22.6–22.17, use `--experimental-strip-types`. Older versions require a TypeScript runner.
+
+# Rule: Use `repoq` for Repository Queries
+
+Run `npx -y repoq --help` to learn available options.
+
+Use `repoq` instead of piping `git`/`gh` commands through `awk`/`jq`/`grep`.
+Each command handles edge cases (detached HEAD, unborn branches, missing auth)
+and returns validated JSON. Prefer `repoq` for reading state; use raw `git`/`gh`
+for mutations (commit, push, merge).
 
 # Rule: Discriminated Unions
 
@@ -668,6 +675,20 @@ import calc from "#components";
 // Prefer
 import { calculateTotal } from "#utils/calculate-total";
 ```
+
+# Rule: No Tests for Type Guarantees
+
+Don't write tests for what the type system already guarantees. If TypeScript enforces a constraint at compile time, a runtime test for that same constraint adds maintenance cost without catching new bugs.
+
+```ts
+// BAD: return type is literally { status: "inactive" }, this can never fail
+it("should return inactive status", () => {
+  const result = deactivate({ status: "active" });
+  expect(result.status).toBe("inactive");
+});
+```
+
+If removing a test and introducing a bug would cause a compile error, the test is redundant. If the bug would compile cleanly and only surface at runtime, the test has value.
 
 # Rule: No Unchecked Indexed Access
 
