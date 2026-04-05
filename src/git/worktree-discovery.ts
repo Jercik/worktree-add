@@ -33,7 +33,21 @@ function getMainWorktreePath(): string {
   );
 
   if (configuredWorktree.length === 0) {
-    return repoRoot;
+    const primaryWorktreeLine = git("worktree", "list", "--porcelain")
+      .split(/\n/u)
+      .find((line) => line.startsWith("worktree "));
+
+    if (primaryWorktreeLine === undefined) {
+      return repoRoot;
+    }
+
+    const primaryWorktreePath = path.resolve(
+      primaryWorktreeLine.replace(/^worktree\s+/u, "").trim(),
+    );
+
+    return primaryWorktreePath === commonDirectory
+      ? repoRoot
+      : primaryWorktreePath;
   }
 
   return path.resolve(commonDirectory, configuredWorktree);
