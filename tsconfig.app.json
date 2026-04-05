@@ -5,6 +5,8 @@
     "outDir": "./dist",
     "rootDir": "./src",
     "composite": true,
+    "declarationMap": true,
+    "sourceMap": true,
 
     /* Not running in the DOM */
     "lib": ["es2022"]

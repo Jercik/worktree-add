@@ -24,7 +24,7 @@
   ],
   "scripts": {
     "prepare": "git config core.hooksPath .githooks",
-    "prepublishOnly": "pnpm run rebuild",
+    "prepack": "pnpm run rebuild",
     "build": "tsc -p tsconfig.app.json",
     "clean": "rm -rf dist *.tsbuildinfo",
     "format": "prettier --write .",
@@ -49,7 +49,7 @@
   ],
   "packageManager": "pnpm@10.30.1",
   "engines": {
-    "node": ">=22.14.0"
+    "node": ">=22.19.0"
   },
   "dependencies": {
     "@commander-js/extra-typings": "^14.0.0",
