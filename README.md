@@ -9,6 +9,7 @@ Running `worktree-add <branch>` from inside a repo:
 1. Normalizes `<branch>` (supports `origin/foo`, `refs/heads/foo`, etc.).
 2. Refuses if that branch is already checked out in any worktree.
 3. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
+   - If the current checkout is a submodule inside a parent repo, it places the new worktree outside the parent repo so it does not show up as an untracked directory there.
 4. If the destination exists, pass `--interactive` to be prompted for confirmation, or `--yes` to move it to the system trash without prompting. Without either flag, the command exits.
 5. Fetches `origin/<branch>` and refreshes your local branch when safe:
    - fast-forwards the local branch if it’s strictly behind `origin/<branch>`
@@ -57,6 +58,7 @@ worktree-add <branch> [options]
 ```
 
 Run this inside an existing worktree of your project—the tool discovers the repo root from your current directory and creates the sibling worktree next to it.
+If that checkout is a submodule inside a parent repo, the new worktree is created outside the parent repo instead.
 
 Example:
 
