@@ -2,8 +2,9 @@ import path from "node:path";
 import {
   exitWithMessage,
   findWorktreeByBranchName,
+  getCurrentWorktreeRoot,
   getRepositoryName,
-  git,
+  getSuperprojectRoot,
   normalizeBranchName,
   toSafePathSegment,
 } from "../git/git.js";
@@ -34,11 +35,14 @@ export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
     );
   }
 
-  const repoRoot = git("rev-parse", "--show-toplevel");
+  const repoRoot = getCurrentWorktreeRoot();
+  const superprojectRoot = getSuperprojectRoot();
   const repoName = getRepositoryName();
   const branchDirectorySegment = toSafePathSegment(branch);
   const destinationDirectory = path.join(
-    path.dirname(repoRoot),
+    superprojectRoot === undefined
+      ? path.dirname(repoRoot)
+      : path.dirname(superprojectRoot),
     `${repoName}-${branchDirectorySegment}`,
   );
 

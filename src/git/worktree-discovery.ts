@@ -7,24 +7,62 @@
 import path from "node:path";
 import { git } from "./git.js";
 
-/**
- * Get the repository name from the main repository directory
- * Works universally across all Git setups (worktrees, bare repos, no remotes, etc.)
- */
-export function getRepositoryName(): string {
-  // Get the main worktree path from git worktree list
-  const wtList = git("worktree", "list", "--porcelain");
-  const mainLine = wtList.split(/\n/u).find((l) => l.startsWith("worktree "));
+export function getCurrentWorktreeRoot(): string {
+  return git("rev-parse", "--show-toplevel");
+}
 
-  if (mainLine) {
-    // Extract path from "worktree /path/to/main/repo"
-    const mainWorktreePath = mainLine.replace(/^worktree\s+/u, "").trim();
-    return path.basename(mainWorktreePath);
+function getGitCommonDirectory(): string {
+  const repoRoot = getCurrentWorktreeRoot();
+  const commonDirectory = git("rev-parse", "--git-common-dir", {
+    cwd: repoRoot,
+  });
+  return path.resolve(repoRoot, commonDirectory);
+}
+
+function getMainWorktreePath(): string {
+  const repoRoot = getCurrentWorktreeRoot();
+  const commonDirectory = getGitCommonDirectory();
+  const configuredWorktree = git(
+    "config",
+    "--file",
+    path.join(commonDirectory, "config"),
+    "--default",
+    "",
+    "--get",
+    "core.worktree",
+  );
+
+  if (configuredWorktree.length === 0) {
+    const primaryWorktreeLine = git("worktree", "list", "--porcelain")
+      .split(/\n/u)
+      .find((line) => line.startsWith("worktree "));
+
+    if (primaryWorktreeLine === undefined) {
+      return repoRoot;
+    }
+
+    const primaryWorktreePath = path.resolve(
+      primaryWorktreeLine.replace(/^worktree\s+/u, "").trim(),
+    );
+
+    return primaryWorktreePath === commonDirectory
+      ? repoRoot
+      : primaryWorktreePath;
   }
 
-  // Fallback to current directory if worktree list fails
-  const repoRoot = git("rev-parse", "--show-toplevel");
-  return path.basename(repoRoot);
+  return path.resolve(commonDirectory, configuredWorktree);
+}
+
+export function getSuperprojectRoot(): string | undefined {
+  const superprojectRoot = git("rev-parse", "--show-superproject-working-tree");
+  return superprojectRoot.length === 0 ? undefined : superprojectRoot;
+}
+
+/**
+ * Get the repository name from the main visible repository directory.
+ */
+export function getRepositoryName(): string {
+  return path.basename(getMainWorktreePath());
 }
 
 /**
@@ -34,6 +72,8 @@ export function getRepositoryName(): string {
 export function findWorktreeByBranchName(
   branchName: string,
 ): string | undefined {
+  const commonDirectory = getGitCommonDirectory();
+  const mainWorktreePath = getMainWorktreePath();
   const wtList = git("worktree", "list", "--porcelain");
   const wtLines = wtList.split(/\n/u);
 
@@ -41,7 +81,13 @@ export function findWorktreeByBranchName(
 
   for (const line of wtLines) {
     if (line.startsWith("worktree ")) {
-      currentWorktreePath = line.replace(/^worktree\s+/u, "").trim();
+      const listedWorktreePath = path.resolve(
+        line.replace(/^worktree\s+/u, "").trim(),
+      );
+      currentWorktreePath =
+        listedWorktreePath === commonDirectory
+          ? mainWorktreePath
+          : listedWorktreePath;
     } else if (line.startsWith("branch ") && currentWorktreePath) {
       const referenceOrName = line.replace(/^branch\s+/u, "").trim();
       const shortName = referenceOrName.startsWith("refs/heads/")
