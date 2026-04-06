@@ -6,7 +6,8 @@ const gitModule = await import("./git.js");
 const worktreeDiscoveryModule = await import("./worktree-discovery.js");
 
 const { git } = gitModule;
-const { findWorktreeByBranchName, getRepositoryName } = worktreeDiscoveryModule;
+const { findWorktreeByBranchName, getRepositoryName, getSuperprojectRoot } =
+  worktreeDiscoveryModule;
 
 const mainWorktreePath = "/repos/parent/deps/child";
 const commonDirectory = "/repos/parent/.git/modules/deps/child";
@@ -121,5 +122,48 @@ branch refs/heads/feature/login`;
     });
 
     expect(getRepositoryName()).toBe("worktree-add");
+  });
+
+  it("returns the top-most superproject for nested submodules", () => {
+    vi.mocked(git).mockImplementation((...arguments_) => {
+      const options = arguments_[2] as { cwd?: string } | undefined;
+
+      if (
+        arguments_[0] === "rev-parse" &&
+        arguments_[1] === "--show-toplevel"
+      ) {
+        return "/repos/outer/deps/middle/deps/inner";
+      }
+
+      if (
+        arguments_[0] === "rev-parse" &&
+        arguments_[1] === "--show-superproject-working-tree" &&
+        options?.cwd === "/repos/outer/deps/middle/deps/inner"
+      ) {
+        return "/repos/outer/deps/middle";
+      }
+
+      if (
+        arguments_[0] === "rev-parse" &&
+        arguments_[1] === "--show-superproject-working-tree" &&
+        options?.cwd === "/repos/outer/deps/middle"
+      ) {
+        return "/repos/outer";
+      }
+
+      if (
+        arguments_[0] === "rev-parse" &&
+        arguments_[1] === "--show-superproject-working-tree" &&
+        options?.cwd === "/repos/outer"
+      ) {
+        return "";
+      }
+
+      throw new Error(
+        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
+      );
+    });
+
+    expect(getSuperprojectRoot()).toBe("/repos/outer");
   });
 });

@@ -54,8 +54,33 @@ function getMainWorktreePath(): string {
 }
 
 export function getSuperprojectRoot(): string | undefined {
-  const superprojectRoot = git("rev-parse", "--show-superproject-working-tree");
-  return superprojectRoot.length === 0 ? undefined : superprojectRoot;
+  let currentDirectory = getCurrentWorktreeRoot();
+  let topmostSuperprojectRoot = git(
+    "rev-parse",
+    "--show-superproject-working-tree",
+    { cwd: currentDirectory },
+  );
+
+  if (topmostSuperprojectRoot.length === 0) {
+    return undefined;
+  }
+
+  currentDirectory = topmostSuperprojectRoot;
+
+  for (;;) {
+    const superprojectRoot = git(
+      "rev-parse",
+      "--show-superproject-working-tree",
+      { cwd: currentDirectory },
+    );
+
+    if (superprojectRoot.length === 0) {
+      return topmostSuperprojectRoot;
+    }
+
+    topmostSuperprojectRoot = superprojectRoot;
+    currentDirectory = superprojectRoot;
+  }
 }
 
 /**
