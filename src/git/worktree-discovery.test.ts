@@ -166,4 +166,30 @@ branch refs/heads/feature/login`;
 
     expect(getSuperprojectRoot()).toBe("/repos/outer");
   });
+
+  it("throws when nested superproject traversal exceeds the safety limit", () => {
+    vi.mocked(git).mockImplementation((...arguments_) => {
+      if (
+        arguments_[0] === "rev-parse" &&
+        arguments_[1] === "--show-toplevel"
+      ) {
+        return "/repos/inner";
+      }
+
+      if (
+        arguments_[0] === "rev-parse" &&
+        arguments_[1] === "--show-superproject-working-tree"
+      ) {
+        return "/repos/loop";
+      }
+
+      throw new Error(
+        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
+      );
+    });
+
+    expect(() => getSuperprojectRoot()).toThrow(
+      "Expected at most 10 nested superprojects while resolving the topmost superproject",
+    );
+  });
 });

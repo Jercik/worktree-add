@@ -7,6 +7,8 @@
 import path from "node:path";
 import { git } from "./git.js";
 
+const MAX_SUPERPROJECT_NESTING = 10;
+
 export function getCurrentWorktreeRoot(): string {
   return git("rev-parse", "--show-toplevel");
 }
@@ -65,9 +67,8 @@ export function getSuperprojectRoot(): string | undefined {
     return undefined;
   }
 
-  currentDirectory = topmostSuperprojectRoot;
-
-  for (;;) {
+  for (let depth = 1; depth < MAX_SUPERPROJECT_NESTING; depth += 1) {
+    currentDirectory = topmostSuperprojectRoot;
     const superprojectRoot = git(
       "rev-parse",
       "--show-superproject-working-tree",
@@ -79,8 +80,11 @@ export function getSuperprojectRoot(): string | undefined {
     }
 
     topmostSuperprojectRoot = superprojectRoot;
-    currentDirectory = superprojectRoot;
   }
+
+  throw new Error(
+    `Expected at most ${MAX_SUPERPROJECT_NESTING} nested superprojects while resolving the topmost superproject`,
+  );
 }
 
 /**
