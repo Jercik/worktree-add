@@ -205,6 +205,8 @@ export async function confirm(message: string): Promise<boolean> {
 
 // Re-export worktree parsing functions for backward compatibility
 export {
+  getCurrentWorktreeRoot,
   getRepositoryName,
+  getSuperprojectRoot,
   findWorktreeByBranchName,
 } from "./worktree-discovery.js";

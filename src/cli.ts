@@ -4,7 +4,8 @@
  *
  * Create or reuse a Git worktree for <branch> as a sibling of the current worktree.
  * Note: the destination is placed next to whichever worktree you run this from,
- * not necessarily the original "main" checkout.
+ * except for submodule checkouts inside a superproject, where it is placed
+ * outside the superproject to avoid nesting the new worktree inside the parent repo.
  */
 
 import { Command } from "@commander-js/extra-typings";
@@ -19,7 +20,7 @@ function collectApp(app: string, previous: string[] | undefined): string[] {
 const program = new Command()
   .name(packageJson.name)
   .description(
-    "Create or reuse a Git worktree for a branch as a sibling of the current worktree",
+    "Create or reuse a Git worktree for a branch next to the current worktree, or outside the outermost superproject when run from a submodule",
   )
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
