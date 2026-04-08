@@ -89,7 +89,7 @@ describe("runWorktreeAdd", () => {
   it("fails with recovery commands when local and origin branches diverge", async () => {
     await expect(
       runWorktreeAdd("codex/implement-new-transform-from-workflow.md", {}),
-    ).rejects.toThrowError(
+    ).rejects.toThrow(
       "Local branch 'codex/implement-new-transform-from-workflow.md' and origin/codex/implement-new-transform-from-workflow.md have diverged (ahead by 15 and behind by 1).",
     );
 

@@ -60,7 +60,7 @@ describe("handleExistingDirectory", () => {
 
     await expect(
       handleExistingDirectory("/test/path", { interactive: true, logger }),
-    ).rejects.toThrowError("Process exit");
+    ).rejects.toThrow("Process exit");
 
     expect(fileExists).toHaveBeenCalledWith("/test/path");
     expect(confirm).toHaveBeenCalledWith(
@@ -145,7 +145,7 @@ describe("handleExistingDirectory", () => {
         interactive: true,
         logger,
       }),
-    ).rejects.toThrowError("Process exit");
+    ).rejects.toThrow("Process exit");
 
     expect(confirm).toHaveBeenCalledWith(
       expect.stringContaining("You can restore it from your system trash"),

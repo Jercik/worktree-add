@@ -18,7 +18,7 @@ import { getStatusLogger } from "../output/get-status-logger.js";
 interface RunOptions {
   readonly stdio?: "inherit" | "pipe";
   readonly dryRun?: boolean;
-  readonly logger?: StatusLogger;
+  readonly logger?: StatusLogger | undefined;
 }
 
 interface RunBinaryResult {
