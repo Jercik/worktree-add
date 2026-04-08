@@ -1,6 +1,6 @@
 interface ResolveAppsInput {
-  optionApps?: string[] | undefined;
-  environmentApps?: string | undefined;
+  optionApps?: string[];
+  environmentApps?: string;
 }
 
 function dedupePreserveOrder(apps: string[]): string[] {
