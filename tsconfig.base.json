@@ -12,7 +12,7 @@
     "noUncheckedIndexedAccess": true,
     "noImplicitOverride": true,
     "erasableSyntaxOnly": true,
-    "types": ["node"],
+    "allowImportingTsExtensions": true,
     "module": "NodeNext"
   }
 }
