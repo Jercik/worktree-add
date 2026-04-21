@@ -21,7 +21,7 @@ export function git(
     typeof lastArgument === "object" &&
     "cwd" in lastArgument
   ) {
-    cwd = (lastArgument as { cwd?: string }).cwd;
+    cwd = lastArgument.cwd;
     gitArguments = arguments_.slice(0, -1) as string[];
   } else {
     gitArguments = arguments_ as string[];

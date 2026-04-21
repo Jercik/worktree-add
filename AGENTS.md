@@ -182,7 +182,7 @@ expect(getPhotosUrl()).toBe("http://example.com/photos"); // fails, reveals the 
 
 Unlike production code that handles varied inputs, tests verify specific cases. State expectations directly rather than computing them. When a test fails, the expected value should be immediately readable without mental evaluation.
 
-Test utilities are acceptable for setup and data preparation—fixtures, builders, factories, mock configuration—but not for computing expected values. Keep assertion logic in the test body with literal expectations.
+Use test utilities for setup and data preparation—fixtures, builders, factories, mock configuration—but never for computing expected values. Keep assertion logic in the test body with literal expectations.
 
 # Rule: Package Manager Execution
 
@@ -517,6 +517,8 @@ Inline type qualifiers can leave empty `import {}` statements in the emitted Jav
 
 Don't use default exports. Don't use barrel files (`index.ts` that re-exports siblings). Both add indirection that breaks the link between an import and its source—default exports let importers pick arbitrary names, barrels route imports through an intermediary. This harms refactoring, IDE navigation, and build performance.
 
+Don't `export` symbols from internal modules unless they're consumed outside that module or are part of the package's public API. knip treats unused exports as failures and will block the commit.
+
 **Exception:** A single `index.ts` entry point for an npm library's public API is acceptable—this is the package boundary, not an internal convenience barrel.
 
 ```ts
@@ -534,8 +536,14 @@ Don't write tests for what the type system already guarantees. If TypeScript enf
 ```ts
 // BAD: return type is literally { status: "inactive" }, this can never fail
 it("should return inactive status", () => {
-  const result = deactivate({ status: "active" });
+  const result = deactivate({ id: "u-123", status: "active" });
   expect(result.status).toBe("inactive");
+});
+
+// GOOD: the type says `id: string`, but not WHICH id — returning the wrong one compiles
+it("preserves the user id", () => {
+  const result = deactivate({ id: "u-123", status: "active" });
+  expect(result.id).toBe("u-123");
 });
 ```
 

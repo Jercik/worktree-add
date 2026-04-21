@@ -8,6 +8,8 @@ if [[ ! -f package.json ]]; then
   exit 0
 fi
 
+# `npm pkg fix` normalizes package.json (e.g., sorts keys, trims invalid
+# fields). Stage any changes so the commit reflects the normalized file.
 if command -v npm >/dev/null 2>&1; then
   npm pkg fix || true
   git add package.json 2>/dev/null || true
