@@ -12,21 +12,15 @@ describe("getUnsafeAppNameReason", () => {
   });
 
   it("rejects newlines", () => {
-    expect(getUnsafeAppNameReason("code\n--wait")).toBe(
-      "contains control characters",
-    );
+    expect(getUnsafeAppNameReason("code\n--wait")).toBe("contains control characters");
   });
 
   it("rejects NUL bytes", () => {
-    expect(getUnsafeAppNameReason("code\u0000")).toBe(
-      "contains control characters",
-    );
+    expect(getUnsafeAppNameReason("code\u0000")).toBe("contains control characters");
   });
 
   it("rejects C1 control characters", () => {
-    expect(getUnsafeAppNameReason("code\u0085")).toBe(
-      "contains control characters",
-    );
+    expect(getUnsafeAppNameReason("code\u0085")).toBe("contains control characters");
   });
 
   it("allows punctuation characters in app names", () => {

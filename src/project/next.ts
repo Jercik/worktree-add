@@ -16,9 +16,7 @@ interface PackageJson {
   readonly devDependencies?: DependencyMap;
 }
 
-const loadPackageJson = async (
-  directory: string,
-): Promise<PackageJson | undefined> => {
+const loadPackageJson = async (directory: string): Promise<PackageJson | undefined> => {
   const packageJsonPath = path.join(directory, "package.json");
   try {
     const content = await fs.readFile(packageJsonPath, "utf8");
@@ -36,9 +34,7 @@ export const isNextProject = async (directory: string): Promise<boolean> => {
   if (!packageJson) {
     return false;
   }
-  return Boolean(
-    packageJson.dependencies?.next ?? packageJson.devDependencies?.next,
-  );
+  return Boolean(packageJson.dependencies?.next ?? packageJson.devDependencies?.next);
 };
 
 export const isNextTypegenSupported = async (
@@ -46,18 +42,14 @@ export const isNextTypegenSupported = async (
   options: { logger?: StatusLogger } = {},
 ): Promise<boolean> => {
   try {
-    const result = await runPackageManagerBinary(
-      directory,
-      "next",
-      ["--help"],
-      { stdio: "pipe", logger: options.logger },
-    );
+    const result = await runPackageManagerBinary(directory, "next", ["--help"], {
+      stdio: "pipe",
+      logger: options.logger,
+    });
     if (!result) {
       return false;
     }
-    return result.stdout
-      .split("\n")
-      .some((line) => line.trimStart().startsWith("typegen "));
+    return result.stdout.split("\n").some((line) => line.trimStart().startsWith("typegen "));
   } catch {
     return false;
   }

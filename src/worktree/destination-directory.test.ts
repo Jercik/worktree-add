@@ -63,9 +63,7 @@ describe("handleExistingDirectory", () => {
     ).rejects.toThrow("Process exit");
 
     expect(fileExists).toHaveBeenCalledWith("/test/path");
-    expect(confirm).toHaveBeenCalledWith(
-      expect.stringContaining("already exists"),
-    );
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     expect(console.error).toHaveBeenCalledWith("Operation cancelled.");
     expect(exitSpy).toHaveBeenCalledWith(0);
     expect(trash).not.toHaveBeenCalled();
@@ -82,16 +80,10 @@ describe("handleExistingDirectory", () => {
     await handleExistingDirectory("/test/path", { interactive: true, logger });
 
     expect(fileExists).toHaveBeenCalledWith("/test/path");
-    expect(confirm).toHaveBeenCalledWith(
-      expect.stringContaining("already exists"),
-    );
-    expect(logger.step).toHaveBeenCalledWith(
-      "Moving existing directory 'path' to trash...",
-    );
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
+    expect(logger.step).toHaveBeenCalledWith("Moving existing directory 'path' to trash...");
     expect(trash).toHaveBeenCalledWith("/test/path");
-    expect(logger.success).toHaveBeenCalledWith(
-      "Directory moved to trash successfully",
-    );
+    expect(logger.success).toHaveBeenCalledWith("Directory moved to trash successfully");
   });
 
   it("logs error details and exits when trash operation fails", async () => {
@@ -105,13 +97,9 @@ describe("handleExistingDirectory", () => {
     await handleExistingDirectory("/test/path", { interactive: true, logger });
 
     expect(fileExists).toHaveBeenCalledWith("/test/path");
-    expect(confirm).toHaveBeenCalledWith(
-      expect.stringContaining("already exists"),
-    );
+    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     expect(trash).toHaveBeenCalledWith("/test/path");
-    expect(logger.detail).toHaveBeenCalledWith(
-      "Error details: Error: Permission denied",
-    );
+    expect(logger.detail).toHaveBeenCalledWith("Error details: Error: Permission denied");
     expect(exitWithMessage).toHaveBeenCalledWith(
       "Failed to move existing directory to trash: Permission denied",
     );

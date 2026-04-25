@@ -7,20 +7,18 @@ function dedupePreserveOrder(apps: string[]): string[] {
   const seen = new Set<string>();
   const deduped: string[] = [];
   for (const app of apps) {
-    if (seen.has(app)) continue;
+    if (seen.has(app)) {
+      continue;
+    }
     seen.add(app);
     deduped.push(app);
   }
   return deduped;
 }
 
-export function resolveApps({
-  optionApps,
-  environmentApps,
-}: ResolveAppsInput): string[] {
+export function resolveApps({ optionApps, environmentApps }: ResolveAppsInput): string[] {
   const hasExplicitEmptyOption = optionApps?.includes("") ?? false;
-  const normalizedOptionApps =
-    optionApps?.map((app) => app.trim()).filter(Boolean) ?? [];
+  const normalizedOptionApps = optionApps?.map((app) => app.trim()).filter(Boolean) ?? [];
 
   if (optionApps !== undefined) {
     if (normalizedOptionApps.length > 0) {

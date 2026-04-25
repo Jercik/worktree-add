@@ -1,15 +1,15 @@
-export type StatusLogger = {
+export interface StatusLogger {
   readonly step: (message: string) => void;
   readonly success: (message: string) => void;
   readonly detail: (message: string) => void;
   readonly warn: (message: string) => void;
-};
+}
 
-type StatusLoggerOptions = {
+interface StatusLoggerOptions {
   readonly verbose: boolean;
   readonly dryRun: boolean;
   readonly decorate: boolean;
-};
+}
 
 const emit = (message: string): void => {
   console.error(message);
@@ -26,15 +26,21 @@ export function createStatusLogger(options: StatusLoggerOptions): StatusLogger {
 
   return {
     step(message: string) {
-      if (!shouldLogSteps) return;
+      if (!shouldLogSteps) {
+        return;
+      }
       emit(`${dryRunPrefix}${stepPrefix}${message}`);
     },
     success(message: string) {
-      if (!options.verbose) return;
+      if (!options.verbose) {
+        return;
+      }
       emit(`${dryRunPrefix}${successPrefix}${message}`);
     },
     detail(message: string) {
-      if (!shouldLogDetails) return;
+      if (!shouldLogDetails) {
+        return;
+      }
       emit(`${dryRunPrefix}${detailPrefix}${message}`);
     },
     warn(message: string) {

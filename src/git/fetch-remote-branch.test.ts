@@ -4,6 +4,7 @@ import { fetchRemoteBranch } from "./fetch-remote-branch.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 
 vi.mock("./git.js");
+vi.mock("./worktree-discovery.js");
 
 const gitModule = await import("./git.js");
 const {
@@ -35,11 +36,7 @@ const createLogger = (): StatusLogger => ({
 describe("fetchRemoteBranch", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(normalizeBranchName).mockImplementation(
-      (name: string): string => {
-        return name;
-      },
-    );
+    vi.mocked(normalizeBranchName).mockImplementation((name: string): string => name);
   });
 
   it("returns diverged status when local and origin branch histories diverge", () => {

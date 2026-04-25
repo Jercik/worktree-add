@@ -25,12 +25,12 @@ import { getStatusLogger } from "../output/get-status-logger.js";
 /**
  * Check if directory exists and handle removal if needed.
  */
-type HandleExistingDirectoryOptions = {
+interface HandleExistingDirectoryOptions {
   readonly dryRun?: boolean;
   readonly assumeYes?: boolean;
   readonly interactive?: boolean;
   readonly logger?: StatusLogger;
-};
+}
 
 export async function handleExistingDirectory(
   destinationDirectory: string,
@@ -74,9 +74,7 @@ export async function handleExistingDirectory(
         return false;
       }
 
-      logger.step(
-        `Would prompt to move existing directory '${directoryName}' to trash`,
-      );
+      logger.step(`Would prompt to move existing directory '${directoryName}' to trash`);
       return false;
     }
 
@@ -127,7 +125,9 @@ export async function handleExistingDirectory(
     const worktreeList = git("worktree", "list", "--porcelain");
     const lines = worktreeList.split(/\n/u);
     for (const line of lines) {
-      if (!line.startsWith("worktree ")) continue;
+      if (!line.startsWith("worktree ")) {
+        continue;
+      }
       const worktreePath = line.replace(/^worktree\s+/u, "").trim();
       if (path.resolve(worktreePath) === resolvedDestination) {
         shouldPruneWorktree = true;
@@ -135,11 +135,8 @@ export async function handleExistingDirectory(
       }
     }
   } catch (error) {
-    const details =
-      error instanceof Error ? (error.stack ?? error.message) : String(error);
-    logger.detail(
-      `Error checking for existing worktree registration: ${details}`,
-    );
+    const details = error instanceof Error ? (error.stack ?? error.message) : String(error);
+    logger.detail(`Error checking for existing worktree registration: ${details}`);
   }
 
   // Move the existing directory to trash
@@ -148,8 +145,7 @@ export async function handleExistingDirectory(
     await trash(destinationDirectory);
     logger.success("Directory moved to trash successfully");
   } catch (error) {
-    const details =
-      error instanceof Error ? (error.stack ?? error.message) : String(error);
+    const details = error instanceof Error ? (error.stack ?? error.message) : String(error);
     logger.detail(`Error details: ${details}`);
     exitWithMessage(
       `Failed to move existing directory to trash: ${error instanceof Error ? error.message : String(error)}`,
@@ -164,8 +160,7 @@ export async function handleExistingDirectory(
   try {
     git("worktree", "prune");
   } catch (error) {
-    const details =
-      error instanceof Error ? (error.stack ?? error.message) : String(error);
+    const details = error instanceof Error ? (error.stack ?? error.message) : String(error);
     logger.detail(`Error details: ${details}`);
     exitWithMessage(
       `Failed to prune stale worktree registration for '${directoryName}'. Run 'git worktree prune' and retry.`,

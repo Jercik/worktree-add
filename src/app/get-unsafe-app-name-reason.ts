@@ -11,9 +11,11 @@
 export function getUnsafeAppNameReason(appName: string): string | undefined {
   for (const character of appName) {
     const codePoint = character.codePointAt(0);
-    if (codePoint === undefined) continue;
+    if (codePoint === undefined) {
+      continue;
+    }
 
-    if (codePoint <= 0x1f || (codePoint >= 0x7f && codePoint <= 0x9f)) {
+    if (codePoint <= 31 || (codePoint >= 127 && codePoint <= 159)) {
       return "contains control characters";
     }
   }

@@ -1,11 +1,6 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
-import {
-  git,
-  localBranchExists,
-  normalizeBranchName,
-  remoteBranchExists,
-} from "./git.js";
+import { git, localBranchExists, normalizeBranchName, remoteBranchExists } from "./git.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
 /**
@@ -28,14 +23,10 @@ export function createWorktree(
     logger.step(
       `${dryRun ? "Would run " : ""}git worktree add -- ${destinationDirectory} refs/heads/${normalized}`,
     );
-    if (dryRun) return;
-    git(
-      "worktree",
-      "add",
-      "--",
-      destinationDirectory,
-      `refs/heads/${normalized}`,
-    );
+    if (dryRun) {
+      return;
+    }
+    git("worktree", "add", "--", destinationDirectory, `refs/heads/${normalized}`);
     return;
   }
 
@@ -56,7 +47,9 @@ export function createWorktree(
     logger.step(
       `${dryRun ? "Would run " : ""}git worktree add --track -b ${normalized} -- ${destinationDirectory} origin/${normalized}`,
     );
-    if (dryRun) return;
+    if (dryRun) {
+      return;
+    }
     git(
       "worktree",
       "add",
@@ -73,6 +66,8 @@ export function createWorktree(
   logger.step(
     `${dryRun ? "Would run " : ""}git worktree add -b ${normalized} -- ${destinationDirectory}`,
   );
-  if (dryRun) return;
+  if (dryRun) {
+    return;
+  }
   git("worktree", "add", "-b", normalized, "--", destinationDirectory);
 }

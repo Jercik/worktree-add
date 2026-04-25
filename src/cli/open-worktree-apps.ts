@@ -20,9 +20,7 @@ export async function openWorktreeApps(
       }
 
       if (dryRun) {
-        logger.step(
-          `Would open ${JSON.stringify(destinationDirectory)} in ${JSON.stringify(app)}`,
-        );
+        logger.step(`Would open ${JSON.stringify(destinationDirectory)} in ${JSON.stringify(app)}`);
         return;
       }
 
@@ -38,9 +36,7 @@ export async function openWorktreeApps(
         const argumentHint = looksLikeArguments
           ? ' Note: application arguments are not supported; pass only the application name (for example, "code" instead of "code --wait").'
           : "";
-        logger.warn(
-          `Failed to open ${JSON.stringify(app)}: ${message}.${argumentHint}`,
-        );
+        logger.warn(`Failed to open ${JSON.stringify(app)}: ${message}.${argumentHint}`);
       }
     }),
   );

@@ -18,20 +18,16 @@ vi.mock("./resolve-worktree-context.js");
 
 const outputModule = await import("../output/create-status-logger.js");
 const appModule = await import("../app/resolve-apps.js");
-const destinationDirectoryModule =
-  await import("../worktree/destination-directory.js");
-const untrackedFileCopyModule =
-  await import("../worktree/untracked-file-copy.js");
+const destinationDirectoryModule = await import("../worktree/destination-directory.js");
+const untrackedFileCopyModule = await import("../worktree/untracked-file-copy.js");
 const setupModule = await import("../project/setup.js");
 const gitModule = await import("../git/git.js");
 const createWorktreeModule = await import("../git/create-worktree.js");
 const fetchRemoteBranchModule = await import("../git/fetch-remote-branch.js");
 const cleanupWorktreeModule = await import("./cleanup-worktree.js");
 const openWorktreeAppsModule = await import("./open-worktree-apps.js");
-const registerSigintHandlerModule =
-  await import("./register-sigint-handler.js");
-const resolveWorktreeContextModule =
-  await import("./resolve-worktree-context.js");
+const registerSigintHandlerModule = await import("./register-sigint-handler.js");
+const resolveWorktreeContextModule = await import("./resolve-worktree-context.js");
 
 const { createStatusLogger } = outputModule;
 const { resolveApps } = appModule;
@@ -77,8 +73,7 @@ describe("runWorktreeAdd", () => {
     vi.mocked(resolveWorktreeContext).mockReturnValue({
       branch: "codex/implement-new-transform-from-workflow.md",
       repoRoot: "/tmp/repo",
-      destinationDirectory:
-        "/tmp/repo-codex-implement-new-transform-from-workflow.md",
+      destinationDirectory: "/tmp/repo-codex-implement-new-transform-from-workflow.md",
     });
     vi.mocked(registerSigintHandler).mockReturnValue((): void => {});
     vi.mocked(exitWithMessage).mockImplementation((message: string): never => {
@@ -102,9 +97,7 @@ describe("runWorktreeAdd", () => {
       ),
     );
     expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "worktree-add -- 'codex/implement-new-transform-from-workflow.md'",
-      ),
+      expect.stringContaining("worktree-add -- 'codex/implement-new-transform-from-workflow.md'"),
     );
     expect(exitWithMessage).toHaveBeenCalledWith(
       expect.stringContaining(
@@ -122,9 +115,7 @@ describe("runWorktreeAdd", () => {
       ),
     );
     expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "# if '<branch>-old' already exists, pick a different archive name.",
-      ),
+      expect.stringContaining("# if '<branch>-old' already exists, pick a different archive name."),
     );
     expect(createWorktree).not.toHaveBeenCalled();
     expect(copyUntrackedFiles).not.toHaveBeenCalled();

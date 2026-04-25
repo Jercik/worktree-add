@@ -54,5 +54,4 @@ export const globToRegExp = (globPattern: string): RegExp => {
   return new RegExp(`^${regexBody}$`, "u");
 };
 
-export const toPosixPath = (value: string): string =>
-  value.replaceAll("\\", "/");
+export const toPosixPath = (value: string): string => value.replaceAll("\\", "/");

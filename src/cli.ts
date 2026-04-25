@@ -24,11 +24,7 @@ const program = new Command()
   )
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
-  .option(
-    "-a, --app <name>",
-    "Open the worktree in an app (repeatable)",
-    collectApp,
-  )
+  .option("-a, --app <name>", "Open the worktree in an app (repeatable)", collectApp)
   .option(
     "--offline",
     "Allow creating a new local branch from HEAD when origin cannot be reached and the branch does not exist locally",

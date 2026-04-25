@@ -7,10 +7,7 @@
 import { spawnSync } from "node:child_process";
 import type { SpawnSyncReturns } from "node:child_process";
 import { detect } from "package-manager-detector/detect";
-import {
-  formatCommand,
-  getBinaryRunCommand,
-} from "./package-manager-commands.js";
+import { formatCommand, getBinaryRunCommand } from "./package-manager-commands.js";
 import { getInstallCommand, getInstallMessage } from "./install-commands.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
@@ -87,7 +84,9 @@ export async function installDependencies(
   const pm = await detectPackageManager(cwd);
   const cmd = await getInstallCommand(pm, cwd);
   logger.step(getInstallMessage(cmd));
-  if (dryRun) return;
+  if (dryRun) {
+    return;
+  }
   runOrThrow(cmd.command, cmd.args, cwd);
 }
 
@@ -100,13 +99,11 @@ export async function runPackageManagerBinary(
   const logger = getStatusLogger(options.logger);
   const dryRun = options.dryRun ?? false;
   const pm = await detectPackageManager(cwd);
-  const { command, args: commandArguments } = getBinaryRunCommand(
-    pm,
-    binary,
-    arguments_,
-  );
+  const { command, args: commandArguments } = getBinaryRunCommand(pm, binary, arguments_);
   logger.step(`Running ${formatCommand(command, commandArguments)} …`);
-  if (dryRun) return undefined;
+  if (dryRun) {
+    return undefined;
+  }
   const result = runOrThrow(command, commandArguments, cwd, options);
 
   if (options.stdio === "pipe") {

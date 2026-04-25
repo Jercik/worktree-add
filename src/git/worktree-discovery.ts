@@ -47,9 +47,7 @@ function getMainWorktreePath(): string {
       primaryWorktreeLine.replace(/^worktree\s+/u, "").trim(),
     );
 
-    return primaryWorktreePath === commonDirectory
-      ? repoRoot
-      : primaryWorktreePath;
+    return primaryWorktreePath === commonDirectory ? repoRoot : primaryWorktreePath;
   }
 
   return path.resolve(commonDirectory, configuredWorktree);
@@ -57,11 +55,9 @@ function getMainWorktreePath(): string {
 
 export function getSuperprojectRoot(): string | undefined {
   let currentDirectory = getCurrentWorktreeRoot();
-  let topmostSuperprojectRoot = git(
-    "rev-parse",
-    "--show-superproject-working-tree",
-    { cwd: currentDirectory },
-  );
+  let topmostSuperprojectRoot = git("rev-parse", "--show-superproject-working-tree", {
+    cwd: currentDirectory,
+  });
 
   if (topmostSuperprojectRoot.length === 0) {
     return undefined;
@@ -69,11 +65,9 @@ export function getSuperprojectRoot(): string | undefined {
 
   for (let depth = 1; depth < MAX_SUPERPROJECT_NESTING; depth += 1) {
     currentDirectory = topmostSuperprojectRoot;
-    const superprojectRoot = git(
-      "rev-parse",
-      "--show-superproject-working-tree",
-      { cwd: currentDirectory },
-    );
+    const superprojectRoot = git("rev-parse", "--show-superproject-working-tree", {
+      cwd: currentDirectory,
+    });
 
     if (superprojectRoot.length === 0) {
       return topmostSuperprojectRoot;
@@ -98,9 +92,7 @@ export function getRepositoryName(): string {
  * Find the worktree path where the given branch is currently checked out.
  * Returns the worktree path if found, otherwise undefined.
  */
-export function findWorktreeByBranchName(
-  branchName: string,
-): string | undefined {
+export function findWorktreeByBranchName(branchName: string): string | undefined {
   const commonDirectory = getGitCommonDirectory();
   const mainWorktreePath = getMainWorktreePath();
   const wtList = git("worktree", "list", "--porcelain");
@@ -110,13 +102,9 @@ export function findWorktreeByBranchName(
 
   for (const line of wtLines) {
     if (line.startsWith("worktree ")) {
-      const listedWorktreePath = path.resolve(
-        line.replace(/^worktree\s+/u, "").trim(),
-      );
+      const listedWorktreePath = path.resolve(line.replace(/^worktree\s+/u, "").trim());
       currentWorktreePath =
-        listedWorktreePath === commonDirectory
-          ? mainWorktreePath
-          : listedWorktreePath;
+        listedWorktreePath === commonDirectory ? mainWorktreePath : listedWorktreePath;
     } else if (line.startsWith("branch ") && currentWorktreePath) {
       const referenceOrName = line.replace(/^branch\s+/u, "").trim();
       const shortName = referenceOrName.startsWith("refs/heads/")

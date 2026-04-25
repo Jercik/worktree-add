@@ -10,8 +10,6 @@ const fallbackLogger: StatusLogger = {
   },
 };
 
-export function getStatusLogger(
-  logger: StatusLogger | undefined,
-): StatusLogger {
+export function getStatusLogger(logger: StatusLogger | undefined): StatusLogger {
   return logger ?? fallbackLogger;
 }

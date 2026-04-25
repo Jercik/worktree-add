@@ -6,18 +6,18 @@ import {
   getLocalBranchHead,
   getRemoteBranchHead,
   git,
-  findWorktreeByBranchName,
   localBranchExists,
   normalizeBranchName,
   remoteBranchExists,
 } from "./git.js";
+import { findWorktreeByBranchName } from "./worktree-discovery.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
 type RemoteBranchStatus = "exists" | "missing" | "unknown" | "diverged";
-type BranchDivergence = {
+interface BranchDivergence {
   ahead: number;
   behind: number;
-};
+}
 type NonDivergedRemoteBranchStatus = Exclude<RemoteBranchStatus, "diverged">;
 type FetchRemoteBranchResult =
   | {
@@ -105,12 +105,8 @@ export function fetchRemoteBranch(
         );
         return { status: "exists", localExists, divergence: undefined };
       }
-      logger.detail(
-        `Fast-forwarding '${normalized}' from ${localHead} to ${remoteHead}.`,
-      );
-      logger.step(
-        `Fast-forwarding local '${normalized}' to origin/${normalized} …`,
-      );
+      logger.detail(`Fast-forwarding '${normalized}' from ${localHead} to ${remoteHead}.`);
+      logger.step(`Fast-forwarding local '${normalized}' to origin/${normalized} …`);
       git("branch", "-f", "--", normalized, `origin/${normalized}`);
       return { status: "exists", localExists, divergence: undefined };
     }

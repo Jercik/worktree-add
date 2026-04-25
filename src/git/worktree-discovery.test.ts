@@ -19,17 +19,11 @@ describe("worktree discovery", () => {
 
   it("gets the repository name from the visible main worktree path", () => {
     vi.mocked(git).mockImplementation((...arguments_) => {
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-toplevel"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
         return mainWorktreePath;
       }
 
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--git-common-dir"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
         return commonDirectory;
       }
 
@@ -37,9 +31,7 @@ describe("worktree discovery", () => {
         return "../../../../deps/child";
       }
 
-      throw new Error(
-        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
-      );
+      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
     });
 
     expect(getRepositoryName()).toBe("child");
@@ -47,17 +39,11 @@ describe("worktree discovery", () => {
 
   it("maps the primary submodule worktree entry back to the visible path", () => {
     vi.mocked(git).mockImplementation((...arguments_) => {
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-toplevel"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
         return mainWorktreePath;
       }
 
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--git-common-dir"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
         return commonDirectory;
       }
 
@@ -75,30 +61,20 @@ HEAD fedcba9876543210
 branch refs/heads/feature/login`;
       }
 
-      throw new Error(
-        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
-      );
+      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
     });
 
     expect(findWorktreeByBranchName("main")).toBe(mainWorktreePath);
-    expect(findWorktreeByBranchName("feature/login")).toBe(
-      "/repos/child-feature-login",
-    );
+    expect(findWorktreeByBranchName("feature/login")).toBe("/repos/child-feature-login");
   });
 
   it("gets the repository name from the primary worktree when core.worktree is unset", () => {
     vi.mocked(git).mockImplementation((...arguments_) => {
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-toplevel"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
         return "/repos/worktree-add-feature-login";
       }
 
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--git-common-dir"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
         return "/repos/worktree-add/.git";
       }
 
@@ -116,9 +92,7 @@ HEAD fedcba9876543210
 branch refs/heads/feature/login`;
       }
 
-      throw new Error(
-        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
-      );
+      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
     });
 
     expect(getRepositoryName()).toBe("worktree-add");
@@ -128,10 +102,7 @@ branch refs/heads/feature/login`;
     vi.mocked(git).mockImplementation((...arguments_) => {
       const options = arguments_[2] as { cwd?: string } | undefined;
 
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-toplevel"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
         return "/repos/outer/deps/middle/deps/inner";
       }
 
@@ -159,9 +130,7 @@ branch refs/heads/feature/login`;
         return "";
       }
 
-      throw new Error(
-        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
-      );
+      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
     });
 
     expect(getSuperprojectRoot()).toBe("/repos/outer");
@@ -169,23 +138,15 @@ branch refs/heads/feature/login`;
 
   it("throws when nested superproject traversal exceeds the safety limit", () => {
     vi.mocked(git).mockImplementation((...arguments_) => {
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-toplevel"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
         return "/repos/inner";
       }
 
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-superproject-working-tree"
-      ) {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-superproject-working-tree") {
         return "/repos/loop";
       }
 
-      throw new Error(
-        `Unexpected git arguments: ${JSON.stringify(arguments_)}`,
-      );
+      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
     });
 
     expect(() => getSuperprojectRoot()).toThrow(

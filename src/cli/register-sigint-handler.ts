@@ -1,14 +1,12 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-type SigintHandlerOptions = {
+interface SigintHandlerOptions {
   readonly destinationDirectory: string;
   readonly logger: StatusLogger;
   readonly onCleanup: () => void;
-};
+}
 
-export function registerSigintHandler(
-  options: SigintHandlerOptions,
-): () => void {
+export function registerSigintHandler(options: SigintHandlerOptions): () => void {
   let handled = false;
   const handler = (): void => {
     if (handled) {

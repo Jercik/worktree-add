@@ -6,15 +6,11 @@
 
 import { spawnSync } from "node:child_process";
 
-export const formatCommand = (
-  command: string,
-  arguments_: string[],
-): string => {
-  return [command, ...arguments_].join(" ").trim();
-};
+export const formatCommand = (command: string, arguments_: string[]): string =>
+  [command, ...arguments_].join(" ").trim();
 
 const parseMajorVersion = (value: string): number | undefined => {
-  const match = value.trim().match(/^(\d+)/u);
+  const match = /^(\d+)/u.exec(value.trim());
   if (!match) {
     return undefined;
   }
@@ -60,4 +56,5 @@ export const getBinaryRunCommand = (
       return { command: "npx", args: [binary, ...arguments_] };
     }
   }
+  throw new Error(`Unsupported package manager: ${String(pm)}`);
 };

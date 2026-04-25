@@ -7,20 +7,20 @@ describe("globToRegExp", () => {
     const regex = globToRegExp("config/**");
     expect(regex.test("config/.env")).toBe(true);
     expect(regex.test("config/nested/file.txt")).toBe(true);
-    expect(regex.test("another/file.txt")).toBe(false);
+    expect(regex.test("another/file.txt")).not.toBe(true);
   });
 
   it("limits single star to a segment", () => {
     const regex = globToRegExp("*.env");
     expect(regex.test(".env")).toBe(true);
     expect(regex.test("local.env")).toBe(true);
-    expect(regex.test("nested/local.env")).toBe(false);
+    expect(regex.test("nested/local.env")).not.toBe(true);
   });
 
   it("supports question mark placeholders", () => {
     const regex = globToRegExp("file?.txt");
     expect(regex.test("file1.txt")).toBe(true);
     expect(regex.test("fileA.txt")).toBe(true);
-    expect(regex.test("file10.txt")).toBe(false);
+    expect(regex.test("file10.txt")).not.toBe(true);
   });
 });

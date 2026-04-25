@@ -8,19 +8,13 @@ import * as readline from "node:readline/promises";
  * @param args Git command arguments. If the last argument is an object with a `cwd` property,
  *             it will be used as the working directory for the command.
  */
-export function git(
-  ...arguments_: [...string[], { cwd?: string }] | string[]
-): string {
+export function git(...arguments_: [...string[], { cwd?: string }] | string[]): string {
   let cwd: string | undefined;
   let gitArguments: string[];
 
   // Check if the last argument is an options object
   const lastArgument = arguments_.at(-1);
-  if (
-    lastArgument &&
-    typeof lastArgument === "object" &&
-    "cwd" in lastArgument
-  ) {
+  if (lastArgument && typeof lastArgument === "object" && "cwd" in lastArgument) {
     cwd = lastArgument.cwd;
     gitArguments = arguments_.slice(0, -1) as string[];
   } else {
@@ -34,11 +28,11 @@ export function git(
     env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
     ...(cwd && { cwd }),
   });
-  if (result.error) throw result.error;
+  if (result.error) {
+    throw result.error;
+  }
   if (result.status !== 0) {
-    throw new Error(
-      result.stderr || `git ${gitArguments[0] ?? "command"} failed`,
-    );
+    throw new Error(result.stderr || `git ${gitArguments[0] ?? "command"} failed`);
   }
   return result.stdout.trim();
 }
@@ -83,7 +77,7 @@ export function remoteBranchExists(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
   // Use a fully-qualified ref to avoid option-parsing ambiguity for branch
   // names starting with '-'.
-  return !!git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`);
+  return Boolean(git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`));
 }
 
 /**
@@ -125,12 +119,7 @@ export function getAheadBehindCounts(
   localHead: string,
   remoteHead: string,
 ): { ahead: number; behind: number } {
-  const output = git(
-    "rev-list",
-    "--left-right",
-    "--count",
-    `${localHead}...${remoteHead}`,
-  );
+  const output = git("rev-list", "--left-right", "--count", `${localHead}...${remoteHead}`);
   const [aheadRaw, behindRaw] = output.split(/\s+/u);
   const ahead = Number.parseInt(aheadRaw ?? "0", 10);
   const behind = Number.parseInt(behindRaw ?? "0", 10);
@@ -202,11 +191,3 @@ export async function confirm(message: string): Promise<boolean> {
   const normalized = answer.trim().toLowerCase();
   return normalized === "y" || normalized === "yes";
 }
-
-// Re-export worktree parsing functions for backward compatibility
-export {
-  getCurrentWorktreeRoot,
-  getRepositoryName,
-  getSuperprojectRoot,
-  findWorktreeByBranchName,
-} from "./worktree-discovery.js";

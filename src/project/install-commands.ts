@@ -6,10 +6,7 @@
 
 import path from "node:path";
 import { fileExists } from "../git/git.js";
-import {
-  formatCommand,
-  getYarnInstallArguments,
-} from "./package-manager-commands.js";
+import { formatCommand, getYarnInstallArguments } from "./package-manager-commands.js";
 
 type PackageManager = "npm" | "yarn" | "pnpm" | "bun" | "deno" | undefined;
 
@@ -21,10 +18,7 @@ interface InstallCommand {
 /**
  * Get the install command for the given package manager
  */
-export async function getInstallCommand(
-  pm: PackageManager,
-  cwd: string,
-): Promise<InstallCommand> {
+export async function getInstallCommand(pm: PackageManager, cwd: string): Promise<InstallCommand> {
   switch (pm) {
     case "pnpm": {
       return { command: "pnpm", args: ["install", "--frozen-lockfile"] };
@@ -45,7 +39,6 @@ export async function getInstallCommand(
 
     case "npm":
     case undefined: {
-      // Use npm ci if lockfile exists, otherwise npm install
       const hasLockfile = await fileExists(path.join(cwd, "package-lock.json"));
       if (hasLockfile) {
         return { command: "npm", args: ["ci"] };
@@ -53,6 +46,7 @@ export async function getInstallCommand(
       return { command: "npm", args: ["install"] };
     }
   }
+  throw new Error(`Unsupported package manager: ${String(pm)}`);
 }
 
 /**

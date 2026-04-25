@@ -1,19 +1,17 @@
 import path from "node:path";
+import { exitWithMessage, normalizeBranchName, toSafePathSegment } from "../git/git.js";
 import {
-  exitWithMessage,
   findWorktreeByBranchName,
   getCurrentWorktreeRoot,
   getRepositoryName,
   getSuperprojectRoot,
-  normalizeBranchName,
-  toSafePathSegment,
-} from "../git/git.js";
+} from "../git/worktree-discovery.js";
 
-type WorktreeContext = {
+interface WorktreeContext {
   readonly branch: string;
   readonly repoRoot: string;
   readonly destinationDirectory: string;
-};
+}
 
 export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
   const branch = normalizeBranchName(branchRaw);
@@ -40,9 +38,7 @@ export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
   const repoName = getRepositoryName();
   const branchDirectorySegment = toSafePathSegment(branch);
   const destinationDirectory = path.join(
-    superprojectRoot === undefined
-      ? path.dirname(repoRoot)
-      : path.dirname(superprojectRoot),
+    superprojectRoot === undefined ? path.dirname(repoRoot) : path.dirname(superprojectRoot),
     `${repoName}-${branchDirectorySegment}`,
   );
 

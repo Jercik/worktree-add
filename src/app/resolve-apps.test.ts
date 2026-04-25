@@ -13,10 +13,7 @@ describe("resolveApps", () => {
   });
 
   it("returns multiple CLI apps", () => {
-    expect(resolveApps({ optionApps: ["ghostty", "code"] })).toStrictEqual([
-      "ghostty",
-      "code",
-    ]);
+    expect(resolveApps({ optionApps: ["ghostty", "code"] })).toStrictEqual(["ghostty", "code"]);
   });
 
   it("falls back to env var when CLI apps are absent", () => {
@@ -24,24 +21,15 @@ describe("resolveApps", () => {
   });
 
   it("splits comma-separated env var into multiple apps", () => {
-    expect(resolveApps({ environmentApps: "ghostty,code" })).toStrictEqual([
-      "ghostty",
-      "code",
-    ]);
+    expect(resolveApps({ environmentApps: "ghostty,code" })).toStrictEqual(["ghostty", "code"]);
   });
 
   it("trims whitespace from env var entries", () => {
-    expect(resolveApps({ environmentApps: " ghostty , code " })).toStrictEqual([
-      "ghostty",
-      "code",
-    ]);
+    expect(resolveApps({ environmentApps: " ghostty , code " })).toStrictEqual(["ghostty", "code"]);
   });
 
   it("trims whitespace from CLI app entries", () => {
-    expect(resolveApps({ optionApps: [" ghostty ", " code "] })).toStrictEqual([
-      "ghostty",
-      "code",
-    ]);
+    expect(resolveApps({ optionApps: [" ghostty ", " code "] })).toStrictEqual(["ghostty", "code"]);
   });
 
   it("returns empty array when nothing is specified", () => {
@@ -55,33 +43,28 @@ describe("resolveApps", () => {
   });
 
   it("falls back to env var when CLI apps normalize to an empty list", () => {
-    expect(
-      resolveApps({ optionApps: ["  "], environmentApps: "code" }),
-    ).toStrictEqual(["code"]);
+    expect(resolveApps({ optionApps: ["  "], environmentApps: "code" })).toStrictEqual(["code"]);
   });
 
   it("overrides env var to open nothing when CLI apps include an explicit empty string", () => {
-    expect(
-      resolveApps({ optionApps: [""], environmentApps: "code" }),
-    ).toStrictEqual([]);
+    expect(resolveApps({ optionApps: [""], environmentApps: "code" })).toStrictEqual([]);
   });
 
   it("filters out empty entries from comma-separated env var", () => {
-    expect(resolveApps({ environmentApps: "ghostty,,code," })).toStrictEqual([
-      "ghostty",
-      "code",
-    ]);
+    expect(resolveApps({ environmentApps: "ghostty,,code," })).toStrictEqual(["ghostty", "code"]);
   });
 
   it("de-duplicates apps while preserving order (CLI)", () => {
-    expect(
-      resolveApps({ optionApps: ["code", "code", "ghostty", "code"] }),
-    ).toStrictEqual(["code", "ghostty"]);
+    expect(resolveApps({ optionApps: ["code", "code", "ghostty", "code"] })).toStrictEqual([
+      "code",
+      "ghostty",
+    ]);
   });
 
   it("de-duplicates apps while preserving order (env var)", () => {
-    expect(
-      resolveApps({ environmentApps: "code,code,ghostty,code" }),
-    ).toStrictEqual(["code", "ghostty"]);
+    expect(resolveApps({ environmentApps: "code,code,ghostty,code" })).toStrictEqual([
+      "code",
+      "ghostty",
+    ]);
   });
 });

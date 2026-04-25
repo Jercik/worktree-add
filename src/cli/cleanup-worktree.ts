@@ -6,16 +6,12 @@ export function cleanupWorktree(
   logger: StatusLogger,
   reason: string,
 ): void {
-  logger.warn(
-    `Cleaning up worktree at ${JSON.stringify(destinationDirectory)} ${reason}.`,
-  );
+  logger.warn(`Cleaning up worktree at ${JSON.stringify(destinationDirectory)} ${reason}.`);
   try {
     removeWorktree(destinationDirectory);
   } catch (cleanupError) {
     const cleanupMessage =
-      cleanupError instanceof Error
-        ? cleanupError.message
-        : String(cleanupError);
+      cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
     logger.warn(
       `Failed to clean up worktree at ${JSON.stringify(destinationDirectory)}: ${cleanupMessage}`,
     );

@@ -8,10 +8,7 @@ import path from "node:path";
 import { fileExists } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
-import {
-  installDependencies,
-  runPackageManagerBinary,
-} from "./package-manager.js";
+import { installDependencies, runPackageManagerBinary } from "./package-manager.js";
 import { isNextProject, isNextTypegenSupported } from "./next.js";
 
 /**
@@ -37,18 +34,13 @@ export async function setupProject(
       return;
     }
     logger.step("Checking Next.js CLI typegen support …");
-    const hasTypegenSupport = await isNextTypegenSupported(
-      destinationDirectory,
-      { logger },
-    );
+    const hasTypegenSupport = await isNextTypegenSupported(destinationDirectory, { logger });
     if (hasTypegenSupport) {
       await runPackageManagerBinary(destinationDirectory, "next", ["typegen"], {
         logger,
       });
     } else {
-      logger.warn(
-        "Skipping next typegen: installed Next.js CLI does not support this command.",
-      );
+      logger.warn("Skipping next typegen: installed Next.js CLI does not support this command.");
     }
   }
 }
