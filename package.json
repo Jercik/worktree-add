@@ -72,10 +72,5 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@10.33.0",
-  "pnpm": {
-    "overrides": {
-      "@typescript/native-preview": "$@typescript/native-preview"
-    }
-  }
+  "packageManager": "pnpm@10.33.0"
 }
