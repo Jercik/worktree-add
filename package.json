@@ -31,15 +31,15 @@
   ],
   "type": "module",
   "scripts": {
-    "prepack": "pnpm run rebuild",
-    "prepare": "git config core.hooksPath .githooks",
     "build": "tsgo -p tsconfig.app.json",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "format": "oxfmt .",
-    "format:check": "oxfmt --check .",
+    "format": "oxfmt --config .oxfmtrc.json .",
+    "format:check": "oxfmt --check --config .oxfmtrc.json .",
     "fta": "fta-check",
     "knip": "knip",
     "lint": "oxlint --deny-warnings --report-unused-disable-directives .",
+    "prepack": "pnpm run rebuild",
+    "prepare": "git config core.hooksPath .githooks",
     "rebuild": "pnpm run clean && pnpm run build",
     "start": "pnpm run rebuild && node bin/worktree-add",
     "test": "vitest run",
@@ -75,7 +75,7 @@
   "packageManager": "pnpm@10.33.0",
   "pnpm": {
     "overrides": {
-      "@typescript/native-preview": "7.0.0-dev.20260425.1"
+      "@typescript/native-preview": "$@typescript/native-preview"
     }
   }
 }
