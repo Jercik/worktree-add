@@ -30,7 +30,7 @@ Your original checkout is left untouched.
 
 ## Requirements
 
-- Node.js ≥ 22.19.0
+- Node.js ≥ 24.0.0
 - Git with `git worktree` support
 - Git credentials configured for `origin/` (the tool is non-interactive and won’t prompt for authentication)
 
