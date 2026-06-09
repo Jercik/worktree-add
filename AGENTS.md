@@ -117,42 +117,6 @@ email.bulkSend(generateExpiryEmails(getExpiredUsers(db.getUsers(), new Date())))
 
 Test the functional core, not the shell. Core tests are fast, deterministic, and need no mocks; the shell becomes thin orchestration where bugs are easy to spot through review. If shell tests are explicitly requested, prefer integration tests over unit tests with mocks.
 
-# Rule: Inline Obvious Code
-
-Keep simple, self-explanatory code inline rather than extracting it into functions. Every abstraction carries cognitive cost—readers must jump to another location, parse a signature, and track context. For obvious logic, this overhead exceeds any benefit.
-
-Extracting code into a function is not inherently virtuous. A function should exist because it encapsulates meaningful complexity, not because code appears twice.
-
-```ts
-// GOOD: Inline obvious logic
-if (removedFrom.length === 0) {
-  return { ok: true, message: "No credentials found" };
-}
-return { ok: true, message: `Removed from ${removedFrom.join(" and ")}` };
-
-// BAD: Extraction hides obvious logic behind indirection
-return formatRemovalResult(removedFrom);
-```
-
-## When to extract
-
-Extract when duplication causes real maintenance risk, not merely because code appears twice:
-
-- A name clarifies complex intent
-- Multiple call sites must stay in lockstep and silent divergence would be a bug
-- The function encapsulates a coherent standalone concept
-- Testing it in isolation provides value
-
-Don't extract for hypothetical reuse:
-
-- For a single caller
-- Because "we might need this elsewhere"
-- When the name describes implementation rather than purpose
-
-## The wrong abstraction
-
-Abstractions decay when requirements diverge: programmer A extracts duplication into a shared function, programmer B adds a parameter for different behavior, and this repeats until the "abstraction" is a mess of conditionals. When an abstraction proves wrong, re-introduce duplication and let the code show you what's actually shared. Duplication is far cheaper than the wrong abstraction.
-
 # Rule: No Logic in Tests
 
 Write test assertions as concrete input/output examples, not computed values. Avoid operators, string concatenation, loops, and conditionals in test bodies—these obscure bugs and make tests harder to verify at a glance.
