@@ -30,6 +30,9 @@
     "LICENSE"
   ],
   "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "tsgo -p tsconfig.app.json",
     "clean": "rm -rf dist *.tsbuildinfo",

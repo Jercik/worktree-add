@@ -47,5 +47,8 @@ jobs:
       - name: Run fta
         run: pnpm fta
 
+      - name: Run build
+        run: pnpm build
+
       - name: Run tests
         run: pnpm run test
