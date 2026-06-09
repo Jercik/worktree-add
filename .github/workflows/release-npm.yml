@@ -42,11 +42,13 @@ jobs:
         uses: actions/setup-node@v6
         with:
           node-version-file: "package.json"
-          registry-url: https://registry.npmjs.org
           cache: "pnpm"
 
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
+
+      - name: Configure public npm registry (publish)
+        run: echo "registry=https://registry.npmjs.org/" >> ~/.npmrc
 
       - name: Release
         id: release
