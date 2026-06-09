@@ -53,8 +53,11 @@ run_package_script() {
   elif command -v npm >/dev/null 2>&1; then
     npm run "$script_name"
   else
+    # return, not exit: callers redirect this function's output into a log
+    # they only dump on failure — exit here would abort before the dump,
+    # leaving the commit to die with no visible error.
     echo "No package manager available to run script: $script_name" >&2
-    exit 1
+    return 127
   fi
 }
 
