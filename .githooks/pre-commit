@@ -79,7 +79,7 @@ if [[ -f pnpm-lock.yaml ]] && command -v pnpm >/dev/null 2>&1; then
   if has_staged_changes package.json pnpm-lock.yaml pnpm-workspace.yaml; then
     # Order matters: dedupe is the cheaper read-only check, so fail fast on
     # lockfile bloat before the heavier lockfile-vs-package.json sync check.
-    pnpm dedupe --check
+    pnpm dedupe --check --config.confirm-modules-purge=false
     pnpm install --frozen-lockfile --ignore-scripts --config.confirm-modules-purge=false
   fi
 fi
