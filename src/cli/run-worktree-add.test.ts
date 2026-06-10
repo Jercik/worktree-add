@@ -89,34 +89,28 @@ describe("runWorktreeAdd", () => {
     );
 
     expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining("git fetch origin --prune"),
+      `Local branch 'codex/implement-new-transform-from-workflow.md' and origin/codex/implement-new-transform-from-workflow.md have diverged (ahead by 15 and behind by 1).
+This can mean either a stale local branch-name collision or legitimate local commits plus new remote commits.
+Refusing to reuse the local branch automatically.
+Note: commands below use POSIX shell quoting. On Windows cmd.exe/PowerShell, adapt quoting for your shell.
+If you want to keep local commits, use your local branch directly:
+  git worktree add -- <path> 'codex/implement-new-transform-from-workflow.md'
+  # or merge/rebase 'codex/implement-new-transform-from-workflow.md' with origin/codex/implement-new-transform-from-workflow.md, then retry.
+To work on the remote branch, run:
+  git fetch origin --prune
+  # if '<branch>-old' already exists, pick a different archive name.
+  git branch -m -- 'codex/implement-new-transform-from-workflow.md' 'codex/implement-new-transform-from-workflow.md-old'
+  # or delete the stale local branch instead:
+  # git branch -D -- 'codex/implement-new-transform-from-workflow.md'
+  worktree-add -- 'codex/implement-new-transform-from-workflow.md'`,
     );
-    expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "git branch -m -- 'codex/implement-new-transform-from-workflow.md' 'codex/implement-new-transform-from-workflow.md-old'",
-      ),
+  });
+
+  it("does not create or set up a worktree when branches diverge", async () => {
+    await runWorktreeAdd("codex/implement-new-transform-from-workflow.md", {}).catch(
+      () => undefined,
     );
-    expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining("worktree-add -- 'codex/implement-new-transform-from-workflow.md'"),
-    );
-    expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "commands below use POSIX shell quoting. On Windows cmd.exe/PowerShell, adapt quoting for your shell.",
-      ),
-    );
-    expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "This can mean either a stale local branch-name collision or legitimate local commits plus new remote commits.",
-      ),
-    );
-    expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "git worktree add -- <path> 'codex/implement-new-transform-from-workflow.md'",
-      ),
-    );
-    expect(exitWithMessage).toHaveBeenCalledWith(
-      expect.stringContaining("# if '<branch>-old' already exists, pick a different archive name."),
-    );
+
     expect(createWorktree).not.toHaveBeenCalled();
     expect(copyUntrackedFiles).not.toHaveBeenCalled();
     expect(setupProject).not.toHaveBeenCalled();

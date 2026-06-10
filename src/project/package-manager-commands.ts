@@ -10,11 +10,11 @@ export const formatCommand = (command: string, arguments_: string[]): string =>
   [command, ...arguments_].join(" ").trim();
 
 const parseMajorVersion = (value: string): number | undefined => {
-  const match = /^(\d+)/u.exec(value.trim());
+  const match = /^(?<major>\d+)/u.exec(value.trim());
   if (!match) {
     return undefined;
   }
-  const major = Number.parseInt(match[1] ?? "", 10);
+  const major = Number.parseInt(match.groups?.major ?? "", 10);
   return Number.isNaN(major) ? undefined : major;
 };
 
