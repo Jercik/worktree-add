@@ -30,6 +30,9 @@
     "LICENSE"
   ],
   "type": "module",
+  "publishConfig": {
+    "registry": "https://registry.npmjs.org/"
+  },
   "scripts": {
     "build": "tsgo -p tsconfig.app.json",
     "clean": "rm -rf dist *.tsbuildinfo",
@@ -72,5 +75,5 @@
   "engines": {
     "node": ">=24.0.0"
   },
-  "packageManager": "pnpm@10.33.0"
+  "packageManager": "pnpm@11.5.1"
 }

@@ -28,6 +28,11 @@ jobs:
           node-version-file: "package.json"
           cache: "pnpm"
 
+      - name: Configure registry auth
+        run: echo "//npm.j4k.dev/:_authToken=${NODE_AUTH_TOKEN}" > ~/.npmrc
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
