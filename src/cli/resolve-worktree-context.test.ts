@@ -18,7 +18,7 @@ describe("resolveWorktreeContext", () => {
     vi.mocked(exitWithMessage).mockImplementation((message: string): never => {
       throw new Error(message);
     });
-    vi.mocked(findWorktreeByBranchName).mockImplementation((): string | undefined => void 0);
+    vi.mocked(findWorktreeByBranchName).mockReturnValue(undefined);
     vi.mocked(normalizeBranchName).mockImplementation((value: string) => value);
     vi.mocked(toSafePathSegment).mockImplementation((value: string) => value.replaceAll("/", "-"));
   });
@@ -28,7 +28,7 @@ describe("resolveWorktreeContext", () => {
     vi.mocked(getSuperprojectRoot).mockReturnValue("/repos/parent");
     vi.mocked(getRepositoryName).mockReturnValue("child");
 
-    expect(resolveWorktreeContext("feature/login")).toEqual({
+    expect(resolveWorktreeContext("feature/login")).toStrictEqual({
       branch: "feature/login",
       repoRoot: "/repos/parent/deps/child",
       destinationDirectory: "/repos/child-feature-login",
@@ -37,10 +37,10 @@ describe("resolveWorktreeContext", () => {
 
   it("keeps normal sibling placement outside submodules", () => {
     vi.mocked(getCurrentWorktreeRoot).mockReturnValue("/repos/child-feature");
-    vi.mocked(getSuperprojectRoot).mockImplementation((): string | undefined => void 0);
+    vi.mocked(getSuperprojectRoot).mockReturnValue(undefined);
     vi.mocked(getRepositoryName).mockReturnValue("child");
 
-    expect(resolveWorktreeContext("feature/settings")).toEqual({
+    expect(resolveWorktreeContext("feature/settings")).toStrictEqual({
       branch: "feature/settings",
       repoRoot: "/repos/child-feature",
       destinationDirectory: "/repos/child-feature-settings",

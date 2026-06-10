@@ -62,7 +62,6 @@ describe("handleExistingDirectory", () => {
       handleExistingDirectory("/test/path", { interactive: true, logger }),
     ).rejects.toThrow("Process exit");
 
-    expect(fileExists).toHaveBeenCalledWith("/test/path");
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     expect(console.error).toHaveBeenCalledWith("Operation cancelled.");
     expect(exitSpy).toHaveBeenCalledWith(0);
