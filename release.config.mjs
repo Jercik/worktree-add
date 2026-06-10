@@ -3,9 +3,7 @@ const releaseConfig = {
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
     "@semantic-release/npm",
-    // successCommentCondition false: the default success step parses #N
-    // references in commit messages and comments on each; a phantom number
-    // (regex example, pasted error text) 404s and fails the whole release run.
+    // Phantom #N refs in commit messages 404 the success-comment step and fail the run.
     ["@semantic-release/github", { successCommentCondition: false }],
   ],
 };
