@@ -1,2 +1,6 @@
 #!/usr/bin/env bash
-npx -y conventional-commit-msg "$1"
+# `npm exec --package=` over `npx -y`: an explicit --package overrides any
+# inherited npm_config_package env var. Agent wrappers (axexec/axrun) set it to
+# their own package, which makes bare `npx -y conventional-commit-msg` resolve
+# the wrong package and exit 127 on every commit.
+npm exec --yes --package=conventional-commit-msg -- conventional-commit-msg "$1"
