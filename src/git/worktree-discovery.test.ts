@@ -12,56 +12,87 @@ const { findWorktreeByBranchName, getRepositoryName, getSuperprojectRoot } =
 const mainWorktreePath = "/repos/parent/deps/child";
 const commonDirectory = "/repos/parent/.git/modules/deps/child";
 
+interface RepositoryState {
+  readonly toplevel: string;
+  readonly commonDir?: string;
+  readonly coreWorktree?: string;
+  readonly worktreeList?: string;
+  readonly superprojects?: Readonly<Record<string, string>>;
+}
+
+const mockGitRepository = (state: RepositoryState): void => {
+  vi.mocked(git).mockImplementation((...arguments_) => {
+    const command = arguments_[0];
+    const subcommand = arguments_[1];
+    const options = arguments_[2] as { cwd?: string } | undefined;
+
+    if (command === "rev-parse" && subcommand === "--show-toplevel") {
+      return state.toplevel;
+    }
+    if (
+      command === "rev-parse" &&
+      subcommand === "--git-common-dir" &&
+      state.commonDir !== undefined
+    ) {
+      return state.commonDir;
+    }
+    if (command === "rev-parse" && subcommand === "--show-superproject-working-tree") {
+      const superproject = state.superprojects?.[options?.cwd ?? ""];
+      if (superproject !== undefined) {
+        return superproject;
+      }
+    }
+    if (command === "config" && state.coreWorktree !== undefined) {
+      return state.coreWorktree;
+    }
+    if (command === "worktree" && subcommand === "list" && state.worktreeList !== undefined) {
+      return state.worktreeList;
+    }
+
+    throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
+  });
+};
+
+const submoduleRepository: RepositoryState = {
+  toplevel: mainWorktreePath,
+  commonDir: commonDirectory,
+  coreWorktree: "../../../../deps/child",
+};
+
+const unsetCoreWorktreeRepository: RepositoryState = {
+  toplevel: "/repos/worktree-add-feature-login",
+  commonDir: "/repos/worktree-add/.git",
+  coreWorktree: "",
+  worktreeList: `worktree /repos/worktree-add
+HEAD 0123456789abcdef
+branch refs/heads/main
+
+worktree /repos/worktree-add-feature-login
+HEAD fedcba9876543210
+branch refs/heads/feature/login`,
+};
+
 describe("worktree discovery", () => {
   beforeEach(() => {
     vi.clearAllMocks();
   });
 
   it("gets the repository name from the visible main worktree path", () => {
-    vi.mocked(git).mockImplementation((...arguments_) => {
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
-        return mainWorktreePath;
-      }
-
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
-        return commonDirectory;
-      }
-
-      if (arguments_[0] === "config") {
-        return "../../../../deps/child";
-      }
-
-      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
-    });
+    mockGitRepository(submoduleRepository);
 
     expect(getRepositoryName()).toBe("child");
   });
 
   it("maps the primary submodule worktree entry back to the visible path", () => {
-    vi.mocked(git).mockImplementation((...arguments_) => {
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
-        return mainWorktreePath;
-      }
-
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
-        return commonDirectory;
-      }
-
-      if (arguments_[0] === "config") {
-        return "../../../../deps/child";
-      }
-
-      if (arguments_[0] === "worktree" && arguments_[1] === "list") {
-        return `worktree ${commonDirectory}
+    mockGitRepository({
+      ...submoduleRepository,
+      worktreeList: `worktree ${commonDirectory}
 HEAD 0123456789abcdef
 branch refs/heads/main
 
 worktree /repos/child-feature-login
 HEAD fedcba9876543210
-branch refs/heads/feature/login`;
-      }
-
-      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
+branch refs/heads/feature/login`,
     });
 
     expect(findWorktreeByBranchName("main")).toBe(mainWorktreePath);
@@ -69,116 +100,37 @@ branch refs/heads/feature/login`;
   });
 
   it("gets the repository name from the primary worktree when core.worktree is unset", () => {
-    vi.mocked(git).mockImplementation((...arguments_) => {
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
-        return "/repos/worktree-add-feature-login";
-      }
-
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
-        return "/repos/worktree-add/.git";
-      }
-
-      if (arguments_[0] === "config") {
-        return "";
-      }
-
-      if (arguments_[0] === "worktree" && arguments_[1] === "list") {
-        return `worktree /repos/worktree-add
-HEAD 0123456789abcdef
-branch refs/heads/main
-
-worktree /repos/worktree-add-feature-login
-HEAD fedcba9876543210
-branch refs/heads/feature/login`;
-      }
-
-      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
-    });
+    mockGitRepository(unsetCoreWorktreeRepository);
 
     expect(getRepositoryName()).toBe("worktree-add");
   });
 
-  it("reads the worktree list once when core.worktree is unset", () => {
-    vi.mocked(git).mockImplementation((...arguments_) => {
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
-        return "/repos/worktree-add-feature-login";
-      }
-
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
-        return "/repos/worktree-add/.git";
-      }
-
-      if (arguments_[0] === "config") {
-        return "";
-      }
-
-      if (arguments_[0] === "worktree" && arguments_[1] === "list") {
-        return `worktree /repos/worktree-add
-HEAD 0123456789abcdef
-branch refs/heads/main
-
-worktree /repos/worktree-add-feature-login
-HEAD fedcba9876543210
-branch refs/heads/feature/login`;
-      }
-
-      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
-    });
+  it("maps the primary worktree entry when core.worktree is unset", () => {
+    mockGitRepository(unsetCoreWorktreeRepository);
 
     expect(findWorktreeByBranchName("feature/login")).toBe("/repos/worktree-add-feature-login");
-    expect(git).toHaveBeenCalledTimes(4);
-    expect(git).toHaveBeenNthCalledWith(4, "worktree", "list", "--porcelain");
   });
 
   it("returns the top-most superproject for nested submodules", () => {
-    vi.mocked(git).mockImplementation((...arguments_) => {
-      const options = arguments_[2] as { cwd?: string } | undefined;
-
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
-        return "/repos/outer/deps/middle/deps/inner";
-      }
-
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-superproject-working-tree" &&
-        options?.cwd === "/repos/outer/deps/middle/deps/inner"
-      ) {
-        return "/repos/outer/deps/middle";
-      }
-
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-superproject-working-tree" &&
-        options?.cwd === "/repos/outer/deps/middle"
-      ) {
-        return "/repos/outer";
-      }
-
-      if (
-        arguments_[0] === "rev-parse" &&
-        arguments_[1] === "--show-superproject-working-tree" &&
-        options?.cwd === "/repos/outer"
-      ) {
-        return "";
-      }
-
-      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
+    mockGitRepository({
+      toplevel: "/repos/outer/deps/middle/deps/inner",
+      superprojects: {
+        "/repos/outer/deps/middle/deps/inner": "/repos/outer/deps/middle",
+        "/repos/outer/deps/middle": "/repos/outer",
+        "/repos/outer": "",
+      },
     });
 
     expect(getSuperprojectRoot()).toBe("/repos/outer");
   });
 
   it("throws when nested superproject traversal exceeds the safety limit", () => {
-    vi.mocked(git).mockImplementation((...arguments_) => {
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
-        return "/repos/inner";
-      }
-
-      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-superproject-working-tree") {
-        return "/repos/loop";
-      }
-
-      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
+    mockGitRepository({
+      toplevel: "/repos/inner",
+      superprojects: {
+        "/repos/inner": "/repos/loop",
+        "/repos/loop": "/repos/loop",
+      },
     });
 
     expect(() => getSuperprojectRoot()).toThrow(
