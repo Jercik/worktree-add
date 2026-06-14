@@ -44,7 +44,7 @@
     "prepack": "pnpm run rebuild",
     "prepare": "git config core.hooksPath .githooks",
     "rebuild": "pnpm run clean && pnpm run build",
-    "start": "pnpm run rebuild && node bin/worktree-add",
+    "start": "node bin/worktree-add",
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
