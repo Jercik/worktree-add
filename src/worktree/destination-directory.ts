@@ -38,16 +38,27 @@ function getPromptRefusal({ interactive, isCi, isTty }: PromptState): PromptRefu
   return undefined;
 }
 
-function formatDryRunPromptRefusal(directoryName: string, refusal: PromptRefusal): string {
+function promptRefusalLines(directoryName: string, refusal: PromptRefusal): string[] {
   switch (refusal.type) {
     case "ci-interactive-without-tty": {
-      return `Dry run: directory '${directoryName}' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.`;
+      return [
+        `Directory '${directoryName}' already exists, and CI mode is enabled.`,
+        "Interactive prompts are disabled in CI.",
+        "Re-run with --yes to move the directory to trash, or remove it manually.",
+      ];
     }
     case "non-interactive": {
-      return `Dry run: directory '${directoryName}' already exists${refusal.ciHint}. Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.`;
+      return [
+        `Directory '${directoryName}' already exists${refusal.ciHint}.`,
+        "Refusing to prompt in non-interactive mode.",
+        "Re-run with --interactive to confirm, or --yes to move it to trash.",
+      ];
     }
     case "stdin-not-tty": {
-      return `Dry run: directory '${directoryName}' already exists, but stdin is not a TTY. Re-run with --yes to move it to trash, or remove it manually.`;
+      return [
+        `Directory '${directoryName}' already exists, but stdin is not a TTY.`,
+        "Re-run with --yes to move it to trash, or remove it manually.",
+      ];
     }
     default: {
       const exhaustive: never = refusal;
@@ -57,32 +68,13 @@ function formatDryRunPromptRefusal(directoryName: string, refusal: PromptRefusal
 }
 
 function formatPromptRefusal(directoryName: string, refusal: PromptRefusal): string {
-  switch (refusal.type) {
-    case "ci-interactive-without-tty": {
-      return (
-        `Directory '${directoryName}' already exists, and CI mode is enabled.\n` +
-        "Interactive prompts are disabled in CI.\n" +
-        "Re-run with --yes to move the directory to trash, or remove it manually."
-      );
-    }
-    case "non-interactive": {
-      return (
-        `Directory '${directoryName}' already exists${refusal.ciHint}.\n` +
-        "Refusing to prompt in non-interactive mode.\n" +
-        "Re-run with --interactive to confirm, or --yes to move it to trash."
-      );
-    }
-    case "stdin-not-tty": {
-      return (
-        `Directory '${directoryName}' already exists, but stdin is not a TTY.\n` +
-        "Re-run with --yes to move it to trash, or remove it manually."
-      );
-    }
-    default: {
-      const exhaustive: never = refusal;
-      return exhaustive;
-    }
-  }
+  return promptRefusalLines(directoryName, refusal).join("\n");
+}
+
+function formatDryRunPromptRefusal(directoryName: string, refusal: PromptRefusal): string {
+  // Dry run collapses the refusal onto one prefixed line, so lowercase the leading word.
+  const inlined = promptRefusalLines(directoryName, refusal).join(" ");
+  return `Dry run: ${inlined.charAt(0).toLowerCase()}${inlined.slice(1)}`;
 }
 
 export async function handleExistingDirectory(
