@@ -1,6 +1,6 @@
 import open from "open";
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import { getUnsafeAppNameReason } from "../app/get-unsafe-app-name-reason.js";
 
 export async function openWorktreeApps(
@@ -8,7 +8,7 @@ export async function openWorktreeApps(
   apps: string[],
   options: { dryRun?: boolean; logger?: StatusLogger } = {},
 ): Promise<void> {
-  const logger = getStatusLogger(options.logger);
+  const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
 
   await Promise.allSettled(

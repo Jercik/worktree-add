@@ -1,5 +1,5 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import {
   fetchOriginBranch,
   getAheadBehindCounts,
@@ -35,7 +35,7 @@ export function fetchRemoteBranch(
   branch: string,
   options?: { dryRun?: boolean; logger?: StatusLogger },
 ): FetchRemoteBranchResult {
-  const logger = getStatusLogger(options?.logger);
+  const logger = options?.logger ?? fallbackStatusLogger;
   const dryRun = options?.dryRun ?? false;
   const normalized = normalizeBranchName(branch);
   const localExists = localBranchExists(normalized);

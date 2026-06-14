@@ -2,7 +2,7 @@ import path from "node:path";
 import trash from "trash";
 import { fileExists, confirm, exitWithMessage, git } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 
 interface HandleExistingDirectoryOptions {
   readonly dryRun?: boolean;
@@ -93,7 +93,7 @@ export async function handleExistingDirectory(
     return true;
   }
 
-  const logger = getStatusLogger(options.logger);
+  const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
   const assumeYes = options.assumeYes ?? false;
   const interactive = options.interactive ?? false;

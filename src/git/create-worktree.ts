@@ -1,5 +1,5 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import { git, localBranchExists, normalizeBranchName, remoteBranchExists } from "./git.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
@@ -23,7 +23,7 @@ export function createWorktree(
     logger?: StatusLogger;
   },
 ): void {
-  const logger = getStatusLogger(options?.logger);
+  const logger = options?.logger ?? fallbackStatusLogger;
   const dryRun = options?.dryRun ?? false;
   const normalized = normalizeBranchName(branch);
 

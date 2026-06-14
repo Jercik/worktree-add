@@ -5,7 +5,7 @@ import { formatCommand, getBinaryRunCommand } from "./package-manager-commands.j
 import { getInstallCommand, getInstallMessage } from "./install-commands.js";
 import type { DetectedPackageManagerName } from "./package-manager-name.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 
 interface RunOptions {
   readonly stdio?: "inherit" | "pipe";
@@ -62,7 +62,7 @@ export async function installDependencies(
   cwd: string,
   options: { dryRun?: boolean; logger?: StatusLogger } = {},
 ): Promise<void> {
-  const logger = getStatusLogger(options.logger);
+  const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
   const pm = await detectPackageManager(cwd);
   const cmd = await getInstallCommand(pm, cwd);
@@ -79,7 +79,7 @@ export async function runPackageManagerBinary(
   arguments_: string[] = [],
   options: RunOptions = {},
 ): Promise<RunBinaryResult | undefined> {
-  const logger = getStatusLogger(options.logger);
+  const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
   const pm = await detectPackageManager(cwd);
   const { command, args: commandArguments } = getBinaryRunCommand(pm, binary, arguments_);
