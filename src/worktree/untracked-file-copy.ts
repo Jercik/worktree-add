@@ -1,9 +1,3 @@
-/**
- * untracked-file-copy.ts
- *
- * Utilities for copying untracked files to worktrees
- */
-
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { git } from "../git/git.js";
@@ -11,9 +5,6 @@ import { EXTRA_IGNORED_PATTERNS, globToRegExp, toPosixPath } from "./file-patter
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
 
-/**
- * Copy untracked files from source to destination, excluding ignored patterns
- */
 export async function copyUntrackedFiles(
   repoRoot: string,
   destinationDirectory: string,

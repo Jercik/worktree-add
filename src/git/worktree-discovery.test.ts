@@ -98,6 +98,38 @@ branch refs/heads/feature/login`;
     expect(getRepositoryName()).toBe("worktree-add");
   });
 
+  it("reads the worktree list once when core.worktree is unset", () => {
+    vi.mocked(git).mockImplementation((...arguments_) => {
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--show-toplevel") {
+        return "/repos/worktree-add-feature-login";
+      }
+
+      if (arguments_[0] === "rev-parse" && arguments_[1] === "--git-common-dir") {
+        return "/repos/worktree-add/.git";
+      }
+
+      if (arguments_[0] === "config") {
+        return "";
+      }
+
+      if (arguments_[0] === "worktree" && arguments_[1] === "list") {
+        return `worktree /repos/worktree-add
+HEAD 0123456789abcdef
+branch refs/heads/main
+
+worktree /repos/worktree-add-feature-login
+HEAD fedcba9876543210
+branch refs/heads/feature/login`;
+      }
+
+      throw new Error(`Unexpected git arguments: ${JSON.stringify(arguments_)}`);
+    });
+
+    expect(findWorktreeByBranchName("feature/login")).toBe("/repos/worktree-add-feature-login");
+    expect(git).toHaveBeenCalledTimes(4);
+    expect(git).toHaveBeenNthCalledWith(4, "worktree", "list", "--porcelain");
+  });
+
   it("returns the top-most superproject for nested submodules", () => {
     vi.mocked(git).mockImplementation((...arguments_) => {
       const options = arguments_[2] as { cwd?: string } | undefined;

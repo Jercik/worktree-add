@@ -1,10 +1,6 @@
-/**
- * package-manager-commands.ts
- *
- * Internal utilities for package manager operations
- */
-
 import { spawnSync } from "node:child_process";
+import type { DetectedPackageManagerName } from "./package-manager-name.js";
+import { unsupportedPackageManagerName } from "./package-manager-name.js";
 
 export const formatCommand = (command: string, arguments_: string[]): string =>
   [command, ...arguments_].join(" ").trim();
@@ -36,7 +32,7 @@ export const getYarnInstallArguments = (cwd: string): string[] => {
 };
 
 export const getBinaryRunCommand = (
-  pm: "npm" | "yarn" | "pnpm" | "bun" | "deno" | undefined,
+  pm: DetectedPackageManagerName,
   binary: string,
   arguments_: string[],
 ): { command: string; args: string[] } => {
@@ -56,5 +52,5 @@ export const getBinaryRunCommand = (
       return { command: "npx", args: [binary, ...arguments_] };
     }
   }
-  throw new Error(`Unsupported package manager: ${String(pm)}`);
+  return unsupportedPackageManagerName(pm);
 };

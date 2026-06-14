@@ -1,24 +1,18 @@
-/**
- * install-commands.ts
- *
- * Package manager-specific install command logic
- */
-
 import path from "node:path";
 import { fileExists } from "../git/git.js";
 import { formatCommand, getYarnInstallArguments } from "./package-manager-commands.js";
-
-type PackageManager = "npm" | "yarn" | "pnpm" | "bun" | "deno" | undefined;
+import type { DetectedPackageManagerName } from "./package-manager-name.js";
+import { unsupportedPackageManagerName } from "./package-manager-name.js";
 
 interface InstallCommand {
   readonly command: string;
   readonly args: string[];
 }
 
-/**
- * Get the install command for the given package manager
- */
-export async function getInstallCommand(pm: PackageManager, cwd: string): Promise<InstallCommand> {
+export async function getInstallCommand(
+  pm: DetectedPackageManagerName,
+  cwd: string,
+): Promise<InstallCommand> {
   switch (pm) {
     case "pnpm": {
       return { command: "pnpm", args: ["install", "--frozen-lockfile"] };
@@ -46,12 +40,9 @@ export async function getInstallCommand(pm: PackageManager, cwd: string): Promis
       return { command: "npm", args: ["install"] };
     }
   }
-  throw new Error(`Unsupported package manager: ${String(pm)}`);
+  return unsupportedPackageManagerName(pm);
 }
 
-/**
- * Get the display message for an install command
- */
 export function getInstallMessage(cmd: InstallCommand): string {
   if (cmd.command === "npm" && cmd.args[0] === "ci") {
     return "Running npm ci (using package-lock.json) …";

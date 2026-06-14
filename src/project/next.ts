@@ -1,9 +1,3 @@
-/**
- * next.ts
- *
- * Utilities for working with Next.js projects
- */
-
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { runPackageManagerBinary } from "./package-manager.js";

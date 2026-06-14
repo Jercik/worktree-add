@@ -1,18 +1,18 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { handleExistingDirectory } from "./destination-directory.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-// Mock dependencies
 vi.mock("trash");
 vi.mock("../git/git.js");
 
-// Import mocked modules - separate to avoid linting issues with member access
 const gitModule = await import("../git/git.js");
 const trashModule = await import("trash");
 
 const { fileExists, confirm, exitWithMessage, git } = gitModule;
 const trash = trashModule.default;
+const originalCi = process.env.CI;
+const originalStdinIsTty = process.stdin.isTTY;
 
 const createLogger = (): StatusLogger => ({
   step: vi.fn((message: string): void => {
@@ -29,12 +29,30 @@ const createLogger = (): StatusLogger => ({
   }),
 });
 
+const setStdinIsTty = (value: boolean | undefined): void => {
+  Object.defineProperty(process.stdin, "isTTY", {
+    configurable: true,
+    value,
+  });
+};
+
 describe("handleExistingDirectory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset console mocks
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(git).mockReturnValue("");
+    delete process.env.CI;
+    setStdinIsTty(true);
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
+    setStdinIsTty(originalStdinIsTty);
+    if (originalCi === undefined) {
+      delete process.env.CI;
+      return;
+    }
+    process.env.CI = originalCi;
   });
 
   it("returns early when directory does not exist", async () => {
@@ -53,7 +71,6 @@ describe("handleExistingDirectory", () => {
     vi.mocked(confirm).mockResolvedValue(false);
     const logger = createLogger();
 
-    // Mock process.exit to throw an error to stop execution
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("Process exit");
     });
@@ -139,5 +156,66 @@ describe("handleExistingDirectory", () => {
     );
 
     exitSpy.mockRestore();
+  });
+
+  it("warns instead of prompting during a non-interactive dry run in CI", async () => {
+    vi.mocked(fileExists).mockResolvedValue(true);
+    process.env.CI = "true";
+    const logger = createLogger();
+
+    const result = await handleExistingDirectory("/test/path", {
+      dryRun: true,
+      logger,
+    });
+
+    expect(result).not.toBe(true);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Dry run: directory 'path' already exists (CI is enabled). Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.",
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(trash).not.toHaveBeenCalled();
+  });
+
+  it("warns instead of prompting during an interactive CI dry run without a TTY", async () => {
+    vi.mocked(fileExists).mockResolvedValue(true);
+    process.env.CI = "1";
+    setStdinIsTty(false);
+    const logger = createLogger();
+
+    const result = await handleExistingDirectory("/test/path", {
+      dryRun: true,
+      interactive: true,
+      logger,
+    });
+
+    expect(result).not.toBe(true);
+    expect(logger.warn).toHaveBeenCalledWith(
+      "Dry run: directory 'path' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.",
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(trash).not.toHaveBeenCalled();
+  });
+
+  it("exits instead of prompting in non-interactive live mode", async () => {
+    vi.mocked(fileExists).mockResolvedValue(true);
+    vi.mocked(exitWithMessage).mockImplementation((message: string): never => {
+      throw new Error(message);
+    });
+    process.env.CI = "true";
+    const logger = createLogger();
+
+    await expect(handleExistingDirectory("/test/path", { logger })).rejects.toThrow(
+      `Directory 'path' already exists (CI is enabled).
+Refusing to prompt in non-interactive mode.
+Re-run with --interactive to confirm, or --yes to move it to trash.`,
+    );
+
+    expect(exitWithMessage).toHaveBeenCalledWith(
+      `Directory 'path' already exists (CI is enabled).
+Refusing to prompt in non-interactive mode.
+Re-run with --interactive to confirm, or --yes to move it to trash.`,
+    );
+    expect(confirm).not.toHaveBeenCalled();
+    expect(trash).not.toHaveBeenCalled();
   });
 });

@@ -2,17 +2,10 @@ import { spawnSync } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as readline from "node:readline/promises";
 
-/**
- * Run a git command synchronously and return its trimmed stdout.
- * Any failure causes the script to throw.
- * @param args Git command arguments. If the last argument is an object with a `cwd` property,
- *             it will be used as the working directory for the command.
- */
 export function git(...arguments_: [...string[], { cwd?: string }] | string[]): string {
   let cwd: string | undefined;
   let gitArguments: string[];
 
-  // Check if the last argument is an options object
   const lastArgument = arguments_.at(-1);
   if (lastArgument && typeof lastArgument === "object" && "cwd" in lastArgument) {
     cwd = lastArgument.cwd;
@@ -37,13 +30,6 @@ export function git(...arguments_: [...string[], { cwd?: string }] | string[]): 
   return result.stdout.trim();
 }
 
-/**
- * Normalize a Git branch reference to a simple branch name.
- *
- * This helper trims surrounding whitespace and removes common prefixes so the
- * resulting string matches the short local branch name used by refs under
- * `refs/heads/`.
- */
 export function normalizeBranchName(name: string): string {
   const trimmed = name.trim();
   return trimmed
@@ -53,9 +39,6 @@ export function normalizeBranchName(name: string): string {
     .replace(/^origin\//u, "");
 }
 
-/**
- * Check if a local branch exists by verifying its ref.
- */
 export function localBranchExists(branch: string): boolean {
   try {
     const normalized = normalizeBranchName(branch);
@@ -66,13 +49,7 @@ export function localBranchExists(branch: string): boolean {
   }
 }
 
-/**
- * Check if a remote branch exists on origin.
- *
- * Note: this function may throw on network/auth failures or when the `origin`
- * remote is missing/misconfigured. Callers that want a degraded-mode fallback
- * should wrap it in try/catch.
- */
+// Network/auth failures surface so callers must choose whether offline fallback is allowed.
 export function remoteBranchExists(branch: string): boolean {
   const normalized = normalizeBranchName(branch);
   // Use a fully-qualified ref to avoid option-parsing ambiguity for branch
@@ -80,20 +57,13 @@ export function remoteBranchExists(branch: string): boolean {
   return Boolean(git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`));
 }
 
-/**
- * Fetch a branch from origin into the remote-tracking ref.
- *
- * This does not update any local branch heads.
- */
+// Fetch only refreshes the remote-tracking ref; local branch heads stay untouched.
 export function fetchOriginBranch(branch: string): void {
   const normalized = normalizeBranchName(branch);
   const refspec = `+refs/heads/${normalized}:refs/remotes/origin/${normalized}`;
   git("fetch", "origin", "--", refspec);
 }
 
-/**
- * Get the current head commit for a local branch.
- */
 export function getLocalBranchHead(branch: string): string | undefined {
   try {
     const normalized = normalizeBranchName(branch);
@@ -103,9 +73,6 @@ export function getLocalBranchHead(branch: string): string | undefined {
   }
 }
 
-/**
- * Get the current head commit for a remote-tracking branch.
- */
 export function getRemoteBranchHead(branch: string): string | undefined {
   try {
     const normalized = normalizeBranchName(branch);
@@ -129,12 +96,6 @@ export function getAheadBehindCounts(
   };
 }
 
-/**
- * Convert an arbitrary string to a filesystem-safe single path segment.
- *
- * Use this helper when constructing directory names from branch names or other
- * user-provided identifiers.
- */
 export function toSafePathSegment(input: string): string {
   return input
     .trim()
@@ -144,9 +105,6 @@ export function toSafePathSegment(input: string): string {
     .replaceAll(/-+/gu, "-");
 }
 
-/**
- * Check if a file exists at the given path.
- */
 export async function fileExists(p: string): Promise<boolean> {
   try {
     await fs.access(p);
@@ -156,18 +114,12 @@ export async function fileExists(p: string): Promise<boolean> {
   }
 }
 
-/**
- * Print an error message and exit the process with status 1.
- */
 export function exitWithMessage(message: string): never {
   console.error(message);
   // eslint-disable-next-line unicorn/no-process-exit -- This is a CLI helper function
   process.exit(1);
 }
 
-/**
- * Prompt for input and return the user's response.
- */
 async function prompt(message: string): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,
@@ -181,11 +133,6 @@ async function prompt(message: string): Promise<string> {
   }
 }
 
-/**
- * Prompts user for yes/no confirmation
- * @param message The message to display to the user
- * @returns Promise<boolean> - true if user confirms, false otherwise
- */
 export async function confirm(message: string): Promise<boolean> {
   const answer = await prompt(`${message} [y/N] `);
   const normalized = answer.trim().toLowerCase();

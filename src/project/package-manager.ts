@@ -1,14 +1,9 @@
-/**
- * package-manager.ts
- *
- * Helpers for detecting and running package managers
- */
-
 import { spawnSync } from "node:child_process";
 import type { SpawnSyncReturns } from "node:child_process";
 import { detect } from "package-manager-detector/detect";
 import { formatCommand, getBinaryRunCommand } from "./package-manager-commands.js";
 import { getInstallCommand, getInstallMessage } from "./install-commands.js";
+import type { DetectedPackageManagerName } from "./package-manager-name.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
 
@@ -55,16 +50,7 @@ const runOrThrow = (
   return result;
 };
 
-/**
- * Detect the package manager for a given project directory.
- * Checks the packageManager field in package.json first, then falls back to lockfiles.
- *
- * @param cwd The project directory to detect the package manager for
- * @returns The detected package manager name, or undefined if none detected
- */
-async function detectPackageManager(
-  cwd: string,
-): Promise<"npm" | "yarn" | "pnpm" | "bun" | "deno" | undefined> {
+async function detectPackageManager(cwd: string): Promise<DetectedPackageManagerName> {
   const result = await detect({
     cwd,
     strategies: ["packageManager-field", "lockfile"],
@@ -72,9 +58,6 @@ async function detectPackageManager(
   return result?.name;
 }
 
-/**
- * Install dependencies for a project using the detected package manager.
- */
 export async function installDependencies(
   cwd: string,
   options: { dryRun?: boolean; logger?: StatusLogger } = {},

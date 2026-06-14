@@ -1,9 +1,3 @@
-/**
- * worktree-discovery.ts
- *
- * Utilities for parsing Git worktree information
- */
-
 import path from "node:path";
 import { git } from "./git.js";
 
@@ -13,18 +7,15 @@ export function getCurrentWorktreeRoot(): string {
   return git("rev-parse", "--show-toplevel");
 }
 
-function getGitCommonDirectory(): string {
-  const repoRoot = getCurrentWorktreeRoot();
+function getGitCommonDirectory(repoRoot: string): string {
   const commonDirectory = git("rev-parse", "--git-common-dir", {
     cwd: repoRoot,
   });
   return path.resolve(repoRoot, commonDirectory);
 }
 
-function getMainWorktreePath(): string {
-  const repoRoot = getCurrentWorktreeRoot();
-  const commonDirectory = getGitCommonDirectory();
-  const configuredWorktree = git(
+function getConfiguredWorktree(commonDirectory: string): string {
+  return git(
     "config",
     "--file",
     path.join(commonDirectory, "config"),
@@ -33,24 +24,42 @@ function getMainWorktreePath(): string {
     "--get",
     "core.worktree",
   );
+}
 
-  if (configuredWorktree.length === 0) {
-    const primaryWorktreeLine = git("worktree", "list", "--porcelain")
-      .split(/\n/u)
-      .find((line) => line.startsWith("worktree "));
+function getPrimaryWorktreePath(worktreeList: string): string | undefined {
+  const primaryWorktreeLine = worktreeList
+    .split(/\n/u)
+    .find((line) => line.startsWith("worktree "));
+  return primaryWorktreeLine === undefined
+    ? undefined
+    : path.resolve(primaryWorktreeLine.replace(/^worktree\s+/u, "").trim());
+}
 
-    if (primaryWorktreeLine === undefined) {
-      return repoRoot;
-    }
-
-    const primaryWorktreePath = path.resolve(
-      primaryWorktreeLine.replace(/^worktree\s+/u, "").trim(),
-    );
-
-    return primaryWorktreePath === commonDirectory ? repoRoot : primaryWorktreePath;
+function resolveMainWorktreePath(
+  repoRoot: string,
+  commonDirectory: string,
+  configuredWorktree: string,
+  worktreeList: string,
+): string {
+  if (configuredWorktree.length > 0) {
+    return path.resolve(commonDirectory, configuredWorktree);
   }
 
-  return path.resolve(commonDirectory, configuredWorktree);
+  const primaryWorktreePath = getPrimaryWorktreePath(worktreeList);
+  if (primaryWorktreePath === undefined) {
+    return repoRoot;
+  }
+
+  return primaryWorktreePath === commonDirectory ? repoRoot : primaryWorktreePath;
+}
+
+function getMainWorktreePath(): string {
+  const repoRoot = getCurrentWorktreeRoot();
+  const commonDirectory = getGitCommonDirectory(repoRoot);
+  const configuredWorktree = getConfiguredWorktree(commonDirectory);
+  const worktreeList =
+    configuredWorktree.length === 0 ? git("worktree", "list", "--porcelain") : "";
+  return resolveMainWorktreePath(repoRoot, commonDirectory, configuredWorktree, worktreeList);
 }
 
 export function getSuperprojectRoot(): string | undefined {
@@ -81,26 +90,26 @@ export function getSuperprojectRoot(): string | undefined {
   );
 }
 
-/**
- * Get the repository name from the main visible repository directory.
- */
 export function getRepositoryName(): string {
   return path.basename(getMainWorktreePath());
 }
 
-/**
- * Find the worktree path where the given branch is currently checked out.
- * Returns the worktree path if found, otherwise undefined.
- */
 export function findWorktreeByBranchName(branchName: string): string | undefined {
-  const commonDirectory = getGitCommonDirectory();
-  const mainWorktreePath = getMainWorktreePath();
-  const wtList = git("worktree", "list", "--porcelain");
-  const wtLines = wtList.split(/\n/u);
+  const repoRoot = getCurrentWorktreeRoot();
+  const commonDirectory = getGitCommonDirectory(repoRoot);
+  const configuredWorktree = getConfiguredWorktree(commonDirectory);
+  const worktreeList = git("worktree", "list", "--porcelain");
+  const mainWorktreePath = resolveMainWorktreePath(
+    repoRoot,
+    commonDirectory,
+    configuredWorktree,
+    worktreeList,
+  );
+  const worktreeLines = worktreeList.split(/\n/u);
 
   let currentWorktreePath: string | undefined;
 
-  for (const line of wtLines) {
+  for (const line of worktreeLines) {
     if (line.startsWith("worktree ")) {
       const listedWorktreePath = path.resolve(line.replace(/^worktree\s+/u, "").trim());
       currentWorktreePath =
