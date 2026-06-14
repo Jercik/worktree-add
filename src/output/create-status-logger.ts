@@ -48,3 +48,9 @@ export function createStatusLogger(options: StatusLoggerOptions): StatusLogger {
     },
   };
 }
+
+export const fallbackStatusLogger: StatusLogger = createStatusLogger({
+  verbose: false,
+  dryRun: false,
+  decorate: false,
+});
