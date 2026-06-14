@@ -3,6 +3,7 @@ import type { SpawnSyncReturns } from "node:child_process";
 import { detect } from "package-manager-detector/detect";
 import { formatCommand, getBinaryRunCommand } from "./package-manager-commands.js";
 import { getInstallCommand, getInstallMessage } from "./install-commands.js";
+import type { DetectedPackageManagerName } from "./package-manager-name.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
 
@@ -49,9 +50,7 @@ const runOrThrow = (
   return result;
 };
 
-async function detectPackageManager(
-  cwd: string,
-): Promise<"npm" | "yarn" | "pnpm" | "bun" | "deno" | undefined> {
+async function detectPackageManager(cwd: string): Promise<DetectedPackageManagerName> {
   const result = await detect({
     cwd,
     strategies: ["packageManager-field", "lockfile"],
