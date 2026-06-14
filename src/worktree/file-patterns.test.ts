@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { globToRegExp } from "./worktree/file-patterns.js";
+import { globToRegExp } from "./file-patterns.js";
 
 describe("globToRegExp", () => {
   it("matches nested directories when using double star", () => {
