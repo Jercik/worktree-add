@@ -3,6 +3,17 @@ import { getStatusLogger } from "../output/get-status-logger.js";
 import { git, localBranchExists, normalizeBranchName, remoteBranchExists } from "./git.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
+const runGitWorktreeCommand = (
+  args: string[],
+  options: { dryRun: boolean; logger: StatusLogger },
+): void => {
+  options.logger.step(`${options.dryRun ? "Would run " : ""}git ${args.join(" ")}`);
+  if (options.dryRun) {
+    return;
+  }
+  git(...args);
+};
+
 export function createWorktree(
   branch: string,
   destinationDirectory: string,
@@ -17,13 +28,13 @@ export function createWorktree(
   const normalized = normalizeBranchName(branch);
 
   if (localBranchExists(normalized)) {
-    logger.step(
-      `${dryRun ? "Would run " : ""}git worktree add -- ${destinationDirectory} refs/heads/${normalized}`,
+    runGitWorktreeCommand(
+      ["worktree", "add", "--", destinationDirectory, `refs/heads/${normalized}`],
+      {
+        dryRun,
+        logger,
+      },
     );
-    if (dryRun) {
-      return;
-    }
-    git("worktree", "add", "--", destinationDirectory, `refs/heads/${normalized}`);
     return;
   }
 
@@ -41,30 +52,24 @@ export function createWorktree(
   }
 
   if (branchExistsOnOrigin) {
-    logger.step(
-      `${dryRun ? "Would run " : ""}git worktree add --track -b ${normalized} -- ${destinationDirectory} origin/${normalized}`,
-    );
-    if (dryRun) {
-      return;
-    }
-    git(
-      "worktree",
-      "add",
-      "--track",
-      "-b",
-      normalized,
-      "--",
-      destinationDirectory,
-      `origin/${normalized}`,
+    runGitWorktreeCommand(
+      [
+        "worktree",
+        "add",
+        "--track",
+        "-b",
+        normalized,
+        "--",
+        destinationDirectory,
+        `origin/${normalized}`,
+      ],
+      { dryRun, logger },
     );
     return;
   }
 
-  logger.step(
-    `${dryRun ? "Would run " : ""}git worktree add -b ${normalized} -- ${destinationDirectory}`,
-  );
-  if (dryRun) {
-    return;
-  }
-  git("worktree", "add", "-b", normalized, "--", destinationDirectory);
+  runGitWorktreeCommand(["worktree", "add", "-b", normalized, "--", destinationDirectory], {
+    dryRun,
+    logger,
+  });
 }
