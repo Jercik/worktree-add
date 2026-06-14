@@ -11,7 +11,7 @@ export async function openWorktreeApps(
   const logger = getStatusLogger(options.logger);
   const dryRun = options.dryRun ?? false;
 
-  await Promise.all(
+  await Promise.allSettled(
     apps.map(async (app) => {
       const unsafeReason = getUnsafeAppNameReason(app);
       if (unsafeReason) {
