@@ -11,6 +11,80 @@ interface HandleExistingDirectoryOptions {
   readonly logger?: StatusLogger;
 }
 
+type PromptRefusal =
+  | { readonly type: "ci-interactive-without-tty" }
+  | { readonly type: "non-interactive"; readonly ciHint: string }
+  | { readonly type: "stdin-not-tty" };
+
+interface PromptState {
+  readonly interactive: boolean;
+  readonly isCi: boolean;
+  readonly isTty: boolean | undefined;
+}
+
+function getPromptRefusal({ interactive, isCi, isTty }: PromptState): PromptRefusal | undefined {
+  if (isCi && interactive && !isTty) {
+    return { type: "ci-interactive-without-tty" };
+  }
+
+  if (!interactive) {
+    return { type: "non-interactive", ciHint: isCi ? " (CI is enabled)" : "" };
+  }
+
+  if (!isTty) {
+    return { type: "stdin-not-tty" };
+  }
+
+  return undefined;
+}
+
+function formatDryRunPromptRefusal(directoryName: string, refusal: PromptRefusal): string {
+  switch (refusal.type) {
+    case "ci-interactive-without-tty": {
+      return `Dry run: directory '${directoryName}' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.`;
+    }
+    case "non-interactive": {
+      return `Dry run: directory '${directoryName}' already exists${refusal.ciHint}. Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.`;
+    }
+    case "stdin-not-tty": {
+      return `Dry run: directory '${directoryName}' already exists, but stdin is not a TTY. Re-run with --yes to move it to trash, or remove it manually.`;
+    }
+    default: {
+      const exhaustive: never = refusal;
+      return exhaustive;
+    }
+  }
+}
+
+function formatPromptRefusal(directoryName: string, refusal: PromptRefusal): string {
+  switch (refusal.type) {
+    case "ci-interactive-without-tty": {
+      return (
+        `Directory '${directoryName}' already exists, and CI mode is enabled.\n` +
+        "Interactive prompts are disabled in CI.\n" +
+        "Re-run with --yes to move the directory to trash, or remove it manually."
+      );
+    }
+    case "non-interactive": {
+      return (
+        `Directory '${directoryName}' already exists${refusal.ciHint}.\n` +
+        "Refusing to prompt in non-interactive mode.\n" +
+        "Re-run with --interactive to confirm, or --yes to move it to trash."
+      );
+    }
+    case "stdin-not-tty": {
+      return (
+        `Directory '${directoryName}' already exists, but stdin is not a TTY.\n` +
+        "Re-run with --yes to move it to trash, or remove it manually."
+      );
+    }
+    default: {
+      const exhaustive: never = refusal;
+      return exhaustive;
+    }
+  }
+}
+
 export async function handleExistingDirectory(
   destinationDirectory: string,
   options: HandleExistingDirectoryOptions = {},
@@ -27,32 +101,15 @@ export async function handleExistingDirectory(
   const ciValue = process.env.CI?.toLowerCase();
   const isCi = ciValue === "true" || ciValue === "1";
   const directoryName = path.basename(destinationDirectory);
+  const promptRefusal = assumeYes ? undefined : getPromptRefusal({ interactive, isCi, isTty });
 
   if (dryRun) {
+    if (promptRefusal !== undefined) {
+      logger.warn(formatDryRunPromptRefusal(directoryName, promptRefusal));
+      return false;
+    }
+
     if (!assumeYes) {
-      // Explicit --interactive in CI without a TTY can't prompt; call it out.
-      if (isCi && interactive && !isTty) {
-        logger.warn(
-          `Dry run: directory '${directoryName}' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.`,
-        );
-        return false;
-      }
-
-      if (!interactive) {
-        const ciHint = isCi ? " (CI is enabled)" : "";
-        logger.warn(
-          `Dry run: directory '${directoryName}' already exists${ciHint}. Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.`,
-        );
-        return false;
-      }
-
-      if (!isTty) {
-        logger.warn(
-          `Dry run: directory '${directoryName}' already exists, but stdin is not a TTY. Re-run with --yes to move it to trash, or remove it manually.`,
-        );
-        return false;
-      }
-
       logger.step(`Would prompt to move existing directory '${directoryName}' to trash`);
       return false;
     }
@@ -61,32 +118,11 @@ export async function handleExistingDirectory(
     return true;
   }
 
+  if (promptRefusal !== undefined) {
+    exitWithMessage(formatPromptRefusal(directoryName, promptRefusal));
+  }
+
   if (!assumeYes) {
-    // Explicit --interactive in CI without a TTY can't prompt; call it out.
-    if (isCi && interactive && !isTty) {
-      exitWithMessage(
-        `Directory '${directoryName}' already exists, and CI mode is enabled.\n` +
-          "Interactive prompts are disabled in CI.\n" +
-          "Re-run with --yes to move the directory to trash, or remove it manually.",
-      );
-    }
-
-    if (!interactive) {
-      const ciHint = isCi ? " (CI is enabled)" : "";
-      exitWithMessage(
-        `Directory '${directoryName}' already exists${ciHint}.\n` +
-          "Refusing to prompt in non-interactive mode.\n" +
-          "Re-run with --interactive to confirm, or --yes to move it to trash.",
-      );
-    }
-
-    if (!isTty) {
-      exitWithMessage(
-        `Directory '${directoryName}' already exists, but stdin is not a TTY.\n` +
-          "Re-run with --yes to move it to trash, or remove it manually.",
-      );
-    }
-
     const proceed = await confirm(
       `Directory '${directoryName}' already exists. Move to trash and recreate? (You can restore it from your system trash if needed)`,
     );
