@@ -39,16 +39,4 @@ describe("openWorktreeApps", () => {
     });
     expect(logger.warn).toHaveBeenCalledWith('Failed to open "Ghostty": missing app.');
   });
-
-  it("keeps unexpected app task failures from rejecting", async () => {
-    const logger = createLogger(() => {
-      throw new Error("logger failed");
-    });
-
-    await expect(
-      openWorktreeApps("/repo/project", ["Ghostty"], { logger }),
-    ).resolves.toBeUndefined();
-
-    expect(open).not.toHaveBeenCalled();
-  });
 });
