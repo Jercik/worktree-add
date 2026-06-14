@@ -3,9 +3,6 @@ import { getStatusLogger } from "../output/get-status-logger.js";
 import { git, localBranchExists, normalizeBranchName, remoteBranchExists } from "./git.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
-/**
- * Create a worktree for the given branch at the specified destination.
- */
 export function createWorktree(
   branch: string,
   destinationDirectory: string,

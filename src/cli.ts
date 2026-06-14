@@ -1,12 +1,4 @@
 #!/usr/bin/env -S node --experimental-strip-types
-/**
- * worktree-add.ts
- *
- * Create or reuse a Git worktree for <branch> as a sibling of the current worktree.
- * Note: the destination is placed next to whichever worktree you run this from,
- * except for submodule checkouts inside a superproject, where it is placed
- * outside the superproject to avoid nesting the new worktree inside the parent repo.
- */
 
 import { Command } from "@commander-js/extra-typings";
 import packageJson from "../package.json" with { type: "json" };

@@ -1,30 +1,9 @@
-/**
- * destination-directory.ts
- *
- * Utilities for managing worktree directories
- */
-
-/**
- * Cross-platform trash functionality using the trash package.
- *
- * Platform-specific behavior:
- * - macOS: Uses Finder's trash (~/.Trash)
- * - Windows: Uses Recycle Bin
- * - Linux: Uses freedesktop.org trash specification (~/.local/share/Trash)
- *
- * Note: On headless/CI systems, the trash directory is still created but
- * may not be visible in a GUI. Files can be recovered by navigating to
- * the platform-specific trash location.
- */
 import path from "node:path";
 import trash from "trash";
 import { fileExists, confirm, exitWithMessage, git } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { getStatusLogger } from "../output/get-status-logger.js";
 
-/**
- * Check if directory exists and handle removal if needed.
- */
 interface HandleExistingDirectoryOptions {
   readonly dryRun?: boolean;
   readonly assumeYes?: boolean;
@@ -139,7 +118,6 @@ export async function handleExistingDirectory(
     logger.detail(`Error checking for existing worktree registration: ${details}`);
   }
 
-  // Move the existing directory to trash
   logger.step(`Moving existing directory '${directoryName}' to trash...`);
   try {
     await trash(destinationDirectory);

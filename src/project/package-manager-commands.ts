@@ -1,9 +1,3 @@
-/**
- * package-manager-commands.ts
- *
- * Internal utilities for package manager operations
- */
-
 import { spawnSync } from "node:child_process";
 
 export const formatCommand = (command: string, arguments_: string[]): string =>

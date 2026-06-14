@@ -3,11 +3,9 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { handleExistingDirectory } from "./destination-directory.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-// Mock dependencies
 vi.mock("trash");
 vi.mock("../git/git.js");
 
-// Import mocked modules - separate to avoid linting issues with member access
 const gitModule = await import("../git/git.js");
 const trashModule = await import("trash");
 
@@ -32,7 +30,6 @@ const createLogger = (): StatusLogger => ({
 describe("handleExistingDirectory", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    // Reset console mocks
     vi.spyOn(console, "error").mockImplementation(() => {});
     vi.mocked(git).mockReturnValue("");
   });
@@ -53,7 +50,6 @@ describe("handleExistingDirectory", () => {
     vi.mocked(confirm).mockResolvedValue(false);
     const logger = createLogger();
 
-    // Mock process.exit to throw an error to stop execution
     const exitSpy = vi.spyOn(process, "exit").mockImplementation(() => {
       throw new Error("Process exit");
     });

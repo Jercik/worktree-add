@@ -1,9 +1,3 @@
-/**
- * worktree-discovery.ts
- *
- * Utilities for parsing Git worktree information
- */
-
 import path from "node:path";
 import { git } from "./git.js";
 
@@ -81,17 +75,10 @@ export function getSuperprojectRoot(): string | undefined {
   );
 }
 
-/**
- * Get the repository name from the main visible repository directory.
- */
 export function getRepositoryName(): string {
   return path.basename(getMainWorktreePath());
 }
 
-/**
- * Find the worktree path where the given branch is currently checked out.
- * Returns the worktree path if found, otherwise undefined.
- */
 export function findWorktreeByBranchName(branchName: string): string | undefined {
   const commonDirectory = getGitCommonDirectory();
   const mainWorktreePath = getMainWorktreePath();

@@ -1,10 +1,3 @@
-/**
- * file-patterns.ts
- *
- * Shared utilities for worktree file selection
- */
-
-// Patterns for untracked files that should NOT be copied to new worktrees
 export const EXTRA_IGNORED_PATTERNS: string[] = [
   "node_modules/**",
   ".next/**",
