@@ -1,6 +1,6 @@
-export const supportedPackageManagers = ["npm", "yarn", "pnpm", "bun", "deno"] as const;
+const supportedPackageManagers = ["npm", "yarn", "pnpm", "bun", "deno"] as const;
 
-export type PackageManagerName = (typeof supportedPackageManagers)[number];
+type PackageManagerName = (typeof supportedPackageManagers)[number];
 export type DetectedPackageManagerName = PackageManagerName | undefined;
 
 export function unsupportedPackageManagerName(pm: never): never {
