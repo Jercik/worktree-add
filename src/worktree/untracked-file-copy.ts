@@ -3,14 +3,14 @@ import path from "node:path";
 import { git } from "../git/git.js";
 import { EXTRA_IGNORED_PATTERNS, globToRegExp, toPosixPath } from "./file-patterns.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 
 export async function copyUntrackedFiles(
   repoRoot: string,
   destinationDirectory: string,
   options?: { dryRun?: boolean; logger?: StatusLogger },
 ): Promise<void> {
-  const logger = getStatusLogger(options?.logger);
+  const logger = options?.logger ?? fallbackStatusLogger;
   const dryRun = options?.dryRun ?? false;
   const extraIgnoredRegexes = EXTRA_IGNORED_PATTERNS.map((pattern) => globToRegExp(pattern));
 

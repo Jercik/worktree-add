@@ -1,5 +1,5 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { getStatusLogger } from "../output/get-status-logger.js";
+import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import {
   fetchOriginBranch,
   getAheadBehindCounts,
@@ -10,7 +10,6 @@ import {
   normalizeBranchName,
   remoteBranchExists,
 } from "./git.js";
-import { findWorktreeByBranchName } from "./worktree-discovery.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
 type RemoteBranchStatus = "exists" | "missing" | "unknown" | "diverged";
@@ -35,7 +34,7 @@ export function fetchRemoteBranch(
   branch: string,
   options?: { dryRun?: boolean; logger?: StatusLogger },
 ): FetchRemoteBranchResult {
-  const logger = getStatusLogger(options?.logger);
+  const logger = options?.logger ?? fallbackStatusLogger;
   const dryRun = options?.dryRun ?? false;
   const normalized = normalizeBranchName(branch);
   const localExists = localBranchExists(normalized);
@@ -96,15 +95,6 @@ export function fetchRemoteBranch(
     const { ahead, behind } = counts;
 
     if (ahead === 0 && behind > 0) {
-      // Note: dryRun returns before fetching, so this path only runs when dryRun is false.
-      // resolveWorktreeContext already blocks this, but keep as a defensive check.
-      const activeWorktree = findWorktreeByBranchName(normalized);
-      if (activeWorktree) {
-        logger.warn(
-          `Local branch '${normalized}' is checked out in ${activeWorktree}; skipping fast-forward.`,
-        );
-        return { status: "exists", localExists, divergence: undefined };
-      }
       logger.detail(`Fast-forwarding '${normalized}' from ${localHead} to ${remoteHead}.`);
       logger.step(`Fast-forwarding local '${normalized}' to origin/${normalized} …`);
       git("branch", "-f", "--", normalized, `origin/${normalized}`);

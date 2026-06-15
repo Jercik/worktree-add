@@ -11,9 +11,7 @@ function collectApp(app: string, previous: string[] | undefined): string[] {
 
 const program = new Command()
   .name(packageJson.name)
-  .description(
-    "Create or reuse a Git worktree for a branch next to the current worktree, or outside the outermost superproject when run from a submodule",
-  )
+  .description(packageJson.description)
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
   .option("-a, --app <name>", "Open the worktree in an app (repeatable)", collectApp)

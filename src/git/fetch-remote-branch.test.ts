@@ -4,7 +4,6 @@ import { fetchRemoteBranch } from "./fetch-remote-branch.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 
 vi.mock("./git.js");
-vi.mock("./worktree-discovery.js");
 
 const gitModule = await import("./git.js");
 const {
