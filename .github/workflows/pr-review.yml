@@ -12,20 +12,30 @@ on:
         type: number
 
 jobs:
-  review:
-    name: PR Review / ${{ matrix.review.label }}
+  approach:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.action == 'opened' }}
     permissions:
       contents: read
       pull-requests: write
       actions: read
-    strategy:
-      fail-fast: false
-      matrix:
-        review: ${{ fromJSON((github.event_name == 'workflow_dispatch' || github.event.action == 'opened') && '[{"label":"approach","recipes":["pr-review-approach-1","pr-review-approach-2","pr-review-approach-3","pr-review-approach-4"]},{"label":"code","recipes":["pr-review-code-1","pr-review-code-2"]}]' || '[{"label":"code","recipes":["pr-review-code-1","pr-review-code-2"]}]') }}
     uses: Jercik/axgithub/.github/workflows/pr-review.yml@v1
     with:
-      label: ${{ matrix.review.label }}
-      recipes: ${{ toJSON(matrix.review.recipes) }}
+      label: approach
+      recipes: '["pr-review-approach-1","pr-review-approach-2","pr-review-approach-3","pr-review-approach-4"]'
+      pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
+    secrets:
+      NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
+      AXRECIPE_API_KEY: ${{ secrets.AXRECIPE_API_KEY }}
+
+  code:
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read
+    uses: Jercik/axgithub/.github/workflows/pr-review.yml@v1
+    with:
+      label: code
+      recipes: '["pr-review-code-1","pr-review-code-2"]'
       pr_number: ${{ github.event.pull_request.number || inputs.pr_number }}
     secrets:
       NPM_TOKEN: ${{ secrets.NPM_TOKEN }}
