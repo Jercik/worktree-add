@@ -5,6 +5,8 @@ set -euo pipefail
 ignored_staged_paths=(
   ":(exclude).agents/**"
   ":(exclude).claude/**"
+  ":(exclude).clawpatch/**"
+  ":(exclude).codex/**"
 )
 
 git diff --cached --check -- . "${ignored_staged_paths[@]}"
@@ -35,23 +37,14 @@ if has_staged_changes package.json && command -v npm >/dev/null 2>&1; then
   git add package.json 2>/dev/null || true
 fi
 
-package_script_exists() {
-  local script_name="$1"
-  # Check if the script exists in package.json (node - reads from stdin, arg becomes argv[2])
-  node - "$script_name" <<'EOF'
-const fs = require("fs");
-const pkg = JSON.parse(fs.readFileSync("package.json", "utf8"));
-const scripts = pkg.scripts || {};
-process.exit(scripts[process.argv[2]] ? 0 : 1);
-EOF
-}
-
 run_package_script() {
   local script_name="$1"
+  # --if-present runs the script when package.json defines it and exits 0 when it
+  # doesn't, so the hook can list a superset of scripts no repo fully implements.
   if command -v pnpm >/dev/null 2>&1; then
-    pnpm run "$script_name"
+    pnpm run --if-present "$script_name"
   elif command -v npm >/dev/null 2>&1; then
-    npm run "$script_name"
+    npm run --if-present "$script_name"
   else
     # return, not exit: callers redirect this function's output into a log
     # they only dump on failure — exit here would abort before the dump,
@@ -64,12 +57,9 @@ run_package_script() {
 script_log=$(mktemp)
 trap 'rm -f "$script_log"' EXIT
 
-# Silent on success; on failure, dump captured output and exit non-zero.
+# Logs a "==> <name>" header, then runs the script with output captured and shown only on failure before exiting non-zero.
 run_script() {
   local script_name="$1"
-  if ! package_script_exists "$script_name"; then
-    return 0
-  fi
   echo "==> $script_name" >&2
   if run_package_script "$script_name" > "$script_log" 2>&1; then
     return 0
@@ -92,4 +82,18 @@ run_script "knip"
 run_script "typecheck"
 run_script "lint"
 run_script "fta"
-run_script "test"
+# Scrub git's hook env vars so a test that shells out to git hits a scratch repo, not this repo's real gitdir.
+run_test_script() {
+  local script_name="$1"
+  echo "==> $script_name" >&2
+  if (
+    unset GIT_DIR GIT_INDEX_FILE GIT_WORK_TREE GIT_COMMON_DIR GIT_PREFIX GIT_OBJECT_DIRECTORY
+    run_package_script "$script_name"
+  ) > "$script_log" 2>&1; then
+    return 0
+  fi
+  cat "$script_log" >&2
+  exit 1
+}
+
+run_test_script "test"

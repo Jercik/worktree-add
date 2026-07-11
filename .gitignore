@@ -142,3 +142,4 @@ dist
 # Local artifacts
 .codex/
 .clawpatch/
+.claude/worktrees/

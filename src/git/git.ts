@@ -88,8 +88,8 @@ export function getAheadBehindCounts(
 ): { ahead: number; behind: number } {
   const output = git("rev-list", "--left-right", "--count", `${localHead}...${remoteHead}`);
   const [aheadRaw, behindRaw] = output.split(/\s+/u);
-  const ahead = Number.parseInt(aheadRaw ?? "0", 10);
-  const behind = Number.parseInt(behindRaw ?? "0", 10);
+  const ahead = Math.trunc(Number(aheadRaw ?? "0"));
+  const behind = Math.trunc(Number(behindRaw ?? "0"));
   return {
     ahead: Number.isNaN(ahead) ? 0 : ahead,
     behind: Number.isNaN(behind) ? 0 : behind,

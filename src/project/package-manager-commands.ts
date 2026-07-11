@@ -10,7 +10,7 @@ const parseMajorVersion = (value: string): number | undefined => {
   if (!match) {
     return undefined;
   }
-  const major = Number.parseInt(match.groups?.major ?? "", 10);
+  const major = Math.trunc(Number(match.groups?.major ?? ""));
   return Number.isNaN(major) ? undefined : major;
 };
 
