@@ -34,7 +34,7 @@
     "registry": "https://registry.npmjs.org/"
   },
   "scripts": {
-    "build": "tsgo -p tsconfig.app.json",
+    "build": "tsc -p tsconfig.app.json",
     "clean": "rm -rf dist *.tsbuildinfo",
     "format": "oxfmt --config .oxfmtrc.json .",
     "format:check": "oxfmt --check --config .oxfmtrc.json .",
@@ -48,7 +48,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsgo -b --noEmit"
+    "typecheck": "tsc -b --noEmit"
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
@@ -61,7 +61,6 @@
     "@j4k/oxlint-config": "^2.11.0",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^25.9.3",
-    "@typescript/native-preview": "beta",
     "@vitest/coverage-v8": "^4.1.8",
     "fta-check": "^1.5.4",
     "fta-cli": "^3.0.0",
@@ -70,6 +69,7 @@
     "oxlint": "^1.72.0",
     "oxlint-tsgolint": "^0.23.0",
     "semantic-release": "^25.0.5",
+    "typescript": "^7.0.2",
     "vitest": "^4.1.8"
   },
   "engines": {
