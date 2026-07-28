@@ -61,11 +61,10 @@ export async function copyLocalFiles(
       continue;
     }
     await ensureRegularDirectory(destinationDirectory, "Copy destination");
-    const temporaryDirectory = await fs.mkdtemp(
-      path.join(destinationDirectory, ".worktree-add-copy-"),
-    );
-    const temporaryPath = path.join(temporaryDirectory, "file");
+    let temporaryDirectory: string | undefined;
     try {
+      temporaryDirectory = await fs.mkdtemp(path.join(destinationDirectory, ".worktree-add-copy-"));
+      const temporaryPath = path.join(temporaryDirectory, "file");
       await pipeline(
         handle.createReadStream({ autoClose: false }),
         createWriteStream(temporaryPath, { flags: "wx", mode: sourceMode }),
@@ -83,7 +82,9 @@ export async function copyLocalFiles(
     } catch (error: unknown) {
       throw copyFailure(fileName, error);
     } finally {
-      await removeTemporaryCopy(temporaryDirectory, fileName, logger);
+      if (temporaryDirectory !== undefined) {
+        await removeTemporaryCopy(temporaryDirectory, fileName, logger);
+      }
     }
     logger.detail(`Copied ${fileName}`);
   }
