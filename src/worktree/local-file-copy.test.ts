@@ -23,7 +23,11 @@ function createFifo(filePath: string): Promise<void> {
     execFile("mkfifo", [filePath], (error) => {
       if (error !== null) {
         if (error instanceof Error) {
-          reject(new Error(error.message, { cause: error }));
+          const wrappedError = new Error(error.message, { cause: error });
+          if ("code" in error) {
+            Object.assign(wrappedError, { code: error.code });
+          }
+          reject(wrappedError);
           return;
         }
         reject(new Error("Failed to create named pipe."));
