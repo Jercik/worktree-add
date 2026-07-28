@@ -101,6 +101,7 @@ async function expectFirstFileHandleClosed(
 }
 
 afterEach(async () => {
+  vi.restoreAllMocks();
   for (const directory of temporaryDirectories.splice(0)) {
     await fs.rm(directory, { recursive: true, force: true });
   }
@@ -299,6 +300,67 @@ describe("copyLocalFiles", () => {
     await expect(copying).rejects.toThrow(/aborted/u);
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
     await expect(fs.readdir(stagingParent)).resolves.toStrictEqual(["destination"]);
+  });
+
+  it("removes secret-bearing staging left by a terminated owner", async () => {
+    const repoRoot = await createTemporaryDirectory();
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const stalePid = 543_210;
+    const staleDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+    );
+    await fs.mkdir(destinationDirectory);
+    await fs.writeFile(path.join(repoRoot, ".env.local"), "CURRENT=value");
+    await fs.writeFile(path.join(destinationDirectory, ".env.local"), "DESTINATION=value");
+    await fs.writeFile(
+      path.join(staleDirectory, "owner.json"),
+      `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
+    );
+    await fs.writeFile(path.join(staleDirectory, "file"), "STALE_SECRET=value");
+    const kill = vi.spyOn(process, "kill").mockImplementation((pid) => {
+      if (pid === stalePid) {
+        throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+      }
+      return true;
+    });
+
+    await copyLocalFilesFromRepo(repoRoot, destinationDirectory, [".env.local"]);
+
+    await expect(fs.lstat(staleDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.readFile(path.join(destinationDirectory, ".env.local"), "utf8")).resolves.toBe(
+      "DESTINATION=value",
+    );
+    expect(kill).toHaveBeenCalledWith(stalePid, 0);
+  });
+
+  it("preserves active and unowned staging directories", async () => {
+    const repoRoot = await createTemporaryDirectory();
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const activeDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${process.pid}-`),
+    );
+    const unownedDirectory = await fs.mkdtemp(
+      path.join(stagingParent, ".worktree-add-copy-543210-"),
+    );
+    await fs.mkdir(destinationDirectory);
+    await fs.writeFile(path.join(repoRoot, ".env.local"), "CURRENT=value");
+    await fs.writeFile(
+      path.join(activeDirectory, "owner.json"),
+      `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: process.pid })}\n`,
+    );
+    await fs.writeFile(path.join(activeDirectory, "file"), "ACTIVE_SECRET=value");
+    await fs.writeFile(path.join(unownedDirectory, "file"), "UNOWNED=value");
+
+    await copyLocalFilesFromRepo(repoRoot, destinationDirectory, [".env.local"]);
+
+    await expect(fs.readFile(path.join(activeDirectory, "file"), "utf8")).resolves.toBe(
+      "ACTIVE_SECRET=value",
+    );
+    await expect(fs.readFile(path.join(unownedDirectory, "file"), "utf8")).resolves.toBe(
+      "UNOWNED=value",
+    );
   });
 
   it("preserves a destination that an aborted copy never opened", async () => {

@@ -11,6 +11,11 @@ import {
   isAlreadyExists,
 } from "./local-file-paths.js";
 import type { PreflightedLocalFile } from "./preflight-local-files.js";
+import {
+  createTemporaryCopyDirectory,
+  removeStaleTemporaryCopies,
+  removeTemporaryCopy,
+} from "./temporary-copy-staging.js";
 
 export interface CopyLocalFilesOptions {
   readonly assumeDestinationEmpty?: boolean;
@@ -59,19 +64,6 @@ async function publishTemporaryCopy(
   }
 }
 
-async function removeTemporaryCopy(
-  temporaryDirectory: string,
-  fileName: string,
-  logger: StatusLogger,
-): Promise<void> {
-  try {
-    await fs.rm(temporaryDirectory, { recursive: true, force: true });
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : String(error);
-    logger.warn(`Failed to remove temporary copy of ${fileName}: ${message}`);
-  }
-}
-
 export async function copyLocalFiles(
   destinationDirectory: string,
   localFiles: readonly PreflightedLocalFile[],
@@ -80,6 +72,11 @@ export async function copyLocalFiles(
   const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
   const assumeDestinationEmpty = options.assumeDestinationEmpty ?? false;
+  const stagingParent = path.dirname(path.resolve(destinationDirectory));
+  options.signal?.throwIfAborted();
+  if (!dryRun && localFiles.length > 0) {
+    await removeStaleTemporaryCopies(stagingParent, logger);
+  }
 
   for (const { fileName, handle, sourceMode } of localFiles) {
     options.signal?.throwIfAborted();
@@ -95,9 +92,7 @@ export async function copyLocalFiles(
     await ensureRegularDirectory(destinationDirectory, "Copy destination");
     let temporaryDirectory: string | undefined;
     try {
-      temporaryDirectory = await fs.mkdtemp(
-        path.join(path.dirname(path.resolve(destinationDirectory)), ".worktree-add-copy-"),
-      );
+      temporaryDirectory = await createTemporaryCopyDirectory(stagingParent);
       const temporaryPath = path.join(temporaryDirectory, "file");
       await pipeline(
         handle.createReadStream({ autoClose: false }),
