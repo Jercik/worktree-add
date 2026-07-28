@@ -1,6 +1,6 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-type SigintCleanupOutcome = "kept" | "removed";
+type SigintCleanupOutcome = "kept" | "none" | "removed";
 
 interface SigintHandlerOptions {
   readonly destinationDirectory: string;
@@ -18,10 +18,12 @@ export function registerSigintHandler(options: SigintHandlerOptions): () => void
       const message = error instanceof Error ? error.message : String(error);
       options.logger.warn(`Cleanup after SIGINT failed: ${message}`);
     }
-    const message =
-      cleanupOutcome === "kept"
-        ? `Worktree creation aborted. The completed worktree was kept at ${JSON.stringify(options.destinationDirectory)}.`
-        : `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`;
+    let message = "Worktree creation aborted.";
+    if (cleanupOutcome === "kept") {
+      message = `Worktree creation aborted. The completed worktree was kept at ${JSON.stringify(options.destinationDirectory)}.`;
+    } else if (cleanupOutcome === "removed") {
+      message = `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`;
+    }
     console.error(message);
     // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
     process.exit(130);

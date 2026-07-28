@@ -153,7 +153,9 @@ describe("runWorktreeAdd", () => {
   );
 
   it("keeps a completed worktree when interrupted after setup", async () => {
-    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
+    let onCleanup:
+      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
+      | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -166,8 +168,10 @@ describe("runWorktreeAdd", () => {
     expect(cleanupWorktree).not.toHaveBeenCalled();
   });
 
-  it("does not report a dry run as a kept worktree after setup", async () => {
-    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
+  it("does not report a dry run as a created worktree after setup", async () => {
+    let onCleanup:
+      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
+      | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -175,11 +179,13 @@ describe("runWorktreeAdd", () => {
 
     await runWorktreeAdd("feature/local-config", { dryRun: true });
 
-    await expect(onCleanup?.()).resolves.toBe("removed");
+    await expect(onCleanup?.()).resolves.toBe("none");
   });
 
   it("removes an incomplete worktree when interrupted before setup completes", async () => {
-    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
+    let onCleanup:
+      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
+      | undefined;
     let resolveSetup: (() => void) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
@@ -208,7 +214,9 @@ describe("runWorktreeAdd", () => {
   });
 
   it("aborts an in-progress copy before completing SIGINT cleanup", async () => {
-    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
+    let onCleanup:
+      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
+      | undefined;
     let copySignal: AbortSignal | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
