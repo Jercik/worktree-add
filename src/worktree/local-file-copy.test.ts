@@ -355,7 +355,7 @@ describe("copyLocalFiles", () => {
     await fs.writeFile(path.join(repoRoot, ".env.local"), "SOURCE=value\n");
 
     await expect(preflightFiles(repoRoot, [".env.local", "missing.json"])).rejects.toThrow(
-      "--copy-file 'missing.json' must name an existing regular file.",
+      `--copy-file 'missing.json' must name an existing regular file in repository root '${repoRoot}'.`,
     );
   });
 

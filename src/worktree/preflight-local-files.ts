@@ -41,12 +41,15 @@ export async function closePreflightedLocalFiles(
   }
 }
 
-async function getSourcePathStat(sourcePath: string, fileName: CopyFileName) {
+const missingSourceFileMessage = (fileName: CopyFileName, repoRoot: string): string =>
+  `--copy-file '${fileName}' must name an existing regular file in repository root '${repoRoot}'.`;
+
+async function getSourcePathStat(sourcePath: string, fileName: CopyFileName, repoRoot: string) {
   try {
     return await fs.lstat(sourcePath);
   } catch (error: unknown) {
     if (isNotFound(error)) {
-      throw new Error(`--copy-file '${fileName}' must name an existing regular file.`, {
+      throw new Error(missingSourceFileMessage(fileName, repoRoot), {
         cause: error,
       });
     }
@@ -61,7 +64,7 @@ async function openRegularSourceFile(
 ): Promise<PreflightedLocalFile> {
   const sourcePath = getRootFilePath(repoRoot, fileName);
   await ensureRegularDirectory(repoRoot, "Copy source");
-  const initialPathStat = await getSourcePathStat(sourcePath, fileName);
+  const initialPathStat = await getSourcePathStat(sourcePath, fileName, repoRoot);
   if (initialPathStat.isSymbolicLink() || !initialPathStat.isFile()) {
     throw new Error(`--copy-file '${fileName}' must name a regular file.`);
   }
@@ -71,7 +74,7 @@ async function openRegularSourceFile(
     handle = await fs.open(sourcePath, composeSourceOpenFlags(constants));
   } catch (error: unknown) {
     if (isNotFound(error)) {
-      throw new Error(`--copy-file '${fileName}' must name an existing regular file.`, {
+      throw new Error(missingSourceFileMessage(fileName, repoRoot), {
         cause: error,
       });
     }
@@ -83,7 +86,7 @@ async function openRegularSourceFile(
 
   try {
     const sourceStat = await handle.stat();
-    const currentPathStat = await getSourcePathStat(sourcePath, fileName);
+    const currentPathStat = await getSourcePathStat(sourcePath, fileName, repoRoot);
     const pathChanged =
       currentPathStat.isSymbolicLink() ||
       !currentPathStat.isFile() ||

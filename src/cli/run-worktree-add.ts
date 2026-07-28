@@ -68,7 +68,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
         } catch {
           // The interrupted copy cleans its partial destination before rejecting.
         }
-        return "kept";
+        return worktreeCreated ? "kept" : "removed";
       },
     });
     const existingDirectory = await handleExistingDirectory(context.destinationDirectory, {

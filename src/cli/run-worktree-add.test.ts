@@ -166,6 +166,18 @@ describe("runWorktreeAdd", () => {
     expect(cleanupWorktree).not.toHaveBeenCalled();
   });
 
+  it("does not report a dry run as a kept worktree after setup", async () => {
+    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+
+    await runWorktreeAdd("feature/local-config", { dryRun: true });
+
+    await expect(onCleanup?.()).resolves.toBe("removed");
+  });
+
   it("removes an incomplete worktree when interrupted before setup completes", async () => {
     let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
     let resolveSetup: (() => void) | undefined;
