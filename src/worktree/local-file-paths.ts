@@ -27,7 +27,7 @@ const parseCopyFileName = (fileName: string): CopyFileName => {
 };
 
 export function parseCopyFileNames(fileNames: readonly string[]): CopyFileName[] {
-  return fileNames.map((fileName) => parseCopyFileName(fileName));
+  return [...new Set(fileNames.map((fileName) => parseCopyFileName(fileName)))];
 }
 
 export const getRootFilePath = (directory: string, fileName: CopyFileName): string =>

@@ -16,6 +16,7 @@ export interface CopyLocalFilesOptions {
   readonly assumeDestinationEmpty?: boolean;
   readonly dryRun?: boolean;
   readonly logger?: StatusLogger;
+  readonly signal?: AbortSignal;
 }
 
 export async function copyLocalFiles(
@@ -42,6 +43,7 @@ export async function copyLocalFiles(
       await pipeline(
         handle.createReadStream({ autoClose: false }),
         createWriteStream(destinationPath, { flags: "wx", mode: sourceMode }),
+        { signal: options.signal },
       );
     } catch (error: unknown) {
       if (isAlreadyExists(error)) {

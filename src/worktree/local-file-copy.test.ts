@@ -2,7 +2,7 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { Readable } from "node:stream";
+import { PassThrough, Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { copyLocalFiles } from "./copy-local-files.js";
@@ -175,6 +175,10 @@ describe("copyLocalFiles", () => {
     );
   });
 
+  it("deduplicates repeated copy-file input", () => {
+    expect(parseCopyFileNames([".env.local", ".env.local"])).toStrictEqual([".env.local"]);
+  });
+
   it("composes portable source flags when Windows constants are absent", () => {
     expect(composeSourceOpenFlags({})).toBe(0);
     expect(composeSourceOpenFlags({ O_NOFOLLOW: 32, O_NONBLOCK: 4 })).toBe(36);
@@ -257,6 +261,36 @@ describe("copyLocalFiles", () => {
     ] as unknown as PreflightedLocalFile[];
 
     await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toBe(copyFailure);
+    await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
+  });
+
+  it("removes a destination file when an in-progress copy is aborted", async () => {
+    const destinationDirectory = await createTemporaryDirectory();
+    const destinationPath = path.join(destinationDirectory, ".env.local");
+    const abortController = new AbortController();
+    const [fileName] = parseCopyFileNames([".env.local"]);
+    if (fileName === undefined) {
+      throw new Error("Expected a parsed local file name.");
+    }
+    const source = new PassThrough();
+    source.write(Buffer.alloc(1024 * 1024, "x"));
+    const localFiles = [
+      {
+        fileName,
+        handle: { createReadStream: () => source },
+        sourceMode: 0o600,
+      },
+    ] as unknown as PreflightedLocalFile[];
+
+    const copying = copyLocalFiles(destinationDirectory, localFiles, {
+      signal: abortController.signal,
+    });
+    await vi.waitFor(async () => {
+      await expect(fs.lstat(destinationPath)).resolves.toBeDefined();
+    });
+    abortController.abort();
+
+    await expect(copying).rejects.toThrow(/aborted/u);
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 

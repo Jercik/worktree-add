@@ -153,7 +153,7 @@ describe("runWorktreeAdd", () => {
   );
 
   it("keeps a completed worktree when interrupted after setup", async () => {
-    let onCleanup: (() => void) | undefined;
+    let onCleanup: (() => void | Promise<void>) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -161,13 +161,13 @@ describe("runWorktreeAdd", () => {
 
     await runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
 
-    onCleanup?.();
+    await onCleanup?.();
 
     expect(cleanupWorktree).not.toHaveBeenCalled();
   });
 
   it("removes an incomplete worktree when interrupted before setup completes", async () => {
-    let onCleanup: (() => void) | undefined;
+    let onCleanup: (() => void | Promise<void>) | undefined;
     let resolveSetup: (() => void) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
@@ -184,7 +184,7 @@ describe("runWorktreeAdd", () => {
     await vi.waitFor(() => {
       expect(onCleanup).toBeTypeOf("function");
     });
-    onCleanup?.();
+    await onCleanup?.();
     resolveSetup?.();
     await run;
 
@@ -193,5 +193,33 @@ describe("runWorktreeAdd", () => {
       expect.any(Object),
       "after interruption",
     );
+  });
+
+  it("aborts an in-progress copy before completing SIGINT cleanup", async () => {
+    let onCleanup: (() => void | Promise<void>) | undefined;
+    let copySignal: AbortSignal | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    copyLocalFiles.mockImplementationOnce(
+      (_destinationDirectory, _localFiles, options) =>
+        new Promise<void>((_resolve, reject) => {
+          copySignal = options?.signal;
+          copySignal?.addEventListener("abort", () => {
+            reject(new Error("copy aborted"));
+          });
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+    await vi.waitFor(() => {
+      expect(copySignal).toBeDefined();
+    });
+    await onCleanup?.();
+
+    expect(copySignal?.aborted).toBe(true);
+    await expect(run).rejects.toThrow("copy aborted");
+    expect(cleanupWorktree).not.toHaveBeenCalled();
   });
 });

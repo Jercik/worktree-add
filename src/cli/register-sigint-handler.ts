@@ -3,11 +3,25 @@ import type { StatusLogger } from "../output/create-status-logger.js";
 interface SigintHandlerOptions {
   readonly destinationDirectory: string;
   readonly logger: StatusLogger;
-  readonly onCleanup: () => void;
+  readonly onCleanup: () => void | Promise<void>;
 }
 
 export function registerSigintHandler(options: SigintHandlerOptions): () => void {
   let handled = false;
+  const finishAbort = async (): Promise<void> => {
+    try {
+      await options.onCleanup();
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      options.logger.warn(`Cleanup after SIGINT failed: ${message}`);
+    }
+    console.error(
+      `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`,
+    );
+    // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
+    process.exit(130);
+  };
+
   const handler = (): void => {
     if (handled) {
       // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
@@ -15,12 +29,7 @@ export function registerSigintHandler(options: SigintHandlerOptions): () => void
     }
     handled = true;
     options.logger.warn("Received SIGINT. Aborting.");
-    options.onCleanup();
-    console.error(
-      `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`,
-    );
-    // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
-    process.exit(130);
+    void finishAbort();
   };
 
   process.on("SIGINT", handler);

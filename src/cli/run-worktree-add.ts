@@ -43,6 +43,8 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   const localFiles = await preflightLocalFiles(context.repoRoot, copyFiles, { logger });
   let worktreeCreated = false;
   let setupCompleted = false;
+  let copyAbortController: AbortController | undefined;
+  let copying: Promise<void> | undefined;
   const cleanupIfNeeded = (reason: string): void => {
     if (!worktreeCreated || dryRun) {
       return;
@@ -55,9 +57,16 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
     unregisterSigintHandler = registerSigintHandler({
       destinationDirectory: context.destinationDirectory,
       logger,
-      onCleanup: () => {
+      onCleanup: async () => {
         if (!setupCompleted) {
           cleanupIfNeeded("after interruption");
+          return;
+        }
+        copyAbortController?.abort();
+        try {
+          await copying;
+        } catch {
+          // The interrupted copy cleans its partial destination before rejecting.
         }
       },
     });
@@ -117,11 +126,19 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
     await setupProject(context.destinationDirectory, { dryRun, logger });
     setupCompleted = true;
 
-    await copyLocalFiles(context.destinationDirectory, localFiles, {
+    copyAbortController = new AbortController();
+    copying = copyLocalFiles(context.destinationDirectory, localFiles, {
       dryRun,
       assumeDestinationEmpty: existingDirectory.assumeDestinationEmpty,
       logger,
+      signal: copyAbortController.signal,
     });
+    try {
+      await copying;
+    } finally {
+      copying = undefined;
+      copyAbortController = undefined;
+    }
 
     const apps = resolveApps({
       optionApps: options.app,
