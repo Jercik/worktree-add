@@ -260,7 +260,9 @@ describe("copyLocalFiles", () => {
       },
     ] as unknown as PreflightedLocalFile[];
 
-    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toBe(copyFailure);
+    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toThrow(
+      "Failed to copy .env.local: write failed",
+    );
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
@@ -286,7 +288,8 @@ describe("copyLocalFiles", () => {
       signal: abortController.signal,
     });
     await vi.waitFor(async () => {
-      await expect(fs.lstat(destinationPath)).resolves.toBeDefined();
+      const names = await fs.readdir(destinationDirectory);
+      expect(names.some((name) => name.startsWith(".worktree-add-copy-"))).toBe(true);
     });
     abortController.abort();
 

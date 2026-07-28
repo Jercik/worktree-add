@@ -153,8 +153,17 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   } catch (error) {
     if (!setupCompleted) {
       cleanupIfNeeded("due to failure");
+      throw error;
     }
-    throw error;
+    const message = error instanceof Error ? error.message : String(error);
+    const failure = new Error(
+      `${message}\nThe worktree at ${JSON.stringify(context.destinationDirectory)} was kept.`,
+      { cause: error },
+    );
+    if (error instanceof Error && "code" in error) {
+      Object.assign(failure, { code: error.code });
+    }
+    throw failure;
   } finally {
     try {
       await closePreflightedLocalFiles(localFiles, logger);
