@@ -5,7 +5,6 @@ import { copyLocalFiles } from "../worktree/copy-local-files.js";
 import { parseCopyFileNames } from "../worktree/local-file-paths.js";
 import {
   closePreflightedLocalFiles,
-  closePreflightedLocalFilesAfterError,
   preflightLocalFiles,
 } from "../worktree/preflight-local-files.js";
 import { setupProject } from "../project/setup.js";
@@ -42,9 +41,8 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
 
   const context = resolveWorktreeContext(branchRaw);
   const localFiles = await preflightLocalFiles(context.repoRoot, copyFiles, { logger });
-  let localFilesPassedToCopy = false;
-  let primaryErrorInFlight = false;
   let worktreeCreated = false;
+  let setupCompleted = false;
   const cleanupIfNeeded = (reason: string): void => {
     if (!worktreeCreated || dryRun) {
       return;
@@ -115,11 +113,11 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
     }
 
     await setupProject(context.destinationDirectory, { dryRun, logger });
+    setupCompleted = true;
 
-    localFilesPassedToCopy = true;
     await copyLocalFiles(context.destinationDirectory, localFiles, {
       dryRun,
-      destinationWillBeReplaced: existingDirectory.destinationWillBeReplaced,
+      assumeDestinationEmpty: existingDirectory.assumeDestinationEmpty,
       logger,
     });
 
@@ -133,16 +131,13 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       logger,
     });
   } catch (error) {
-    primaryErrorInFlight = true;
-    cleanupIfNeeded("due to failure");
+    if (!setupCompleted) {
+      cleanupIfNeeded("due to failure");
+    }
     throw error;
   } finally {
     try {
-      if (!localFilesPassedToCopy) {
-        await (primaryErrorInFlight
-          ? closePreflightedLocalFilesAfterError(localFiles, logger)
-          : closePreflightedLocalFiles(localFiles));
-      }
+      await closePreflightedLocalFiles(localFiles, logger);
     } finally {
       unregisterSigintHandler?.();
     }

@@ -169,7 +169,7 @@ describe("handleExistingDirectory", () => {
     });
 
     expect(result).toStrictEqual({
-      destinationWillBeReplaced: false,
+      assumeDestinationEmpty: false,
       shouldContinue: false,
     });
     expect(logger.warn).toHaveBeenCalledWith(
@@ -192,7 +192,7 @@ describe("handleExistingDirectory", () => {
     });
 
     expect(result).toStrictEqual({
-      destinationWillBeReplaced: false,
+      assumeDestinationEmpty: false,
       shouldContinue: false,
     });
     expect(logger.warn).toHaveBeenCalledWith(
@@ -236,7 +236,7 @@ Re-run with --interactive to confirm, or --yes to move it to trash.`,
     });
 
     expect(result).toStrictEqual({
-      destinationWillBeReplaced: true,
+      assumeDestinationEmpty: true,
       shouldContinue: true,
     });
     expect(logger.step).toHaveBeenCalledWith("Would move existing directory 'path' to trash");

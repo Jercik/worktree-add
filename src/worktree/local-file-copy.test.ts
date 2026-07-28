@@ -6,7 +6,11 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { copyLocalFiles } from "./copy-local-files.js";
 import { parseCopyFileNames } from "./local-file-paths.js";
-import { composeSourceOpenFlags, preflightLocalFiles } from "./preflight-local-files.js";
+import {
+  closePreflightedLocalFiles,
+  composeSourceOpenFlags,
+  preflightLocalFiles,
+} from "./preflight-local-files.js";
 
 const temporaryDirectories: string[] = [];
 const fifoIsSupported = process.platform !== "win32";
@@ -69,7 +73,11 @@ async function copyLocalFilesFromRepo(
   options: Parameters<typeof copyLocalFiles>[2] = {},
 ): Promise<void> {
   const localFiles = await preflightFiles(repoRoot, relativePaths);
-  await copyLocalFiles(destinationDirectory, localFiles, options);
+  try {
+    await copyLocalFiles(destinationDirectory, localFiles, options);
+  } finally {
+    await closePreflightedLocalFiles(localFiles, options.logger);
+  }
 }
 
 async function preflightFiles(repoRoot: string, fileNames: readonly string[]) {
@@ -126,6 +134,7 @@ describe("copyLocalFiles", () => {
         const localFiles = await preflightFiles(repoRoot, [".env.local"]);
         expect(localFiles[0]?.sourceMode).toBe(sourceMode);
         await copyLocalFiles(destinationDirectory, localFiles);
+        await closePreflightedLocalFiles(localFiles);
 
         const destinationStat = await fs.stat(destinationPath);
         // eslint-disable-next-line no-bitwise -- POSIX permission bits are a bit mask.
@@ -153,6 +162,11 @@ describe("copyLocalFiles", () => {
     expect(() => {
       parseCopyFileNames([".."]);
     }).toThrow("--copy-file '..' must be a single file name in the repository root.");
+    expect(() => {
+      parseCopyFileNames([".env.local:secret"]);
+    }).toThrow(
+      "--copy-file '.env.local:secret' must be a single file name in the repository root.",
+    );
   });
 
   it("composes portable source flags when Windows constants are absent", () => {
@@ -205,11 +219,12 @@ describe("copyLocalFiles", () => {
 
     const localFiles = await preflightFiles(repoRoot, [".env.local"]);
     await copyLocalFiles(destinationDirectory, localFiles, { logger });
+    await closePreflightedLocalFiles(localFiles, logger);
 
     await expect(fs.readFile(path.join(destinationDirectory, ".env.local"), "utf8")).resolves.toBe(
       "DESTINATION=value\n",
     );
-    expect(logger.detail).toHaveBeenCalledWith("Skipped .env.local (destination already exists).");
+    expect(logger.warn).toHaveBeenCalledWith("Skipped .env.local (destination already exists).");
     await expectFirstFileHandleClosed(localFiles);
   });
 
@@ -224,6 +239,7 @@ describe("copyLocalFiles", () => {
       dryRun: true,
       logger,
     });
+    await closePreflightedLocalFiles(localFiles, logger);
 
     await expect(fs.lstat(path.join(destinationDirectory, ".env.local"))).rejects.toMatchObject({
       code: "ENOENT",
@@ -240,7 +256,7 @@ describe("copyLocalFiles", () => {
     await fs.writeFile(path.join(destinationDirectory, ".env.local"), "STALE=value\n");
 
     await copyLocalFilesFromRepo(repoRoot, destinationDirectory, [".env.local"], {
-      destinationWillBeReplaced: true,
+      assumeDestinationEmpty: true,
       dryRun: true,
       logger,
     });
@@ -270,6 +286,7 @@ describe("copyLocalFiles", () => {
     await fs.symlink(outsidePath, sourcePath);
 
     await copyLocalFiles(destinationDirectory, localFiles);
+    await closePreflightedLocalFiles(localFiles);
 
     await expect(fs.readFile(path.join(destinationDirectory, ".env.local"), "utf8")).resolves.toBe(
       "ORIGINAL=value\n",

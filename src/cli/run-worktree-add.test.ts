@@ -9,7 +9,7 @@ vi.mock("../git/git.js", () => ({ exitWithMessage: vi.fn() }));
 vi.mock("../project/setup.js", () => ({ setupProject: vi.fn() }));
 vi.mock("../worktree/destination-directory.js", () => ({
   handleExistingDirectory: vi.fn(() => ({
-    destinationWillBeReplaced: false,
+    assumeDestinationEmpty: false,
     shouldContinue: true,
   })),
 }));
@@ -21,7 +21,6 @@ vi.mock("../worktree/local-file-paths.js", () => ({
 }));
 vi.mock("../worktree/preflight-local-files.js", () => ({
   closePreflightedLocalFiles: vi.fn(),
-  closePreflightedLocalFilesAfterError: vi.fn(),
   preflightLocalFiles: vi.fn(() => []),
 }));
 vi.mock("./cleanup-worktree.js", () => ({ cleanupWorktree: vi.fn() }));
@@ -41,11 +40,11 @@ const preflightLocalFilesModule = await import("../worktree/preflight-local-file
 const setupProjectModule = await import("../project/setup.js");
 const destinationDirectoryModule = await import("../worktree/destination-directory.js");
 const registerSigintHandlerModule = await import("./register-sigint-handler.js");
+const cleanupWorktreeModule = await import("./cleanup-worktree.js");
 const { runWorktreeAdd } = await import("./run-worktree-add.js");
-const closePreflightedLocalFilesAfterError = vi.mocked(
-  preflightLocalFilesModule.closePreflightedLocalFilesAfterError,
-);
+const closePreflightedLocalFiles = vi.mocked(preflightLocalFilesModule.closePreflightedLocalFiles);
 const copyLocalFiles = vi.mocked(copyLocalFilesModule.copyLocalFiles);
+const cleanupWorktree = vi.mocked(cleanupWorktreeModule.cleanupWorktree);
 const preflightLocalFiles = vi.mocked(preflightLocalFilesModule.preflightLocalFiles);
 const setupProject = vi.mocked(setupProjectModule.setupProject);
 const parseCopyFileNames = vi.mocked(localFilePathsModule.parseCopyFileNames);
@@ -60,15 +59,15 @@ describe("runWorktreeAdd", () => {
   it("copies explicit local files after project setup", async () => {
     await runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
 
-    expect(preflightLocalFiles.mock.calls.at(0)?.[0]).toBe("/repo");
-    expect(preflightLocalFiles.mock.calls.at(0)?.[1]).toStrictEqual([".env.local"]);
+    expect(preflightLocalFiles).toHaveBeenCalledWith("/repo", [".env.local"], expect.any(Object));
     expect(preflightLocalFiles).toHaveBeenCalledBefore(handleExistingDirectory);
     expect(setupProject).toHaveBeenCalledBefore(copyLocalFiles);
     expect(copyLocalFiles).toHaveBeenCalledWith(
       "/repo-local-config",
       [],
-      expect.objectContaining({ destinationWillBeReplaced: false, dryRun: false }),
+      expect.objectContaining({ assumeDestinationEmpty: false, dryRun: false }),
     );
+    expect(closePreflightedLocalFiles).toHaveBeenCalledWith([], expect.any(Object));
   });
 
   it("stops before destination handling when local file preflight fails", async () => {
@@ -101,7 +100,12 @@ describe("runWorktreeAdd", () => {
       runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] }),
     ).rejects.toThrow("setup failed");
 
-    expect(closePreflightedLocalFilesAfterError).toHaveBeenCalledWith([], expect.any(Object));
+    expect(cleanupWorktree).toHaveBeenCalledWith(
+      "/repo-local-config",
+      expect.any(Object),
+      "due to failure",
+    );
+    expect(closePreflightedLocalFiles).toHaveBeenCalledWith([], expect.any(Object));
   });
 
   it("closes preflighted local files when signal handler registration fails", async () => {
@@ -113,6 +117,38 @@ describe("runWorktreeAdd", () => {
       runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] }),
     ).rejects.toThrow("signal handler failed");
 
-    expect(closePreflightedLocalFilesAfterError).toHaveBeenCalledWith([], expect.any(Object));
+    expect(closePreflightedLocalFiles).toHaveBeenCalledWith([], expect.any(Object));
   });
+
+  it("keeps a successfully installed worktree when source-handle cleanup warns", async () => {
+    closePreflightedLocalFiles.mockImplementationOnce((_localFiles, logger) => {
+      if (logger === undefined) {
+        throw new Error("Expected a status logger.");
+      }
+      logger.warn("Failed to close a local copy source file: EIO close");
+      return Promise.resolve();
+    });
+
+    await expect(
+      runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] }),
+    ).resolves.toBeUndefined();
+
+    expect(copyLocalFiles).toHaveBeenCalledWith("/repo-local-config", [], expect.any(Object));
+    expect(cleanupWorktree).not.toHaveBeenCalled();
+  });
+
+  it.each(["ENOSPC", "EACCES", "EROFS"])(
+    "reports %s from post-setup copy without removing the installed worktree",
+    async (code) => {
+      copyLocalFiles.mockRejectedValueOnce(Object.assign(new Error(code), { code }));
+
+      await expect(
+        runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] }),
+      ).rejects.toMatchObject({ code });
+
+      expect(setupProject).toHaveBeenCalledWith("/repo-local-config", expect.any(Object));
+      expect(cleanupWorktree).not.toHaveBeenCalled();
+      expect(closePreflightedLocalFiles).toHaveBeenCalledWith([], expect.any(Object));
+    },
+  );
 });

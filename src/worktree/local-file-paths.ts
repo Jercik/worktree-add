@@ -15,6 +15,7 @@ const parseCopyFileName = (fileName: string): CopyFileName => {
     fileName.length === 0 ||
     fileName === "." ||
     fileName === ".." ||
+    fileName.includes(":") ||
     fileName.includes("/") ||
     fileName.includes("\\") ||
     path.isAbsolute(fileName) ||

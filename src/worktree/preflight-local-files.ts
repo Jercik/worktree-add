@@ -29,23 +29,15 @@ const isTooManySymlinks = (error: unknown): boolean =>
 
 export async function closePreflightedLocalFiles(
   localFiles: readonly { readonly handle: fs.FileHandle }[],
+  logger: StatusLogger = fallbackStatusLogger,
 ): Promise<void> {
   const results = await Promise.allSettled(localFiles.map(async ({ handle }) => handle.close()));
-  const failure = results.find((result) => result.status === "rejected");
-  if (failure?.status === "rejected") {
-    throw new Error("Failed to close a local copy source file.", { cause: failure.reason });
-  }
-}
-
-export async function closePreflightedLocalFilesAfterError(
-  localFiles: readonly { readonly handle: fs.FileHandle }[],
-  logger: StatusLogger,
-): Promise<void> {
-  try {
-    await closePreflightedLocalFiles(localFiles);
-  } catch (error: unknown) {
-    const message = error instanceof Error ? error.message : "Unknown close failure";
-    logger.warn(`Failed to close local copy source files after an error: ${message}`);
+  for (const result of results) {
+    if (result.status === "rejected") {
+      const message =
+        result.reason instanceof Error ? result.reason.message : String(result.reason);
+      logger.warn(`Failed to close a local copy source file: ${message}`);
+    }
   }
 }
 
@@ -106,7 +98,7 @@ async function openRegularSourceFile(
     const sourceMode = sourceStat.mode & 0o777;
     return { fileName, handle, sourceMode };
   } catch (error) {
-    await closePreflightedLocalFilesAfterError([{ handle }], logger);
+    await closePreflightedLocalFiles([{ handle }], logger);
     throw error;
   }
 }
@@ -124,7 +116,7 @@ export async function preflightLocalFiles(
     }
     return localFiles;
   } catch (error) {
-    await closePreflightedLocalFilesAfterError(localFiles, logger);
+    await closePreflightedLocalFiles(localFiles, logger);
     throw error;
   }
 }

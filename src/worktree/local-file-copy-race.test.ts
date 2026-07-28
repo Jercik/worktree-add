@@ -26,7 +26,8 @@ const fsModule = await import("node:fs");
 const streamPromises = await import("node:stream/promises");
 const { copyLocalFiles } = await import("./copy-local-files.js");
 const { parseCopyFileNames } = await import("./local-file-paths.js");
-const { preflightLocalFiles } = await import("./preflight-local-files.js");
+const { closePreflightedLocalFiles, preflightLocalFiles } =
+  await import("./preflight-local-files.js");
 const temporaryDirectories: string[] = [];
 
 async function createTemporaryDirectory(): Promise<string> {
@@ -67,12 +68,13 @@ describe("copyLocalFiles", () => {
     const localFiles = await preflightLocalFiles(repoRoot, parseCopyFileNames([".env.local"]));
 
     await copyLocalFiles(destinationDirectory, localFiles, { logger });
+    await closePreflightedLocalFiles(localFiles, logger);
 
     expect(fsModule.createWriteStream).toHaveBeenCalledWith(destinationPath, {
       flags: "wx",
       mode: localFiles[0]?.sourceMode,
     });
-    expect(logger.detail).toHaveBeenCalledWith("Skipped .env.local (destination already exists).");
+    expect(logger.warn).toHaveBeenCalledWith("Skipped .env.local (destination already exists).");
   });
 
   it("preserves the copy error when closing the source also fails", async () => {
@@ -93,10 +95,33 @@ describe("copyLocalFiles", () => {
     await expect(copyLocalFiles(destinationDirectory, localFiles, { logger })).rejects.toThrow(
       "copy failed",
     );
+    await expect(closePreflightedLocalFiles(localFiles, logger)).resolves.toBeUndefined();
 
     expect(logger.warn).toHaveBeenCalledWith(
-      "Failed to close local copy source files after an error: Failed to close a local copy source file.",
+      "Failed to close a local copy source file: close failed",
     );
+    close.mockRestore();
+    await localFile.handle.close();
+  });
+
+  it("does not turn successful copying into a failure when source cleanup fails", async () => {
+    const repoRoot = await createTemporaryDirectory();
+    const destinationDirectory = await createTemporaryDirectory();
+    const logger = createLogger();
+    await fs.writeFile(path.join(repoRoot, ".env.local"), "SOURCE=value\n");
+    const localFiles = await preflightLocalFiles(repoRoot, parseCopyFileNames([".env.local"]));
+    const localFile = localFiles.at(0);
+    if (localFile === undefined) {
+      throw new Error("Expected a preflighted local file.");
+    }
+    const close = vi.spyOn(localFile.handle, "close").mockRejectedValueOnce(new Error("EIO close"));
+
+    await expect(
+      copyLocalFiles(destinationDirectory, localFiles, { logger }),
+    ).resolves.toBeUndefined();
+    await expect(closePreflightedLocalFiles(localFiles, logger)).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith("Failed to close a local copy source file: EIO close");
     close.mockRestore();
     await localFile.handle.close();
   });

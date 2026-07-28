@@ -13,7 +13,7 @@ interface HandleExistingDirectoryOptions {
 
 interface ExistingDirectoryResult {
   readonly shouldContinue: boolean;
-  readonly destinationWillBeReplaced: boolean;
+  readonly assumeDestinationEmpty: boolean;
 }
 
 type PromptRefusal =
@@ -87,7 +87,7 @@ export async function handleExistingDirectory(
   options: HandleExistingDirectoryOptions = {},
 ): Promise<ExistingDirectoryResult> {
   if (!(await fileExists(destinationDirectory))) {
-    return { shouldContinue: true, destinationWillBeReplaced: false };
+    return { shouldContinue: true, assumeDestinationEmpty: false };
   }
 
   const logger = options.logger ?? fallbackStatusLogger;
@@ -103,16 +103,16 @@ export async function handleExistingDirectory(
   if (dryRun) {
     if (promptRefusal !== undefined) {
       logger.warn(formatDryRunPromptRefusal(directoryName, promptRefusal));
-      return { shouldContinue: false, destinationWillBeReplaced: false };
+      return { shouldContinue: false, assumeDestinationEmpty: false };
     }
 
     if (!assumeYes) {
       logger.step(`Would prompt to move existing directory '${directoryName}' to trash`);
-      return { shouldContinue: false, destinationWillBeReplaced: false };
+      return { shouldContinue: false, assumeDestinationEmpty: false };
     }
 
     logger.step(`Would move existing directory '${directoryName}' to trash`);
-    return { shouldContinue: true, destinationWillBeReplaced: true };
+    return { shouldContinue: true, assumeDestinationEmpty: true };
   }
 
   if (promptRefusal !== undefined) {
@@ -164,7 +164,7 @@ export async function handleExistingDirectory(
   }
 
   if (!shouldPruneWorktree) {
-    return { shouldContinue: true, destinationWillBeReplaced: false };
+    return { shouldContinue: true, assumeDestinationEmpty: false };
   }
 
   logger.detail(`Pruning stale worktree registration for '${directoryName}'.`);
@@ -178,5 +178,5 @@ export async function handleExistingDirectory(
     );
   }
 
-  return { shouldContinue: true, destinationWillBeReplaced: false };
+  return { shouldContinue: true, assumeDestinationEmpty: false };
 }
