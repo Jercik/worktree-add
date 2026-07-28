@@ -224,7 +224,7 @@ describe("runWorktreeAdd", () => {
     );
   });
 
-  it("aborts an in-progress copy before completing SIGINT cleanup", async () => {
+  it("lets SIGINT cleanup report an aborted in-progress copy once", async () => {
     let onCleanup:
       | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
       | undefined;
@@ -247,10 +247,10 @@ describe("runWorktreeAdd", () => {
     await vi.waitFor(() => {
       expect(copySignal).toBeDefined();
     });
-    await onCleanup?.();
+    await expect(onCleanup?.()).resolves.toBe("kept");
 
     expect(copySignal?.aborted).toBe(true);
-    await expect(run).rejects.toThrow("copy aborted");
+    await expect(run).resolves.toBeUndefined();
     expect(cleanupWorktree).not.toHaveBeenCalled();
   });
 });

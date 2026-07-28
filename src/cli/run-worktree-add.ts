@@ -45,6 +45,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   let setupCompleted = false;
   let copyAbortController: AbortController | undefined;
   let copying: Promise<void> | undefined;
+  let sigintCleanupStarted = false;
   const cleanupIfNeeded = (reason: string): void => {
     if (!worktreeCreated || dryRun) {
       return;
@@ -58,6 +59,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       destinationDirectory: context.destinationDirectory,
       logger,
       onCleanup: async () => {
+        sigintCleanupStarted = true;
         if (!setupCompleted) {
           cleanupIfNeeded("after interruption");
           return worktreeCreated && !dryRun ? "removed" : "none";
@@ -151,6 +153,9 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       logger,
     });
   } catch (error) {
+    if (sigintCleanupStarted) {
+      return;
+    }
     if (!setupCompleted) {
       cleanupIfNeeded("due to failure");
       throw error;

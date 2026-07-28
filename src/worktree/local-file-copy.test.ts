@@ -341,6 +341,7 @@ describe("copyLocalFiles", () => {
     const staleDirectory = await fs.mkdtemp(
       path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
     );
+    const logger = createLogger();
     await fs.mkdir(destinationDirectory);
     vi.spyOn(process, "kill").mockImplementation((pid) => {
       if (pid === stalePid) {
@@ -349,9 +350,44 @@ describe("copyLocalFiles", () => {
       return true;
     });
 
-    await copyLocalFiles(destinationDirectory, []);
+    await copyLocalFiles(destinationDirectory, [], { logger });
 
     await expect(fs.lstat(staleDirectory)).rejects.toMatchObject({ code: "ENOENT" });
+    expect(logger.warn).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ["corrupt", "not-json"],
+    [
+      "mismatched",
+      `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: 543_211 })}\n`,
+    ],
+  ])("warns when a %s lease prevents safe staging cleanup", async (_kind, leaseContents) => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const stalePid = 543_210;
+    const staleDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+    );
+    const logger = createLogger();
+    await fs.mkdir(destinationDirectory);
+    await fs.writeFile(path.join(staleDirectory, "owner.json"), leaseContents);
+    await fs.writeFile(path.join(staleDirectory, "file"), "STALE_SECRET=value");
+    vi.spyOn(process, "kill").mockImplementation((pid) => {
+      if (pid === stalePid) {
+        throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+      }
+      return true;
+    });
+
+    await copyLocalFiles(destinationDirectory, [], { logger });
+
+    await expect(fs.readFile(path.join(staleDirectory, "file"), "utf8")).resolves.toBe(
+      "STALE_SECRET=value",
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+    );
   });
 
   it("preserves active and unowned staging directories", async () => {

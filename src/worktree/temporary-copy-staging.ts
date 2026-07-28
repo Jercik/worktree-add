@@ -55,6 +55,15 @@ const processIsRunning = (pid: number): boolean => {
   }
 };
 
+const warnPreservedUnverifiedTemporaryCopy = (
+  temporaryDirectory: string,
+  logger: StatusLogger,
+): void => {
+  logger.warn(
+    `Preserved unverified local copy staging directory at ${JSON.stringify(temporaryDirectory)}. If no worktree-add process is running, remove it manually.`,
+  );
+};
+
 async function removeEmptyUnleasedTemporaryCopy(
   temporaryDirectory: string,
   logger: StatusLogger,
@@ -62,12 +71,15 @@ async function removeEmptyUnleasedTemporaryCopy(
   try {
     await fs.rmdir(temporaryDirectory);
   } catch (error: unknown) {
+    if (isNotFound(error)) {
+      return;
+    }
     if (
-      isNotFound(error) ||
-      (error instanceof Error &&
-        "code" in error &&
-        (error.code === "ENOTEMPTY" || error.code === "EEXIST"))
+      error instanceof Error &&
+      "code" in error &&
+      (error.code === "ENOTEMPTY" || error.code === "EEXIST")
     ) {
+      warnPreservedUnverifiedTemporaryCopy(temporaryDirectory, logger);
       return;
     }
     const message = error instanceof Error ? error.message : String(error);
@@ -102,6 +114,7 @@ export async function removeStaleTemporaryCopies(
       continue;
     }
     if (leasePid !== ownerPid) {
+      warnPreservedUnverifiedTemporaryCopy(temporaryDirectory, logger);
       continue;
     }
     try {
