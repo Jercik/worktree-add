@@ -155,6 +155,9 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       cleanupIfNeeded("due to failure");
       throw error;
     }
+    if (!worktreeCreated) {
+      throw error;
+    }
     const message = error instanceof Error ? error.message : String(error);
     const failure = new Error(
       `${message}\nThe worktree at ${JSON.stringify(context.destinationDirectory)} was kept.`,

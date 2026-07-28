@@ -44,6 +44,18 @@ export async function closePreflightedLocalFiles(
 const missingSourceFileMessage = (fileName: CopyFileName, repoRoot: string): string =>
   `--copy-file '${fileName}' must name an existing regular file in repository root '${repoRoot}'.`;
 
+const sourceOpenFailure = (fileName: CopyFileName, repoRoot: string, error: unknown): Error => {
+  const message = error instanceof Error ? error.message : String(error);
+  const failure = new Error(
+    `Failed to open --copy-file '${fileName}' in repository root '${repoRoot}': ${message}`,
+    { cause: error },
+  );
+  if (error instanceof Error && "code" in error) {
+    Object.assign(failure, { code: error.code });
+  }
+  return failure;
+};
+
 async function getSourcePathStat(sourcePath: string, fileName: CopyFileName, repoRoot: string) {
   try {
     return await fs.lstat(sourcePath);
@@ -81,7 +93,7 @@ async function openRegularSourceFile(
     if (isTooManySymlinks(error)) {
       throw new Error(`--copy-file '${fileName}' must name a regular file.`, { cause: error });
     }
-    throw error;
+    throw sourceOpenFailure(fileName, repoRoot, error);
   }
 
   try {

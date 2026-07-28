@@ -95,7 +95,9 @@ export async function copyLocalFiles(
     await ensureRegularDirectory(destinationDirectory, "Copy destination");
     let temporaryDirectory: string | undefined;
     try {
-      temporaryDirectory = await fs.mkdtemp(path.join(destinationDirectory, ".worktree-add-copy-"));
+      temporaryDirectory = await fs.mkdtemp(
+        path.join(path.dirname(path.resolve(destinationDirectory)), ".worktree-add-copy-"),
+      );
       const temporaryPath = path.join(temporaryDirectory, "file");
       await pipeline(
         handle.createReadStream({ autoClose: false }),

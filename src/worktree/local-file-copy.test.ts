@@ -267,7 +267,9 @@ describe("copyLocalFiles", () => {
   });
 
   it("removes a destination file when an in-progress copy is aborted", async () => {
-    const destinationDirectory = await createTemporaryDirectory();
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    await fs.mkdir(destinationDirectory);
     const destinationPath = path.join(destinationDirectory, ".env.local");
     const abortController = new AbortController();
     const [fileName] = parseCopyFileNames([".env.local"]);
@@ -288,13 +290,15 @@ describe("copyLocalFiles", () => {
       signal: abortController.signal,
     });
     await vi.waitFor(async () => {
-      const names = await fs.readdir(destinationDirectory);
+      const names = await fs.readdir(stagingParent);
       expect(names.some((name) => name.startsWith(".worktree-add-copy-"))).toBe(true);
     });
+    await expect(fs.readdir(destinationDirectory)).resolves.toStrictEqual([]);
     abortController.abort();
 
     await expect(copying).rejects.toThrow(/aborted/u);
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
+    await expect(fs.readdir(stagingParent)).resolves.toStrictEqual(["destination"]);
   });
 
   it("preserves a destination that an aborted copy never opened", async () => {

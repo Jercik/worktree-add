@@ -182,6 +182,17 @@ describe("runWorktreeAdd", () => {
     await expect(onCleanup?.()).resolves.toBe("none");
   });
 
+  it("does not report a kept worktree when post-setup dry-run copying fails", async () => {
+    const failure = new Error("dry-run copy failed");
+    copyLocalFiles.mockRejectedValueOnce(failure);
+
+    await expect(
+      runWorktreeAdd("feature/local-config", { copyFile: [".env.local"], dryRun: true }),
+    ).rejects.toBe(failure);
+
+    expect(cleanupWorktree).not.toHaveBeenCalled();
+  });
+
   it("removes an incomplete worktree when interrupted before setup completes", async () => {
     let onCleanup:
       | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)

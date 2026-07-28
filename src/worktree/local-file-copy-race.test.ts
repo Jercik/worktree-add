@@ -8,12 +8,13 @@ import type { PreflightedLocalFile } from "./preflight-local-files.js";
 
 vi.mock("node:fs/promises", async (importOriginal) => {
   const fs = await importOriginal<typeof Fs>();
-  return { ...fs, link: vi.fn(fs.link) };
+  return { ...fs, link: vi.fn(fs.link), open: vi.fn(fs.open) };
 });
 
 const fs = await import("node:fs/promises");
 const { copyLocalFiles } = await import("./copy-local-files.js");
 const { parseCopyFileNames } = await import("./local-file-paths.js");
+const { preflightLocalFiles } = await import("./preflight-local-files.js");
 
 const temporaryDirectories: string[] = [];
 
@@ -90,5 +91,24 @@ describe("copyLocalFiles", () => {
     await copyLocalFiles(destinationDirectory, localFiles);
 
     await expect(fs.readFile(destinationPath, "utf8")).resolves.toBe("SOURCE=value");
+  });
+});
+
+describe("preflightLocalFiles", () => {
+  it("adds copy-file and repository context to source open failures", async () => {
+    const repoRoot = await createTemporaryDirectory();
+    await fs.writeFile(path.join(repoRoot, ".env.local"), "SOURCE=value");
+    const [fileName] = parseCopyFileNames([".env.local"]);
+    if (fileName === undefined) {
+      throw new Error("Expected a parsed local file name.");
+    }
+    vi.mocked(fs.open).mockRejectedValueOnce(
+      Object.assign(new Error("permission denied"), { code: "EACCES" }),
+    );
+
+    await expect(preflightLocalFiles(repoRoot, [fileName])).rejects.toMatchObject({
+      code: "EACCES",
+      message: `Failed to open --copy-file '.env.local' in repository root '${repoRoot}': permission denied`,
+    });
   });
 });
