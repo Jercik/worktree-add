@@ -294,6 +294,26 @@ describe("copyLocalFiles", () => {
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it("preserves a destination that an aborted copy never opened", async () => {
+    const repoRoot = await createTemporaryDirectory();
+    const destinationDirectory = await createTemporaryDirectory();
+    const destinationPath = path.join(destinationDirectory, ".env.local");
+    const abortController = new AbortController();
+    await fs.writeFile(path.join(repoRoot, ".env.local"), "SOURCE=value");
+    await fs.writeFile(destinationPath, "DESTINATION=value");
+    const localFiles = await preflightFiles(repoRoot, [".env.local"]);
+    abortController.abort();
+
+    await expect(
+      copyLocalFiles(destinationDirectory, localFiles, {
+        assumeDestinationEmpty: true,
+        signal: abortController.signal,
+      }),
+    ).rejects.toThrow(/aborted|exist/u);
+    await expect(fs.readFile(destinationPath, "utf8")).resolves.toBe("DESTINATION=value");
+    await closePreflightedLocalFiles(localFiles);
+  });
+
   it("does not write files in a dry run", async () => {
     const repoRoot = await createTemporaryDirectory();
     const destinationDirectory = await createTemporaryDirectory();

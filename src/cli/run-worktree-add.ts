@@ -60,7 +60,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       onCleanup: async () => {
         if (!setupCompleted) {
           cleanupIfNeeded("after interruption");
-          return;
+          return "removed";
         }
         copyAbortController?.abort();
         try {
@@ -68,6 +68,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
         } catch {
           // The interrupted copy cleans its partial destination before rejecting.
         }
+        return "kept";
       },
     });
     const existingDirectory = await handleExistingDirectory(context.destinationDirectory, {

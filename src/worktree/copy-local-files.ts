@@ -39,24 +39,29 @@ export async function copyLocalFiles(
       continue;
     }
     await ensureRegularDirectory(destinationDirectory, "Copy destination");
+    const destinationStream = createWriteStream(destinationPath, { flags: "wx", mode: sourceMode });
+    let destinationOpened = false;
+    destinationStream.once("open", () => {
+      destinationOpened = true;
+    });
     try {
-      await pipeline(
-        handle.createReadStream({ autoClose: false }),
-        createWriteStream(destinationPath, { flags: "wx", mode: sourceMode }),
-        { signal: options.signal },
-      );
+      await pipeline(handle.createReadStream({ autoClose: false }), destinationStream, {
+        signal: options.signal,
+      });
     } catch (error: unknown) {
       if (isAlreadyExists(error)) {
         logger.warn(`Skipped ${fileName} (destination already exists).`);
         continue;
       }
-      try {
-        await fs.unlink(destinationPath);
-      } catch (cleanupError: unknown) {
-        if (!isNotFound(cleanupError)) {
-          const message =
-            cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
-          logger.warn(`Failed to remove incomplete copy of ${fileName}: ${message}`);
+      if (destinationOpened) {
+        try {
+          await fs.unlink(destinationPath);
+        } catch (cleanupError: unknown) {
+          if (!isNotFound(cleanupError)) {
+            const message =
+              cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+            logger.warn(`Failed to remove incomplete copy of ${fileName}: ${message}`);
+          }
         }
       }
       throw error;

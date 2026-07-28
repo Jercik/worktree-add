@@ -153,7 +153,7 @@ describe("runWorktreeAdd", () => {
   );
 
   it("keeps a completed worktree when interrupted after setup", async () => {
-    let onCleanup: (() => void | Promise<void>) | undefined;
+    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -167,7 +167,7 @@ describe("runWorktreeAdd", () => {
   });
 
   it("removes an incomplete worktree when interrupted before setup completes", async () => {
-    let onCleanup: (() => void | Promise<void>) | undefined;
+    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
     let resolveSetup: (() => void) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
@@ -196,7 +196,7 @@ describe("runWorktreeAdd", () => {
   });
 
   it("aborts an in-progress copy before completing SIGINT cleanup", async () => {
-    let onCleanup: (() => void | Promise<void>) | undefined;
+    let onCleanup: (() => "kept" | "removed" | Promise<"kept" | "removed">) | undefined;
     let copySignal: AbortSignal | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
