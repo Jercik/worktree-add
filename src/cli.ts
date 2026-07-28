@@ -40,7 +40,7 @@ const program = new Command()
 Examples:
   $ worktree-add feature/login-form
   $ worktree-add feature/api --app code
-  $ worktree-add feature/api --copy-file .env.local --copy-file .npmrc
+  $ worktree-add feature/api --copy-file .env.local
   $ WORKTREE_ADD_APP=ghostty,code worktree-add feature/new-branch
   $ git branch --format="%(refname:short)" | head -n1 | xargs worktree-add
 

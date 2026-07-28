@@ -1,14 +1,16 @@
 import { execFile } from "node:child_process";
-import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StatusLogger } from "../output/create-status-logger.js";
-import { copyLocalFiles, preflightLocalFiles, validateCopyFilePaths } from "./local-file-copy.js";
+import { copyLocalFiles } from "./copy-local-files.js";
+import { parseCopyFileNames } from "./local-file-paths.js";
+import { composeSourceOpenFlags, preflightLocalFiles } from "./preflight-local-files.js";
 
 const temporaryDirectories: string[] = [];
-const fifoIsSupported = process.platform !== "win32" && constants.O_NONBLOCK !== undefined;
+const fifoIsSupported = process.platform !== "win32";
+const permissionsAreSupported = process.platform !== "win32";
 
 function createFifo(filePath: string): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -22,6 +24,23 @@ function createFifo(filePath: string): Promise<void> {
         return;
       }
       resolve();
+    });
+  });
+}
+
+function readInheritedUmask(): Promise<number> {
+  return new Promise((resolve, reject) => {
+    execFile("/bin/sh", ["-c", "umask"], (error, stdout) => {
+      if (error !== null) {
+        reject(new Error("Could not read process umask.", { cause: error }));
+        return;
+      }
+      const umask = Number.parseInt(stdout.trim(), 8);
+      if (!Number.isInteger(umask)) {
+        reject(new Error(`Could not parse process umask: ${JSON.stringify(stdout)}`));
+        return;
+      }
+      resolve(umask);
     });
   });
 }
@@ -49,8 +68,12 @@ async function copyLocalFilesFromRepo(
   relativePaths: readonly string[],
   options: Parameters<typeof copyLocalFiles>[2] = {},
 ): Promise<void> {
-  const localFiles = await preflightLocalFiles(repoRoot, relativePaths);
+  const localFiles = await preflightFiles(repoRoot, relativePaths);
   await copyLocalFiles(destinationDirectory, localFiles, options);
+}
+
+async function preflightFiles(repoRoot: string, fileNames: readonly string[]) {
+  return preflightLocalFiles(repoRoot, parseCopyFileNames(fileNames));
 }
 
 async function expectFirstFileHandleClosed(
@@ -74,35 +97,67 @@ describe("copyLocalFiles", () => {
     const repoRoot = await createTemporaryDirectory();
     const destinationDirectory = await createTemporaryDirectory();
     await fs.writeFile(path.join(repoRoot, ".env.local"), "SECRET=value\n");
-    await fs.writeFile(path.join(repoRoot, ".npmrc"), "registry=https://registry.npmjs.org/\n");
+    await fs.writeFile(path.join(repoRoot, ".env.test.local"), "UNREQUESTED=value\n");
 
     await copyLocalFilesFromRepo(repoRoot, destinationDirectory, [".env.local"]);
 
     await expect(fs.readFile(path.join(destinationDirectory, ".env.local"), "utf8")).resolves.toBe(
       "SECRET=value\n",
     );
-    await expect(fs.lstat(path.join(destinationDirectory, ".npmrc"))).rejects.toMatchObject({
+    await expect(
+      fs.lstat(path.join(destinationDirectory, ".env.test.local")),
+    ).rejects.toMatchObject({
       code: "ENOENT",
     });
   });
 
+  it.skipIf(!permissionsAreSupported)(
+    "never broadens source permissions under the active umask",
+    async () => {
+      const activeUmask = await readInheritedUmask();
+      for (const sourceMode of [0o600, 0o664]) {
+        const repoRoot = await createTemporaryDirectory();
+        const destinationDirectory = await createTemporaryDirectory();
+        const sourcePath = path.join(repoRoot, ".env.local");
+        const destinationPath = path.join(destinationDirectory, ".env.local");
+        await fs.writeFile(sourcePath, "SECRET=value\n");
+        await fs.chmod(sourcePath, sourceMode);
+
+        const localFiles = await preflightFiles(repoRoot, [".env.local"]);
+        expect(localFiles[0]?.sourceMode).toBe(sourceMode);
+        await copyLocalFiles(destinationDirectory, localFiles);
+
+        const destinationStat = await fs.stat(destinationPath);
+        // eslint-disable-next-line no-bitwise -- POSIX permission bits are a bit mask.
+        const destinationMode = destinationStat.mode & 0o777;
+        // eslint-disable-next-line no-bitwise -- POSIX permission bits and umask are bit masks.
+        expect(destinationMode).toBe(sourceMode & ~activeUmask & 0o777);
+      }
+    },
+  );
+
   it("rejects paths instead of repository-root file names", () => {
     expect(() => {
-      validateCopyFilePaths(["/tmp/local.json"]);
+      parseCopyFileNames(["/tmp/local.json"]);
     }).toThrow("--copy-file '/tmp/local.json' must be a single file name in the repository root.");
     expect(() => {
-      validateCopyFilePaths(["config/local.json"]);
+      parseCopyFileNames(["config/local.json"]);
     }).toThrow(
       "--copy-file 'config/local.json' must be a single file name in the repository root.",
     );
     expect(() => {
-      validateCopyFilePaths([String.raw`config\local.json`]);
+      parseCopyFileNames([String.raw`config\local.json`]);
     }).toThrow(
       String.raw`--copy-file 'config\local.json' must be a single file name in the repository root.`,
     );
     expect(() => {
-      validateCopyFilePaths([".."]);
+      parseCopyFileNames([".."]);
     }).toThrow("--copy-file '..' must be a single file name in the repository root.");
+  });
+
+  it("composes portable source flags when Windows constants are absent", () => {
+    expect(composeSourceOpenFlags({})).toBe(0);
+    expect(composeSourceOpenFlags({ O_NOFOLLOW: 32, O_NONBLOCK: 4 })).toBe(36);
   });
 
   it("rejects symbolic links", async () => {
@@ -110,7 +165,7 @@ describe("copyLocalFiles", () => {
     await fs.writeFile(path.join(repoRoot, "source.txt"), "local");
     await fs.symlink("source.txt", path.join(repoRoot, "local-link.txt"));
 
-    await expect(preflightLocalFiles(repoRoot, ["local-link.txt"])).rejects.toThrow(
+    await expect(preflightFiles(repoRoot, ["local-link.txt"])).rejects.toThrow(
       "--copy-file 'local-link.txt' must name a regular file.",
     );
   });
@@ -119,7 +174,7 @@ describe("copyLocalFiles", () => {
     const repoRoot = await createTemporaryDirectory();
     await fs.mkdir(path.join(repoRoot, "config"));
 
-    await expect(preflightLocalFiles(repoRoot, ["config"])).rejects.toThrow(
+    await expect(preflightFiles(repoRoot, ["config"])).rejects.toThrow(
       "--copy-file 'config' must name a regular file.",
     );
   });
@@ -136,7 +191,7 @@ describe("copyLocalFiles", () => {
       throw error;
     }
 
-    await expect(preflightLocalFiles(repoRoot, ["local.pipe"])).rejects.toThrow(
+    await expect(preflightFiles(repoRoot, ["local.pipe"])).rejects.toThrow(
       "--copy-file 'local.pipe' must name a regular file.",
     );
   });
@@ -148,7 +203,7 @@ describe("copyLocalFiles", () => {
     await fs.writeFile(path.join(repoRoot, ".env.local"), "SOURCE=value\n");
     await fs.writeFile(path.join(destinationDirectory, ".env.local"), "DESTINATION=value\n");
 
-    const localFiles = await preflightLocalFiles(repoRoot, [".env.local"]);
+    const localFiles = await preflightFiles(repoRoot, [".env.local"]);
     await copyLocalFiles(destinationDirectory, localFiles, { logger });
 
     await expect(fs.readFile(path.join(destinationDirectory, ".env.local"), "utf8")).resolves.toBe(
@@ -164,7 +219,7 @@ describe("copyLocalFiles", () => {
     const logger = createLogger();
     await fs.writeFile(path.join(repoRoot, ".env.local"), "SECRET=value\n");
 
-    const localFiles = await preflightLocalFiles(repoRoot, [".env.local"]);
+    const localFiles = await preflightFiles(repoRoot, [".env.local"]);
     await copyLocalFiles(destinationDirectory, localFiles, {
       dryRun: true,
       logger,
@@ -197,7 +252,7 @@ describe("copyLocalFiles", () => {
     const repoRoot = await createTemporaryDirectory();
     await fs.writeFile(path.join(repoRoot, ".env.local"), "SOURCE=value\n");
 
-    await expect(preflightLocalFiles(repoRoot, [".env.local", "missing.json"])).rejects.toThrow(
+    await expect(preflightFiles(repoRoot, [".env.local", "missing.json"])).rejects.toThrow(
       "--copy-file 'missing.json' must name an existing regular file.",
     );
   });
@@ -210,7 +265,7 @@ describe("copyLocalFiles", () => {
     const outsidePath = path.join(outsideDirectory, "replacement.env");
     await fs.writeFile(sourcePath, "ORIGINAL=value\n");
     await fs.writeFile(outsidePath, "REPLACEMENT=value\n");
-    const localFiles = await preflightLocalFiles(repoRoot, [".env.local"]);
+    const localFiles = await preflightFiles(repoRoot, [".env.local"]);
     await fs.rm(sourcePath);
     await fs.symlink(outsidePath, sourcePath);
 

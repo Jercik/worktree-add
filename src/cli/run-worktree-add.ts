@@ -1,12 +1,13 @@
 import { createStatusLogger } from "../output/create-status-logger.js";
 import { resolveApps } from "../app/resolve-apps.js";
 import { handleExistingDirectory } from "../worktree/destination-directory.js";
+import { copyLocalFiles } from "../worktree/copy-local-files.js";
+import { parseCopyFileNames } from "../worktree/local-file-paths.js";
 import {
   closePreflightedLocalFiles,
-  copyLocalFiles,
+  closePreflightedLocalFilesAfterError,
   preflightLocalFiles,
-  validateCopyFilePaths,
-} from "../worktree/local-file-copy.js";
+} from "../worktree/preflight-local-files.js";
 import { setupProject } from "../project/setup.js";
 import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
@@ -37,12 +38,12 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   });
   const interactive = options.interactive ?? false;
   const assumeYes = options.yes ?? false;
-  const copyFiles = options.copyFile ?? [];
-  validateCopyFilePaths(copyFiles);
+  const copyFiles = parseCopyFileNames(options.copyFile ?? []);
 
   const context = resolveWorktreeContext(branchRaw);
-  const localFiles = await preflightLocalFiles(context.repoRoot, copyFiles);
+  const localFiles = await preflightLocalFiles(context.repoRoot, copyFiles, { logger });
   let localFilesPassedToCopy = false;
+  let primaryErrorInFlight = false;
   let worktreeCreated = false;
   const cleanupIfNeeded = (reason: string): void => {
     if (!worktreeCreated || dryRun) {
@@ -132,12 +133,15 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       logger,
     });
   } catch (error) {
+    primaryErrorInFlight = true;
     cleanupIfNeeded("due to failure");
     throw error;
   } finally {
     try {
       if (!localFilesPassedToCopy) {
-        await closePreflightedLocalFiles(localFiles);
+        await (primaryErrorInFlight
+          ? closePreflightedLocalFilesAfterError(localFiles, logger)
+          : closePreflightedLocalFiles(localFiles));
       }
     } finally {
       unregisterSigintHandler?.();

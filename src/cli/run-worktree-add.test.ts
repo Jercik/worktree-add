@@ -13,11 +13,16 @@ vi.mock("../worktree/destination-directory.js", () => ({
     shouldContinue: true,
   })),
 }));
-vi.mock("../worktree/local-file-copy.js", () => ({
-  closePreflightedLocalFiles: vi.fn(),
+vi.mock("../worktree/copy-local-files.js", () => ({
   copyLocalFiles: vi.fn(),
+}));
+vi.mock("../worktree/local-file-paths.js", () => ({
+  parseCopyFileNames: vi.fn((fileNames: string[]) => fileNames),
+}));
+vi.mock("../worktree/preflight-local-files.js", () => ({
+  closePreflightedLocalFiles: vi.fn(),
+  closePreflightedLocalFilesAfterError: vi.fn(),
   preflightLocalFiles: vi.fn(() => []),
-  validateCopyFilePaths: vi.fn(),
 }));
 vi.mock("./cleanup-worktree.js", () => ({ cleanupWorktree: vi.fn() }));
 vi.mock("./open-worktree-apps.js", () => ({ openWorktreeApps: vi.fn() }));
@@ -30,16 +35,20 @@ vi.mock("./resolve-worktree-context.js", () => ({
   })),
 }));
 
-const localFileCopyModule = await import("../worktree/local-file-copy.js");
+const copyLocalFilesModule = await import("../worktree/copy-local-files.js");
+const localFilePathsModule = await import("../worktree/local-file-paths.js");
+const preflightLocalFilesModule = await import("../worktree/preflight-local-files.js");
 const setupProjectModule = await import("../project/setup.js");
 const destinationDirectoryModule = await import("../worktree/destination-directory.js");
 const registerSigintHandlerModule = await import("./register-sigint-handler.js");
 const { runWorktreeAdd } = await import("./run-worktree-add.js");
-const closePreflightedLocalFiles = vi.mocked(localFileCopyModule.closePreflightedLocalFiles);
-const copyLocalFiles = vi.mocked(localFileCopyModule.copyLocalFiles);
-const preflightLocalFiles = vi.mocked(localFileCopyModule.preflightLocalFiles);
+const closePreflightedLocalFilesAfterError = vi.mocked(
+  preflightLocalFilesModule.closePreflightedLocalFilesAfterError,
+);
+const copyLocalFiles = vi.mocked(copyLocalFilesModule.copyLocalFiles);
+const preflightLocalFiles = vi.mocked(preflightLocalFilesModule.preflightLocalFiles);
 const setupProject = vi.mocked(setupProjectModule.setupProject);
-const validateCopyFilePaths = vi.mocked(localFileCopyModule.validateCopyFilePaths);
+const parseCopyFileNames = vi.mocked(localFilePathsModule.parseCopyFileNames);
 const handleExistingDirectory = vi.mocked(destinationDirectoryModule.handleExistingDirectory);
 const registerSigintHandler = vi.mocked(registerSigintHandlerModule.registerSigintHandler);
 
@@ -51,8 +60,8 @@ describe("runWorktreeAdd", () => {
   it("copies explicit local files after project setup", async () => {
     await runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
 
-    expect(validateCopyFilePaths).toHaveBeenCalledWith([".env.local"]);
-    expect(preflightLocalFiles).toHaveBeenCalledWith("/repo", [".env.local"]);
+    expect(preflightLocalFiles.mock.calls.at(0)?.[0]).toBe("/repo");
+    expect(preflightLocalFiles.mock.calls.at(0)?.[1]).toStrictEqual([".env.local"]);
     expect(preflightLocalFiles).toHaveBeenCalledBefore(handleExistingDirectory);
     expect(setupProject).toHaveBeenCalledBefore(copyLocalFiles);
     expect(copyLocalFiles).toHaveBeenCalledWith(
@@ -73,7 +82,7 @@ describe("runWorktreeAdd", () => {
   });
 
   it("rejects nested copy-file input before preflight and destination handling", async () => {
-    validateCopyFilePaths.mockImplementationOnce(() => {
+    parseCopyFileNames.mockImplementationOnce(() => {
       throw new Error("nested local files are not allowed");
     });
 
@@ -92,7 +101,7 @@ describe("runWorktreeAdd", () => {
       runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] }),
     ).rejects.toThrow("setup failed");
 
-    expect(closePreflightedLocalFiles).toHaveBeenCalledWith([]);
+    expect(closePreflightedLocalFilesAfterError).toHaveBeenCalledWith([], expect.any(Object));
   });
 
   it("closes preflighted local files when signal handler registration fails", async () => {
@@ -104,6 +113,6 @@ describe("runWorktreeAdd", () => {
       runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] }),
     ).rejects.toThrow("signal handler failed");
 
-    expect(closePreflightedLocalFiles).toHaveBeenCalledWith([]);
+    expect(closePreflightedLocalFilesAfterError).toHaveBeenCalledWith([], expect.any(Object));
   });
 });

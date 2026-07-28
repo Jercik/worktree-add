@@ -1,13 +1,16 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
 
+declare const copyFileNameBrand: unique symbol;
+export type CopyFileName = string & { readonly [copyFileNameBrand]: true };
+
 export const isAlreadyExists = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "EEXIST";
 
 export const isNotFound = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "ENOENT";
 
-const validateCopyFileName = (fileName: string): void => {
+const parseCopyFileName = (fileName: string): CopyFileName => {
   if (
     fileName.length === 0 ||
     fileName === "." ||
@@ -19,18 +22,15 @@ const validateCopyFileName = (fileName: string): void => {
   ) {
     throw new Error(`--copy-file '${fileName}' must be a single file name in the repository root.`);
   }
+  return fileName as CopyFileName;
 };
 
-export function validateCopyFilePaths(fileNames: readonly string[]): void {
-  for (const fileName of fileNames) {
-    validateCopyFileName(fileName);
-  }
+export function parseCopyFileNames(fileNames: readonly string[]): CopyFileName[] {
+  return fileNames.map((fileName) => parseCopyFileName(fileName));
 }
 
-export const getRootFilePath = (directory: string, fileName: string): string => {
-  validateCopyFileName(fileName);
-  return path.join(path.resolve(directory), fileName);
-};
+export const getRootFilePath = (directory: string, fileName: CopyFileName): string =>
+  path.join(path.resolve(directory), fileName);
 
 export async function ensureRegularDirectory(
   directory: string,

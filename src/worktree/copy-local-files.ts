@@ -8,7 +8,10 @@ import {
   getRootFilePath,
   isAlreadyExists,
 } from "./local-file-paths.js";
-import { closePreflightedLocalFiles } from "./preflight-local-files.js";
+import {
+  closePreflightedLocalFiles,
+  closePreflightedLocalFilesAfterError,
+} from "./preflight-local-files.js";
 import type { PreflightedLocalFile } from "./preflight-local-files.js";
 
 export interface CopyLocalFilesOptions {
@@ -25,34 +28,40 @@ export async function copyLocalFiles(
   const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
   const destinationWillBeReplaced = options.destinationWillBeReplaced ?? false;
+  let primaryErrorInFlight = false;
 
   try {
-    for (const { handle, relativePath } of localFiles) {
-      const destinationPath = getRootFilePath(destinationDirectory, relativePath);
+    for (const { fileName, handle, sourceMode } of localFiles) {
+      const destinationPath = getRootFilePath(destinationDirectory, fileName);
       if (!destinationWillBeReplaced && (await destinationExists(destinationPath))) {
-        logger.detail(`Skipped ${relativePath} (destination already exists).`);
+        logger.detail(`Skipped ${fileName} (destination already exists).`);
         continue;
       }
       if (dryRun) {
-        logger.detail(`Would copy ${relativePath}`);
+        logger.detail(`Would copy ${fileName}`);
         continue;
       }
       await ensureRegularDirectory(destinationDirectory, "Copy destination");
       try {
         await pipeline(
           handle.createReadStream({ autoClose: false }),
-          createWriteStream(destinationPath, { flags: "wx" }),
+          createWriteStream(destinationPath, { flags: "wx", mode: sourceMode }),
         );
       } catch (error: unknown) {
         if (isAlreadyExists(error)) {
-          logger.detail(`Skipped ${relativePath} (destination already exists).`);
+          logger.detail(`Skipped ${fileName} (destination already exists).`);
           continue;
         }
         throw error;
       }
-      logger.detail(`Copied ${relativePath}`);
+      logger.detail(`Copied ${fileName}`);
     }
+  } catch (error) {
+    primaryErrorInFlight = true;
+    throw error;
   } finally {
-    await closePreflightedLocalFiles(localFiles);
+    await (primaryErrorInFlight
+      ? closePreflightedLocalFilesAfterError(localFiles, logger)
+      : closePreflightedLocalFiles(localFiles));
   }
 }
