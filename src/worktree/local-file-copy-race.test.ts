@@ -70,28 +70,31 @@ describe("copyLocalFiles", () => {
     await expect(fs.readdir(destinationDirectory)).resolves.toStrictEqual([".env.local"]);
   });
 
-  it("falls back to an exclusive copy when hard links are unsupported", async () => {
-    const destinationDirectory = await createTemporaryDirectory();
-    const destinationPath = path.join(destinationDirectory, ".env.local");
-    const [fileName] = parseCopyFileNames([".env.local"]);
-    if (fileName === undefined) {
-      throw new Error("Expected a parsed local file name.");
-    }
-    const localFiles = [
-      {
-        fileName,
-        handle: { createReadStream: () => Readable.from(["SOURCE=value"]) },
-        sourceMode: 0o600,
-      },
-    ] as unknown as PreflightedLocalFile[];
-    vi.mocked(fs.link).mockRejectedValueOnce(
-      Object.assign(new Error("operation not supported"), { code: "EOPNOTSUPP" }),
-    );
+  it.each(["EOPNOTSUPP", "EXDEV"])(
+    "falls back to an exclusive copy when hard links fail with %s",
+    async (code) => {
+      const destinationDirectory = await createTemporaryDirectory();
+      const destinationPath = path.join(destinationDirectory, ".env.local");
+      const [fileName] = parseCopyFileNames([".env.local"]);
+      if (fileName === undefined) {
+        throw new Error("Expected a parsed local file name.");
+      }
+      const localFiles = [
+        {
+          fileName,
+          handle: { createReadStream: () => Readable.from(["SOURCE=value"]) },
+          sourceMode: 0o600,
+        },
+      ] as unknown as PreflightedLocalFile[];
+      vi.mocked(fs.link).mockRejectedValueOnce(
+        Object.assign(new Error("hard link unavailable"), { code }),
+      );
 
-    await copyLocalFiles(destinationDirectory, localFiles);
+      await copyLocalFiles(destinationDirectory, localFiles);
 
-    await expect(fs.readFile(destinationPath, "utf8")).resolves.toBe("SOURCE=value");
-  });
+      await expect(fs.readFile(destinationPath, "utf8")).resolves.toBe("SOURCE=value");
+    },
+  );
 });
 
 describe("preflightLocalFiles", () => {

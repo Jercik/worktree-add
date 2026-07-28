@@ -302,8 +302,7 @@ describe("copyLocalFiles", () => {
     await expect(fs.readdir(stagingParent)).resolves.toStrictEqual(["destination"]);
   });
 
-  it("removes secret-bearing staging left by a terminated owner", async () => {
-    const repoRoot = await createTemporaryDirectory();
+  it("removes secret-bearing staging even when no files are requested", async () => {
     const stagingParent = await createTemporaryDirectory();
     const destinationDirectory = path.join(stagingParent, "destination");
     const stalePid = 543_210;
@@ -311,8 +310,6 @@ describe("copyLocalFiles", () => {
       path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
     );
     await fs.mkdir(destinationDirectory);
-    await fs.writeFile(path.join(repoRoot, ".env.local"), "CURRENT=value");
-    await fs.writeFile(path.join(destinationDirectory, ".env.local"), "DESTINATION=value");
     await fs.writeFile(
       path.join(staleDirectory, "owner.json"),
       `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
@@ -325,13 +322,30 @@ describe("copyLocalFiles", () => {
       return true;
     });
 
-    await copyLocalFilesFromRepo(repoRoot, destinationDirectory, [".env.local"]);
+    await copyLocalFiles(destinationDirectory, []);
 
     await expect(fs.lstat(staleDirectory)).rejects.toMatchObject({ code: "ENOENT" });
-    await expect(fs.readFile(path.join(destinationDirectory, ".env.local"), "utf8")).resolves.toBe(
-      "DESTINATION=value",
-    );
     expect(kill).toHaveBeenCalledWith(stalePid, 0);
+  });
+
+  it("removes an empty unleased staging directory left before lease publication", async () => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const stalePid = 543_210;
+    const staleDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+    );
+    await fs.mkdir(destinationDirectory);
+    vi.spyOn(process, "kill").mockImplementation((pid) => {
+      if (pid === stalePid) {
+        throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+      }
+      return true;
+    });
+
+    await copyLocalFiles(destinationDirectory, []);
+
+    await expect(fs.lstat(staleDirectory)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("preserves active and unowned staging directories", async () => {

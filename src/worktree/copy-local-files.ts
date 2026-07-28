@@ -36,7 +36,10 @@ const copyFailure = (fileName: string, error: unknown): Error => {
 const isHardLinkUnsupported = (error: unknown): boolean =>
   error instanceof Error &&
   "code" in error &&
-  (error.code === "EOPNOTSUPP" || error.code === "ENOTSUP" || error.code === "EPERM");
+  (error.code === "EOPNOTSUPP" ||
+    error.code === "ENOTSUP" ||
+    error.code === "EPERM" ||
+    error.code === "EXDEV");
 
 async function publishTemporaryCopy(
   temporaryPath: string,
@@ -74,7 +77,7 @@ export async function copyLocalFiles(
   const assumeDestinationEmpty = options.assumeDestinationEmpty ?? false;
   const stagingParent = path.dirname(path.resolve(destinationDirectory));
   options.signal?.throwIfAborted();
-  if (!dryRun && localFiles.length > 0) {
+  if (!dryRun) {
     await removeStaleTemporaryCopies(stagingParent, logger);
   }
 

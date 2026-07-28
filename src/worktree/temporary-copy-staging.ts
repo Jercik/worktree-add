@@ -55,6 +55,26 @@ const processIsRunning = (pid: number): boolean => {
   }
 };
 
+async function removeEmptyUnleasedTemporaryCopy(
+  temporaryDirectory: string,
+  logger: StatusLogger,
+): Promise<void> {
+  try {
+    await fs.rmdir(temporaryDirectory);
+  } catch (error: unknown) {
+    if (
+      isNotFound(error) ||
+      (error instanceof Error &&
+        "code" in error &&
+        (error.code === "ENOTEMPTY" || error.code === "EEXIST"))
+    ) {
+      return;
+    }
+    const message = error instanceof Error ? error.message : String(error);
+    logger.warn(`Failed to remove empty local copy staging directory: ${message}`);
+  }
+}
+
 export async function removeStaleTemporaryCopies(
   stagingParent: string,
   logger: StatusLogger,
@@ -74,7 +94,14 @@ export async function removeStaleTemporaryCopies(
     }
     const temporaryDirectory = path.join(stagingParent, entry.name);
     const leasePid = await readTemporaryCopyLease(temporaryDirectory);
-    if (leasePid !== ownerPid || processIsRunning(ownerPid)) {
+    if (processIsRunning(ownerPid)) {
+      continue;
+    }
+    if (leasePid === undefined) {
+      await removeEmptyUnleasedTemporaryCopy(temporaryDirectory, logger);
+      continue;
+    }
+    if (leasePid !== ownerPid) {
       continue;
     }
     try {
