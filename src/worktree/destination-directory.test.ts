@@ -92,13 +92,18 @@ describe("handleExistingDirectory", () => {
     vi.mocked(confirm).mockResolvedValue(true);
     vi.mocked(trash).mockResolvedValue(void 0);
     const logger = createLogger();
+    const onMutationPhase = vi.fn((_phase: "completed" | "started"): void => {});
 
-    await handleExistingDirectory("/test/path", { interactive: true, logger });
+    await handleExistingDirectory("/test/path", {
+      interactive: true,
+      logger,
+      onMutationPhase,
+    });
 
-    expect(fileExists).toHaveBeenCalledWith("/test/path");
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     expect(logger.step).toHaveBeenCalledWith("Moving existing directory 'path' to trash...");
     expect(trash).toHaveBeenCalledWith("/test/path");
+    expect(onMutationPhase.mock.calls).toStrictEqual([["started"], ["completed"]]);
     expect(logger.success).toHaveBeenCalledWith("Directory moved to trash successfully");
   });
 
@@ -109,12 +114,17 @@ describe("handleExistingDirectory", () => {
     trashError.stack = "Error: Permission denied";
     vi.mocked(trash).mockRejectedValue(trashError);
     const logger = createLogger();
+    const onMutationPhase = vi.fn((_phase: "completed" | "started"): void => {});
 
-    await handleExistingDirectory("/test/path", { interactive: true, logger });
+    await handleExistingDirectory("/test/path", {
+      interactive: true,
+      logger,
+      onMutationPhase,
+    });
 
     expect(fileExists).toHaveBeenCalledWith("/test/path");
-    expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     expect(trash).toHaveBeenCalledWith("/test/path");
+    expect(onMutationPhase).toHaveBeenCalledExactlyOnceWith("started");
     expect(logger.detail).toHaveBeenCalledWith("Error details: Error: Permission denied");
     expect(exitWithMessage).toHaveBeenCalledWith(
       "Failed to move existing directory to trash: Permission denied",

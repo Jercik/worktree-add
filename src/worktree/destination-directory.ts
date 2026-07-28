@@ -9,6 +9,7 @@ interface HandleExistingDirectoryOptions {
   readonly assumeYes?: boolean;
   readonly interactive?: boolean;
   readonly logger?: StatusLogger;
+  readonly onMutationPhase?: (phase: "completed" | "started") => void;
 }
 
 interface ExistingDirectoryResult {
@@ -152,8 +153,10 @@ export async function handleExistingDirectory(
   }
 
   logger.step(`Moving existing directory '${directoryName}' to trash...`);
+  options.onMutationPhase?.("started");
   try {
     await trash(destinationDirectory);
+    options.onMutationPhase?.("completed");
     logger.success("Directory moved to trash successfully");
   } catch (error) {
     const details = error instanceof Error ? (error.stack ?? error.message) : String(error);

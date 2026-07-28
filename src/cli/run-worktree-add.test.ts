@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { SigintCleanupOutcome } from "./register-sigint-handler.js";
 
 vi.mock("../app/resolve-apps.js", () => ({ resolveApps: vi.fn(() => []) }));
 vi.mock("../git/create-worktree.js", () => ({ createWorktree: vi.fn() }));
@@ -108,6 +109,84 @@ describe("runWorktreeAdd", () => {
     expect(closePreflightedLocalFiles).toHaveBeenCalledWith([], expect.any(Object));
   });
 
+  it("does not clean an already removed worktree again during source close", async () => {
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
+    let finishClose: (() => void) | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    setupProject.mockRejectedValueOnce(new Error("setup failed"));
+    closePreflightedLocalFiles.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          finishClose = resolve;
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+    await vi.waitFor(() => {
+      expect(cleanupWorktree).toHaveBeenCalledTimes(1);
+    });
+    await expect(onCleanup?.()).resolves.toBe("none");
+    expect(cleanupWorktree).toHaveBeenCalledTimes(1);
+    finishClose?.();
+    await expect(run).rejects.toThrow("setup failed");
+  });
+
+  it("reports an interruption during destination mutation", async () => {
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
+    let finishDestinationHandling:
+      | ((result: { assumeDestinationEmpty: boolean; shouldContinue: boolean }) => void)
+      | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    handleExistingDirectory.mockImplementationOnce(
+      (_destinationDirectory, options) =>
+        new Promise((resolve) => {
+          options?.onMutationPhase?.("started");
+          finishDestinationHandling = resolve;
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+    await vi.waitFor(() => {
+      expect(onCleanup).toBeTypeOf("function");
+      expect(finishDestinationHandling).toBeTypeOf("function");
+    });
+    await expect(onCleanup?.()).resolves.toBe("destination-may-be-incomplete");
+    finishDestinationHandling?.({ assumeDestinationEmpty: false, shouldContinue: false });
+    await expect(run).resolves.toBeUndefined();
+  });
+
+  it("does not report destination uncertainty before mutation starts", async () => {
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
+    let finishDestinationHandling:
+      | ((result: { assumeDestinationEmpty: boolean; shouldContinue: boolean }) => void)
+      | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    handleExistingDirectory.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          finishDestinationHandling = resolve;
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+    await vi.waitFor(() => {
+      expect(onCleanup).toBeTypeOf("function");
+      expect(finishDestinationHandling).toBeTypeOf("function");
+    });
+    await expect(onCleanup?.()).resolves.toBe("none");
+    finishDestinationHandling?.({ assumeDestinationEmpty: false, shouldContinue: false });
+    await expect(run).resolves.toBeUndefined();
+  });
+
   it("closes preflighted local files when signal handler registration fails", async () => {
     registerSigintHandler.mockImplementationOnce(() => {
       throw new Error("signal handler failed");
@@ -153,9 +232,7 @@ describe("runWorktreeAdd", () => {
   );
 
   it("keeps a completed worktree when interrupted after setup", async () => {
-    let onCleanup:
-      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
-      | undefined;
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -169,9 +246,7 @@ describe("runWorktreeAdd", () => {
   });
 
   it("does not report a dry run as a created worktree after setup", async () => {
-    let onCleanup:
-      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
-      | undefined;
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -194,9 +269,7 @@ describe("runWorktreeAdd", () => {
   });
 
   it("removes an incomplete worktree when interrupted before setup completes", async () => {
-    let onCleanup:
-      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
-      | undefined;
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
     let resolveSetup: (() => void) | undefined;
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
@@ -225,9 +298,7 @@ describe("runWorktreeAdd", () => {
   });
 
   it("lets SIGINT cleanup report an aborted in-progress copy once", async () => {
-    let onCleanup:
-      | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
-      | undefined;
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
     let copySignal: AbortSignal | undefined;
     const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     registerSigintHandler.mockImplementationOnce((options) => {

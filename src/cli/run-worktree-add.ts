@@ -14,6 +14,7 @@ import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
 import { abortLocalFileCopy } from "./abort-local-file-copy.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
 import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
+import { handleWorktreeAddFailure } from "./handle-worktree-add-failure.js";
 import { openWorktreeApps } from "./open-worktree-apps.js";
 import { registerSigintHandler } from "./register-sigint-handler.js";
 import { resolveWorktreeContext } from "./resolve-worktree-context.js";
@@ -47,11 +48,15 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   let copyAbortController: AbortController | undefined;
   let copying: Promise<void> | undefined;
   let sigintCleanupStarted = false;
-  const cleanupIfNeeded = (reason: string): void => {
-    if (!worktreeCreated || dryRun) {
-      return;
+  let destinationMayBeIncomplete = false;
+  let worktreeCleanupAttempted = false;
+  const cleanupIfNeeded = (reason: string): boolean => {
+    if (!worktreeCreated || dryRun || worktreeCleanupAttempted) {
+      return false;
     }
+    worktreeCleanupAttempted = true;
     cleanupWorktree(context.destinationDirectory, logger, reason);
+    return true;
   };
   let unregisterSigintHandler: (() => void) | undefined;
 
@@ -62,8 +67,10 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       onCleanup: async () => {
         sigintCleanupStarted = true;
         if (!setupCompleted) {
-          cleanupIfNeeded("after interruption");
-          return worktreeCreated && !dryRun ? "removed" : "none";
+          if (cleanupIfNeeded("after interruption")) {
+            return "removed";
+          }
+          return destinationMayBeIncomplete ? "destination-may-be-incomplete" : "none";
         }
         await abortLocalFileCopy(copyAbortController, copying, logger);
         return worktreeCreated ? "kept" : "none";
@@ -74,6 +81,9 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       assumeYes,
       interactive,
       logger,
+      onMutationPhase: (phase) => {
+        destinationMayBeIncomplete = phase === "started";
+      },
     });
     if (!existingDirectory.shouldContinue) {
       return;
@@ -149,25 +159,13 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       logger,
     });
   } catch (error) {
-    if (sigintCleanupStarted) {
-      return;
-    }
-    if (!setupCompleted) {
-      cleanupIfNeeded("due to failure");
-      throw error;
-    }
-    if (!worktreeCreated) {
-      throw error;
-    }
-    const message = error instanceof Error ? error.message : String(error);
-    const failure = new Error(
-      `${message}\nThe worktree at ${JSON.stringify(context.destinationDirectory)} was kept.`,
-      { cause: error },
-    );
-    if (error instanceof Error && "code" in error) {
-      Object.assign(failure, { code: error.code });
-    }
-    throw failure;
+    handleWorktreeAddFailure(error, {
+      cleanupIfNeeded,
+      destinationDirectory: context.destinationDirectory,
+      setupCompleted,
+      sigintCleanupStarted,
+      worktreeCreated,
+    });
   } finally {
     try {
       await closePreflightedLocalFiles(localFiles, logger);

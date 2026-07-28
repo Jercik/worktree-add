@@ -1,11 +1,27 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-type SigintCleanupOutcome = "kept" | "none" | "removed";
+export type SigintCleanupOutcome = "destination-may-be-incomplete" | "kept" | "none" | "removed";
 
 interface SigintHandlerOptions {
   readonly destinationDirectory: string;
   readonly logger: StatusLogger;
   readonly onCleanup: () => SigintCleanupOutcome | Promise<SigintCleanupOutcome>;
+}
+
+export function formatSigintAbortMessage(
+  cleanupOutcome: SigintCleanupOutcome | undefined,
+  destinationDirectory: string,
+): string {
+  if (cleanupOutcome === "kept") {
+    return `Worktree creation aborted. The completed worktree was kept at ${JSON.stringify(destinationDirectory)}.`;
+  }
+  if (cleanupOutcome === "removed") {
+    return `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(destinationDirectory)}.`;
+  }
+  if (cleanupOutcome === "destination-may-be-incomplete") {
+    return `Worktree creation aborted. The destination may be incomplete at ${JSON.stringify(destinationDirectory)}.`;
+  }
+  return "Worktree creation aborted.";
 }
 
 export function registerSigintHandler(options: SigintHandlerOptions): () => void {
@@ -18,13 +34,7 @@ export function registerSigintHandler(options: SigintHandlerOptions): () => void
       const message = error instanceof Error ? error.message : String(error);
       options.logger.warn(`Cleanup after SIGINT failed: ${message}`);
     }
-    let message = "Worktree creation aborted.";
-    if (cleanupOutcome === "kept") {
-      message = `Worktree creation aborted. The completed worktree was kept at ${JSON.stringify(options.destinationDirectory)}.`;
-    } else if (cleanupOutcome === "removed") {
-      message = `Worktree creation aborted. If cleanup failed, the directory may be incomplete at ${JSON.stringify(options.destinationDirectory)}.`;
-    }
-    console.error(message);
+    console.error(formatSigintAbortMessage(cleanupOutcome, options.destinationDirectory));
     // eslint-disable-next-line unicorn/no-process-exit -- CLI exits on SIGINT
     process.exit(130);
   };

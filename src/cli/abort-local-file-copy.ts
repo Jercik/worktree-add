@@ -9,7 +9,7 @@ export async function abortLocalFileCopy(
   try {
     await copying;
   } catch (error: unknown) {
-    // The interrupted copy cleans its partial destination before rejecting.
+    // The copy routine attempts staging cleanup before rejecting.
     const message = error instanceof Error ? error.message : String(error);
     logger.warn(`Interrupted local file copy: ${message}`);
   }

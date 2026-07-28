@@ -245,7 +245,7 @@ describe("copyLocalFiles", () => {
     await expectFirstFileHandleClosed(localFiles);
   });
 
-  it("removes a destination file created by a failed copy", async () => {
+  it("does not publish a destination when staging fails", async () => {
     const destinationDirectory = await createTemporaryDirectory();
     const destinationPath = path.join(destinationDirectory, ".env.local");
     const copyFailure = Object.assign(new Error("write failed"), { code: "EIO" });
@@ -273,7 +273,7 @@ describe("copyLocalFiles", () => {
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
-  it("removes a destination file when an in-progress copy is aborted", async () => {
+  it("does not publish a destination when staging is aborted", async () => {
     const stagingParent = await createTemporaryDirectory();
     const destinationDirectory = path.join(stagingParent, "destination");
     await fs.mkdir(destinationDirectory);
@@ -455,7 +455,9 @@ describe("copyLocalFiles", () => {
     await expect(fs.lstat(path.join(destinationDirectory, ".env.local"))).rejects.toMatchObject({
       code: "ENOENT",
     });
-    expect(logger.detail).toHaveBeenCalledWith("Would copy .env.local");
+    expect(logger.detail).toHaveBeenCalledWith(
+      "Would attempt to copy .env.local after setup if the destination does not exist",
+    );
     await expectFirstFileHandleClosed(localFiles);
   });
 
@@ -472,7 +474,9 @@ describe("copyLocalFiles", () => {
       logger,
     });
 
-    expect(logger.detail).toHaveBeenCalledWith("Would copy .env.local");
+    expect(logger.detail).toHaveBeenCalledWith(
+      "Would attempt to copy .env.local after setup if the destination does not exist",
+    );
   });
 
   it("preflights every requested source before destination handling", async () => {

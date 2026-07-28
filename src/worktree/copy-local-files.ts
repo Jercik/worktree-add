@@ -108,7 +108,9 @@ export async function copyLocalFiles(
         continue;
       }
       if (dryRun) {
-        logger.detail(`Would copy ${fileName}`);
+        logger.detail(
+          `Would attempt to copy ${fileName} after setup if the destination does not exist`,
+        );
         continue;
       }
       await ensureRegularDirectory(destinationDirectory, "Copy destination");
