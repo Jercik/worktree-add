@@ -2,10 +2,12 @@ import { execFile } from "node:child_process";
 import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { copyLocalFiles } from "./copy-local-files.js";
 import { parseCopyFileNames } from "./local-file-paths.js";
+import type { PreflightedLocalFile } from "./preflight-local-files.js";
 import {
   closePreflightedLocalFiles,
   composeSourceOpenFlags,
@@ -226,6 +228,32 @@ describe("copyLocalFiles", () => {
     );
     expect(logger.warn).toHaveBeenCalledWith("Skipped .env.local (destination already exists).");
     await expectFirstFileHandleClosed(localFiles);
+  });
+
+  it("removes a destination file created by a failed copy", async () => {
+    const destinationDirectory = await createTemporaryDirectory();
+    const destinationPath = path.join(destinationDirectory, ".env.local");
+    const copyFailure = Object.assign(new Error("write failed"), { code: "EIO" });
+    const source = new Readable({
+      read() {
+        this.push("PARTIAL=value");
+        this.destroy(copyFailure);
+      },
+    });
+    const [fileName] = parseCopyFileNames([".env.local"]);
+    if (fileName === undefined) {
+      throw new Error("Expected a parsed local file name.");
+    }
+    const localFiles = [
+      {
+        fileName,
+        handle: { createReadStream: () => source },
+        sourceMode: 0o600,
+      },
+    ] as unknown as PreflightedLocalFile[];
+
+    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toBe(copyFailure);
+    await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
   it("does not write files in a dry run", async () => {

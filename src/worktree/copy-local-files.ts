@@ -1,4 +1,5 @@
 import { createWriteStream } from "node:fs";
+import * as fs from "node:fs/promises";
 import { pipeline } from "node:stream/promises";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
@@ -7,6 +8,7 @@ import {
   ensureRegularDirectory,
   getRootFilePath,
   isAlreadyExists,
+  isNotFound,
 } from "./local-file-paths.js";
 import type { PreflightedLocalFile } from "./preflight-local-files.js";
 
@@ -45,6 +47,15 @@ export async function copyLocalFiles(
       if (isAlreadyExists(error)) {
         logger.warn(`Skipped ${fileName} (destination already exists).`);
         continue;
+      }
+      try {
+        await fs.unlink(destinationPath);
+      } catch (cleanupError: unknown) {
+        if (!isNotFound(cleanupError)) {
+          const message =
+            cleanupError instanceof Error ? cleanupError.message : String(cleanupError);
+          logger.warn(`Failed to remove incomplete copy of ${fileName}: ${message}`);
+        }
       }
       throw error;
     }

@@ -56,7 +56,9 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       destinationDirectory: context.destinationDirectory,
       logger,
       onCleanup: () => {
-        cleanupIfNeeded("after interruption");
+        if (!setupCompleted) {
+          cleanupIfNeeded("after interruption");
+        }
       },
     });
     const existingDirectory = await handleExistingDirectory(context.destinationDirectory, {

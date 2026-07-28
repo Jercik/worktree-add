@@ -151,4 +151,47 @@ describe("runWorktreeAdd", () => {
       expect(closePreflightedLocalFiles).toHaveBeenCalledWith([], expect.any(Object));
     },
   );
+
+  it("keeps a completed worktree when interrupted after setup", async () => {
+    let onCleanup: (() => void) | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+
+    await runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+
+    onCleanup?.();
+
+    expect(cleanupWorktree).not.toHaveBeenCalled();
+  });
+
+  it("removes an incomplete worktree when interrupted before setup completes", async () => {
+    let onCleanup: (() => void) | undefined;
+    let resolveSetup: (() => void) | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    setupProject.mockImplementationOnce(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveSetup = resolve;
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+    await vi.waitFor(() => {
+      expect(onCleanup).toBeTypeOf("function");
+    });
+    onCleanup?.();
+    resolveSetup?.();
+    await run;
+
+    expect(cleanupWorktree).toHaveBeenCalledWith(
+      "/repo-local-config",
+      expect.any(Object),
+      "after interruption",
+    );
+  });
 });
