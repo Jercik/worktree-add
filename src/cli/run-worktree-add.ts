@@ -1,7 +1,12 @@
 import { createStatusLogger } from "../output/create-status-logger.js";
 import { resolveApps } from "../app/resolve-apps.js";
 import { handleExistingDirectory } from "../worktree/destination-directory.js";
-import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
+import {
+  closePreflightedLocalFiles,
+  copyLocalFiles,
+  preflightLocalFiles,
+  validateCopyFilePaths,
+} from "../worktree/local-file-copy.js";
 import { setupProject } from "../project/setup.js";
 import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
@@ -14,6 +19,7 @@ import { resolveWorktreeContext } from "./resolve-worktree-context.js";
 
 export interface CliOptions {
   readonly app?: string[];
+  readonly copyFile?: string[];
   readonly offline?: boolean;
   readonly yes?: boolean;
   readonly interactive?: boolean;
@@ -31,8 +37,12 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   });
   const interactive = options.interactive ?? false;
   const assumeYes = options.yes ?? false;
+  const copyFiles = options.copyFile ?? [];
+  validateCopyFilePaths(copyFiles);
 
   const context = resolveWorktreeContext(branchRaw);
+  const localFiles = await preflightLocalFiles(context.repoRoot, copyFiles);
+  let localFilesPassedToCopy = false;
   let worktreeCreated = false;
   const cleanupIfNeeded = (reason: string): void => {
     if (!worktreeCreated || dryRun) {
@@ -40,22 +50,23 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
     }
     cleanupWorktree(context.destinationDirectory, logger, reason);
   };
-  const unregisterSigintHandler = registerSigintHandler({
-    destinationDirectory: context.destinationDirectory,
-    logger,
-    onCleanup: () => {
-      cleanupIfNeeded("after interruption");
-    },
-  });
+  let unregisterSigintHandler: (() => void) | undefined;
 
   try {
-    const shouldContinue = await handleExistingDirectory(context.destinationDirectory, {
+    unregisterSigintHandler = registerSigintHandler({
+      destinationDirectory: context.destinationDirectory,
+      logger,
+      onCleanup: () => {
+        cleanupIfNeeded("after interruption");
+      },
+    });
+    const existingDirectory = await handleExistingDirectory(context.destinationDirectory, {
       dryRun,
       assumeYes,
       interactive,
       logger,
     });
-    if (!shouldContinue) {
+    if (!existingDirectory.shouldContinue) {
       return;
     }
 
@@ -102,12 +113,14 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       worktreeCreated = true;
     }
 
-    await copyUntrackedFiles(context.repoRoot, context.destinationDirectory, {
+    await setupProject(context.destinationDirectory, { dryRun, logger });
+
+    localFilesPassedToCopy = true;
+    await copyLocalFiles(context.destinationDirectory, localFiles, {
       dryRun,
+      destinationWillBeReplaced: existingDirectory.destinationWillBeReplaced,
       logger,
     });
-
-    await setupProject(context.destinationDirectory, { dryRun, logger });
 
     const apps = resolveApps({
       optionApps: options.app,
@@ -122,6 +135,12 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
     cleanupIfNeeded("due to failure");
     throw error;
   } finally {
-    unregisterSigintHandler();
+    try {
+      if (!localFilesPassedToCopy) {
+        await closePreflightedLocalFiles(localFiles);
+      }
+    } finally {
+      unregisterSigintHandler?.();
+    }
   }
 }

@@ -11,6 +11,11 @@ interface HandleExistingDirectoryOptions {
   readonly logger?: StatusLogger;
 }
 
+interface ExistingDirectoryResult {
+  readonly shouldContinue: boolean;
+  readonly destinationWillBeReplaced: boolean;
+}
+
 type PromptRefusal =
   | { readonly type: "ci-interactive-without-tty" }
   | { readonly type: "non-interactive"; readonly ciHint: string }
@@ -80,9 +85,9 @@ function formatDryRunPromptRefusal(directoryName: string, refusal: PromptRefusal
 export async function handleExistingDirectory(
   destinationDirectory: string,
   options: HandleExistingDirectoryOptions = {},
-): Promise<boolean> {
+): Promise<ExistingDirectoryResult> {
   if (!(await fileExists(destinationDirectory))) {
-    return true;
+    return { shouldContinue: true, destinationWillBeReplaced: false };
   }
 
   const logger = options.logger ?? fallbackStatusLogger;
@@ -98,16 +103,16 @@ export async function handleExistingDirectory(
   if (dryRun) {
     if (promptRefusal !== undefined) {
       logger.warn(formatDryRunPromptRefusal(directoryName, promptRefusal));
-      return false;
+      return { shouldContinue: false, destinationWillBeReplaced: false };
     }
 
     if (!assumeYes) {
       logger.step(`Would prompt to move existing directory '${directoryName}' to trash`);
-      return false;
+      return { shouldContinue: false, destinationWillBeReplaced: false };
     }
 
     logger.step(`Would move existing directory '${directoryName}' to trash`);
-    return true;
+    return { shouldContinue: true, destinationWillBeReplaced: true };
   }
 
   if (promptRefusal !== undefined) {
@@ -159,7 +164,7 @@ export async function handleExistingDirectory(
   }
 
   if (!shouldPruneWorktree) {
-    return true;
+    return { shouldContinue: true, destinationWillBeReplaced: false };
   }
 
   logger.detail(`Pruning stale worktree registration for '${directoryName}'.`);
@@ -173,5 +178,5 @@ export async function handleExistingDirectory(
     );
   }
 
-  return true;
+  return { shouldContinue: true, destinationWillBeReplaced: false };
 }

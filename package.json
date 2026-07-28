@@ -1,7 +1,7 @@
 {
   "name": "worktree-add",
   "version": "1.0.0",
-  "description": "Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your apps.",
+  "description": "Create a Git worktree next to your current repo for a branch, install deps, and open it in your apps.",
   "keywords": [
     "cli",
     "development",

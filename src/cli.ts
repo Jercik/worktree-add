@@ -9,12 +9,21 @@ function collectApp(app: string, previous: string[] | undefined): string[] {
   return [...(previous ?? []), app];
 }
 
+function collectCopyFile(file: string, previous: string[] | undefined): string[] {
+  return [...(previous ?? []), file];
+}
+
 const program = new Command()
   .name(packageJson.name)
   .description(packageJson.description)
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")
   .option("-a, --app <name>", "Open the worktree in an app (repeatable)", collectApp)
+  .option(
+    "--copy-file <name>",
+    "Copy a regular repository-root file after project setup (repeatable)",
+    collectCopyFile,
+  )
   .option(
     "--offline",
     "Allow creating a new local branch from HEAD when origin cannot be reached and the branch does not exist locally",
@@ -31,6 +40,7 @@ const program = new Command()
 Examples:
   $ worktree-add feature/login-form
   $ worktree-add feature/api --app code
+  $ worktree-add feature/api --copy-file .env.local --copy-file .npmrc
   $ WORKTREE_ADD_APP=ghostty,code worktree-add feature/new-branch
   $ git branch --format="%(refname:short)" | head -n1 | xargs worktree-add
 

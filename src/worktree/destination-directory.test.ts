@@ -168,7 +168,10 @@ describe("handleExistingDirectory", () => {
       logger,
     });
 
-    expect(result).not.toBe(true);
+    expect(result).toStrictEqual({
+      destinationWillBeReplaced: false,
+      shouldContinue: false,
+    });
     expect(logger.warn).toHaveBeenCalledWith(
       "Dry run: directory 'path' already exists (CI is enabled). Refusing to prompt in non-interactive mode. Re-run with --interactive to confirm, or --yes to move it to trash.",
     );
@@ -188,7 +191,10 @@ describe("handleExistingDirectory", () => {
       logger,
     });
 
-    expect(result).not.toBe(true);
+    expect(result).toStrictEqual({
+      destinationWillBeReplaced: false,
+      shouldContinue: false,
+    });
     expect(logger.warn).toHaveBeenCalledWith(
       "Dry run: directory 'path' already exists, and CI mode is enabled. Interactive prompts are disabled in CI. Re-run with --yes to move the directory to trash, or remove it manually.",
     );
@@ -217,5 +223,22 @@ Re-run with --interactive to confirm, or --yes to move it to trash.`,
     );
     expect(confirm).not.toHaveBeenCalled();
     expect(trash).not.toHaveBeenCalled();
+  });
+
+  it("models a dry-run replacement as an empty destination", async () => {
+    vi.mocked(fileExists).mockResolvedValue(true);
+    const logger = createLogger();
+
+    const result = await handleExistingDirectory("/test/path", {
+      assumeYes: true,
+      dryRun: true,
+      logger,
+    });
+
+    expect(result).toStrictEqual({
+      destinationWillBeReplaced: true,
+      shouldContinue: true,
+    });
+    expect(logger.step).toHaveBeenCalledWith("Would move existing directory 'path' to trash");
   });
 });

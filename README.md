@@ -1,6 +1,6 @@
 # worktree-add
 
-Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your apps.
+Create a Git worktree next to your current repo for a branch, install deps, and open it in your apps.
 
 ## What it does
 
@@ -19,11 +19,10 @@ Running `worktree-add <branch>` from inside a repo:
    - reuses an existing local branch
    - or creates a tracking branch from `origin/<branch>`
    - or creates a new branch from the current `HEAD` (only when the branch does not exist on `origin/`, or when you pass `--offline` and `origin/` can’t be reached)
-7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
-   (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
-8. Detects your package manager and installs dependencies with lockfile‑safe flags
+7. Detects your package manager and installs dependencies with lockfile‑safe flags
    (`npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable`, etc.).
-9. If the project uses Next.js and supports it, runs `next typegen`.
+8. If the project uses Next.js and supports it, runs `next typegen`.
+9. Copies only the regular local files named with `--copy-file`, after project setup.
 10. Opens the new worktree in your requested apps (if any).
 
 Your original checkout is left untouched.
@@ -72,6 +71,7 @@ Common options:
 
 ```text
   -a, --app <name>   Open the worktree in an app (repeatable)
+  --copy-file <name> Copy a regular repository-root file after project setup (repeatable)
   --offline          Create from HEAD when origin can't be reached
   -y, --yes          Skip confirmation and replace existing destination
   --interactive      Allow confirmation prompts (requires a TTY)
@@ -81,6 +81,16 @@ Common options:
 
 A new branch from the current HEAD is created only when the branch does not already
 exist locally or on `origin/`. If `origin/` can’t be reached and the branch doesn’t exist locally, the tool aborts unless you pass `--offline`.
+
+## Copy local files explicitly
+
+No untracked or ignored files are copied automatically. To carry a local configuration file into the new worktree, name it explicitly:
+
+```bash
+worktree-add feature/login-form --copy-file .env.local --copy-file .npmrc
+```
+
+Each value must be a single regular file name in the current worktree's repository root. Paths containing `/` or `\\`, absolute paths, traversal (`..`), symbolic links, and directories are rejected. Existing destination files are preserved, so the command never overwrites tracked or generated content. In a dry run, the command reports the requested copies without writing files.
 
 Destination directory (assuming repo named `my-app`):
 
