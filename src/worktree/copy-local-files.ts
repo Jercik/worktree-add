@@ -24,9 +24,24 @@ export interface CopyLocalFilesOptions {
   readonly signal?: AbortSignal;
 }
 
-const copyFailure = (fileName: string, error: unknown): Error => {
+const copyFailure = (
+  fileName: string,
+  error: unknown,
+  copiedFileNames: readonly string[],
+  notAttemptedFileNames: readonly string[],
+): Error => {
   const message = error instanceof Error ? error.message : String(error);
-  const failure = new Error(`Failed to copy ${fileName}: ${message}`, { cause: error });
+  const progress = [
+    copiedFileNames.length > 0
+      ? `Copied before failure: ${copiedFileNames.join(", ")}.`
+      : undefined,
+    notAttemptedFileNames.length > 0
+      ? `Not attempted after this failure: ${notAttemptedFileNames.join(", ")}.`
+      : undefined,
+  ].filter((detail) => detail !== undefined);
+  const failure = new Error([`Failed to copy ${fileName}: ${message}`, ...progress].join("\n"), {
+    cause: error,
+  });
   if (error instanceof Error && "code" in error) {
     Object.assign(failure, { code: error.code });
   }
@@ -39,7 +54,8 @@ const isHardLinkUnsupported = (error: unknown): boolean =>
   (error.code === "EOPNOTSUPP" ||
     error.code === "ENOTSUP" ||
     error.code === "EPERM" ||
-    error.code === "EXDEV");
+    error.code === "EXDEV" ||
+    error.code === "ENOSYS");
 
 async function publishTemporaryCopy(
   temporaryPath: string,
@@ -80,21 +96,22 @@ export async function copyLocalFiles(
   if (!dryRun) {
     await removeStaleTemporaryCopies(stagingParent, logger);
   }
+  const copiedFileNames: string[] = [];
 
-  for (const { fileName, handle, sourceMode } of localFiles) {
+  for (const [index, { fileName, handle, sourceMode }] of localFiles.entries()) {
     options.signal?.throwIfAborted();
     const destinationPath = getRootFilePath(destinationDirectory, fileName);
-    if (!assumeDestinationEmpty && (await destinationExists(destinationPath))) {
-      logger.warn(`Skipped ${fileName} (destination already exists).`);
-      continue;
-    }
-    if (dryRun) {
-      logger.detail(`Would copy ${fileName}`);
-      continue;
-    }
-    await ensureRegularDirectory(destinationDirectory, "Copy destination");
     let temporaryDirectory: string | undefined;
     try {
+      if (!assumeDestinationEmpty && (await destinationExists(destinationPath))) {
+        logger.warn(`Skipped ${fileName} (destination already exists).`);
+        continue;
+      }
+      if (dryRun) {
+        logger.detail(`Would copy ${fileName}`);
+        continue;
+      }
+      await ensureRegularDirectory(destinationDirectory, "Copy destination");
       temporaryDirectory = await createTemporaryCopyDirectory(stagingParent);
       const temporaryPath = path.join(temporaryDirectory, "file");
       await pipeline(
@@ -107,12 +124,18 @@ export async function copyLocalFiles(
         continue;
       }
     } catch (error: unknown) {
-      throw copyFailure(fileName, error);
+      throw copyFailure(
+        fileName,
+        error,
+        copiedFileNames,
+        localFiles.slice(index + 1).map((localFile) => localFile.fileName),
+      );
     } finally {
       if (temporaryDirectory !== undefined) {
         await removeTemporaryCopy(temporaryDirectory, fileName, logger);
       }
     }
+    copiedFileNames.push(fileName);
     logger.detail(`Copied ${fileName}`);
   }
 }

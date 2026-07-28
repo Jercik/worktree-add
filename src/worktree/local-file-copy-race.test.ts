@@ -70,7 +70,7 @@ describe("copyLocalFiles", () => {
     await expect(fs.readdir(destinationDirectory)).resolves.toStrictEqual([".env.local"]);
   });
 
-  it.each(["EOPNOTSUPP", "EXDEV"])(
+  it.each(["EOPNOTSUPP", "EXDEV", "ENOSYS"])(
     "falls back to an exclusive copy when hard links fail with %s",
     async (code) => {
       const destinationDirectory = await createTemporaryDirectory();
@@ -95,6 +95,30 @@ describe("copyLocalFiles", () => {
       await expect(fs.readFile(destinationPath, "utf8")).resolves.toBe("SOURCE=value");
     },
   );
+
+  it("reports copied and not-attempted files after a mid-list failure", async () => {
+    const destinationDirectory = await createTemporaryDirectory();
+    const fileNames = parseCopyFileNames([".env.local", ".npmrc", ".tool-versions"]);
+    const localFiles = fileNames.map(
+      (fileName) =>
+        ({
+          fileName,
+          handle: { createReadStream: () => Readable.from([`SOURCE=${fileName}`]) },
+          sourceMode: 0o600,
+        }) as unknown as PreflightedLocalFile,
+    );
+    vi.mocked(fs.link)
+      .mockImplementationOnce(async (temporaryPath, destinationPath) => {
+        await fs.copyFile(temporaryPath, destinationPath);
+      })
+      .mockRejectedValueOnce(Object.assign(new Error("permission denied"), { code: "EACCES" }));
+
+    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toThrow(
+      "Failed to copy .npmrc: permission denied\n" +
+        "Copied before failure: .env.local.\n" +
+        "Not attempted after this failure: .tool-versions.",
+    );
+  });
 });
 
 describe("preflightLocalFiles", () => {

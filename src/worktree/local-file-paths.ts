@@ -10,11 +10,22 @@ export const isAlreadyExists = (error: unknown): boolean =>
 export const isNotFound = (error: unknown): boolean =>
   error instanceof Error && "code" in error && error.code === "ENOENT";
 
+const containsControlCharacter = (fileName: string): boolean => {
+  for (let index = 0; index < fileName.length; index += 1) {
+    const codePoint = fileName.codePointAt(index);
+    if (codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f)) {
+      return true;
+    }
+  }
+  return false;
+};
+
 const parseCopyFileName = (fileName: string): CopyFileName => {
   if (
     fileName.length === 0 ||
     fileName === "." ||
     fileName === ".." ||
+    containsControlCharacter(fileName) ||
     fileName.includes(":") ||
     fileName.includes("/") ||
     fileName.includes("\\") ||

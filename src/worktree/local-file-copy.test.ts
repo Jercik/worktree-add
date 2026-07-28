@@ -176,6 +176,12 @@ describe("copyLocalFiles", () => {
     );
   });
 
+  it.each(["bad\0name", "bad\nname"])("rejects control characters in %j", (fileName) => {
+    expect(() => {
+      parseCopyFileNames([fileName]);
+    }).toThrow("must be a single file name in the repository root");
+  });
+
   it("deduplicates repeated copy-file input", () => {
     expect(parseCopyFileNames([".env.local", ".env.local"])).toStrictEqual([".env.local"]);
   });
