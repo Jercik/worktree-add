@@ -1,4 +1,4 @@
-import { createWriteStream } from "node:fs";
+import { constants, createWriteStream } from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { pipeline } from "node:stream/promises";
@@ -28,6 +28,37 @@ const copyFailure = (fileName: string, error: unknown): Error => {
   return failure;
 };
 
+const isHardLinkUnsupported = (error: unknown): boolean =>
+  error instanceof Error &&
+  "code" in error &&
+  (error.code === "EOPNOTSUPP" || error.code === "ENOTSUP" || error.code === "EPERM");
+
+async function publishTemporaryCopy(
+  temporaryPath: string,
+  destinationPath: string,
+): Promise<boolean> {
+  try {
+    await fs.link(temporaryPath, destinationPath);
+    return true;
+  } catch (error: unknown) {
+    if (isAlreadyExists(error)) {
+      return false;
+    }
+    if (!isHardLinkUnsupported(error)) {
+      throw error;
+    }
+  }
+  try {
+    await fs.copyFile(temporaryPath, destinationPath, constants.COPYFILE_EXCL);
+    return true;
+  } catch (error: unknown) {
+    if (isAlreadyExists(error)) {
+      return false;
+    }
+    throw error;
+  }
+}
+
 async function removeTemporaryCopy(
   temporaryDirectory: string,
   fileName: string,
@@ -51,6 +82,7 @@ export async function copyLocalFiles(
   const assumeDestinationEmpty = options.assumeDestinationEmpty ?? false;
 
   for (const { fileName, handle, sourceMode } of localFiles) {
+    options.signal?.throwIfAborted();
     const destinationPath = getRootFilePath(destinationDirectory, fileName);
     if (!assumeDestinationEmpty && (await destinationExists(destinationPath))) {
       logger.warn(`Skipped ${fileName} (destination already exists).`);
@@ -70,12 +102,7 @@ export async function copyLocalFiles(
         createWriteStream(temporaryPath, { flags: "wx", mode: sourceMode }),
         { signal: options.signal },
       );
-      try {
-        await fs.link(temporaryPath, destinationPath);
-      } catch (error: unknown) {
-        if (!isAlreadyExists(error)) {
-          throw error;
-        }
+      if (!(await publishTemporaryCopy(temporaryPath, destinationPath))) {
         logger.warn(`Skipped ${fileName} (destination already exists).`);
         continue;
       }
