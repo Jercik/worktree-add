@@ -90,7 +90,7 @@ No untracked or ignored files are copied automatically. To carry a local configu
 worktree-add feature/login-form --copy-file .env.local
 ```
 
-Each value must be a single regular file name in the current worktree's repository root. Names containing `/`, `\\`, or `:`; absolute paths; traversal (`..`); symbolic links; and directories are rejected. On POSIX, the file is also opened with `O_NOFOLLOW`; Windows lacks that open flag, so it uses the same preflight and inode-stability checks instead. Existing destination files are preserved with a warning, so the command never overwrites tracked or generated content. In a dry run, the command reports the requested copies without writing files.
+Each value must be a single regular file name in the current worktree's repository root. Names containing `/`, `\`, or `:`; absolute paths; traversal (`..`); symbolic links; and directories are rejected. On POSIX, the file is also opened with `O_NOFOLLOW`; Windows lacks that open flag, so it uses the same preflight and inode-stability checks instead. Existing destination files are preserved with a warning, so the command never overwrites tracked or generated content. In a dry run, the command reports the requested copies without writing files.
 
 Files are copied only after dependency installation and type generation. They cannot configure package registries, authentication, install lifecycle scripts, or anything else required for project setup to succeed.
 
