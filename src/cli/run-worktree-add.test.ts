@@ -229,6 +229,7 @@ describe("runWorktreeAdd", () => {
       | (() => "kept" | "none" | "removed" | Promise<"kept" | "none" | "removed">)
       | undefined;
     let copySignal: AbortSignal | undefined;
+    const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
     registerSigintHandler.mockImplementationOnce((options) => {
       onCleanup = options.onCleanup;
       return () => {};
@@ -238,7 +239,11 @@ describe("runWorktreeAdd", () => {
         new Promise<void>((_resolve, reject) => {
           copySignal = options?.signal;
           copySignal?.addEventListener("abort", () => {
-            reject(new Error("copy aborted"));
+            reject(
+              new Error(
+                "Failed to copy .env.local: The operation was aborted\nNot attempted after this failure: .npmrc.",
+              ),
+            );
           });
         }),
     );
@@ -251,6 +256,10 @@ describe("runWorktreeAdd", () => {
 
     expect(copySignal?.aborted).toBe(true);
     await expect(run).resolves.toBeUndefined();
+    expect(consoleError).toHaveBeenCalledWith(
+      "Warning: Interrupted local file copy: Failed to copy .env.local: The operation was aborted\nNot attempted after this failure: .npmrc.",
+    );
     expect(cleanupWorktree).not.toHaveBeenCalled();
+    consoleError.mockRestore();
   });
 });

@@ -11,6 +11,7 @@ import { setupProject } from "../project/setup.js";
 import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
+import { abortLocalFileCopy } from "./abort-local-file-copy.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
 import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
 import { openWorktreeApps } from "./open-worktree-apps.js";
@@ -64,12 +65,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
           cleanupIfNeeded("after interruption");
           return worktreeCreated && !dryRun ? "removed" : "none";
         }
-        copyAbortController?.abort();
-        try {
-          await copying;
-        } catch {
-          // The interrupted copy cleans its partial destination before rejecting.
-        }
+        await abortLocalFileCopy(copyAbortController, copying, logger);
         return worktreeCreated ? "kept" : "none";
       },
     });
