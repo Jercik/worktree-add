@@ -5,8 +5,8 @@ declare const copyFileNameBrand: unique symbol;
 export type CopyFileName = string & { readonly [copyFileNameBrand]: true };
 
 export interface DirectoryIdentity {
-  readonly dev: number;
-  readonly ino: number;
+  readonly dev: bigint;
+  readonly ino: bigint;
 }
 
 export const isAlreadyExists = (error: unknown): boolean =>
@@ -56,7 +56,7 @@ export async function ensureRegularDirectory(
   directory: string,
   description: string,
 ): Promise<DirectoryIdentity> {
-  const stat = await fs.lstat(directory);
+  const stat = await fs.lstat(directory, { bigint: true });
   if (stat.isSymbolicLink() || !stat.isDirectory()) {
     throw new Error(`${description} '${directory}' is not a regular directory.`);
   }

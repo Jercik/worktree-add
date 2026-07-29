@@ -22,7 +22,7 @@ export function handleWorktreeAddFailure(error: unknown, options: WorktreeAddFai
     `${message}\nThe worktree at ${JSON.stringify(options.destinationDirectory)} was kept.`,
     { cause: error },
   );
-  if (error instanceof Error && "code" in error) {
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
     Object.assign(failure, { code: error.code });
   }
   throw failure;

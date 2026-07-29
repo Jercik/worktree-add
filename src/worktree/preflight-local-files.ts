@@ -50,7 +50,7 @@ const sourceOpenFailure = (fileName: CopyFileName, repoRoot: string, error: unkn
     `Failed to open --copy-file '${fileName}' in repository root '${repoRoot}': ${message}`,
     { cause: error },
   );
-  if (error instanceof Error && "code" in error) {
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
     Object.assign(failure, { code: error.code });
   }
   return failure;
@@ -62,7 +62,7 @@ const sourceInspectFailure = (fileName: CopyFileName, repoRoot: string, error: u
     `Failed to inspect --copy-file '${fileName}' in repository root '${repoRoot}': ${message}`,
     { cause: error },
   );
-  if (error instanceof Error && "code" in error) {
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
     Object.assign(failure, { code: error.code });
   }
   return failure;
@@ -70,7 +70,7 @@ const sourceInspectFailure = (fileName: CopyFileName, repoRoot: string, error: u
 
 async function getSourcePathStat(sourcePath: string, fileName: CopyFileName, repoRoot: string) {
   try {
-    return await fs.lstat(sourcePath);
+    return await fs.lstat(sourcePath, { bigint: true });
   } catch (error: unknown) {
     if (isNotFound(error)) {
       throw new Error(missingSourceFileMessage(fileName, repoRoot), {
@@ -109,7 +109,7 @@ async function openRegularSourceFile(
   }
 
   try {
-    const sourceStat = await handle.stat();
+    const sourceStat = await handle.stat({ bigint: true });
     const currentPathStat = await getSourcePathStat(sourcePath, fileName, repoRoot);
     const pathChanged =
       currentPathStat.isSymbolicLink() ||
@@ -122,7 +122,7 @@ async function openRegularSourceFile(
       throw new Error(`--copy-file '${fileName}' must name a stable regular file.`);
     }
     // eslint-disable-next-line no-bitwise -- POSIX permission bits are a bit mask.
-    const sourceMode = sourceStat.mode & 0o777;
+    const sourceMode = Number(sourceStat.mode & 0o777n);
     return { fileName, handle, sourceMode };
   } catch (error) {
     await closePreflightedLocalFiles([{ handle }], logger);

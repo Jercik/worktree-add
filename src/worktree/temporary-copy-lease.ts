@@ -31,8 +31,13 @@ const isTemporaryCopyLease = (value: unknown): value is TemporaryCopyLease =>
   Number.isSafeInteger(value.pid);
 
 const isSameRegularFile = (
-  expected: { readonly dev: number; readonly ino: number },
-  current: Awaited<ReturnType<typeof fs.lstat>>,
+  expected: { readonly dev: bigint; readonly ino: bigint },
+  current: {
+    readonly dev: bigint;
+    readonly ino: bigint;
+    readonly isFile: () => boolean;
+    readonly isSymbolicLink: () => boolean;
+  },
 ): boolean =>
   !current.isSymbolicLink() &&
   current.isFile() &&
@@ -60,18 +65,18 @@ export async function readTemporaryCopyLeaseOwner(
   let handle: fs.FileHandle | undefined;
   try {
     const leasePath = path.join(temporaryDirectory, temporaryCopyLeaseFile);
-    const initialPathStat = await fs.lstat(leasePath);
+    const initialPathStat = await fs.lstat(leasePath, { bigint: true });
     if (initialPathStat.isSymbolicLink() || !initialPathStat.isFile()) {
       return undefined;
     }
     // eslint-disable-next-line no-bitwise -- Node file-open flags are bit masks.
     const flags = (constants.O_NOFOLLOW ?? 0) | (constants.O_NONBLOCK ?? 0);
     handle = await fs.open(leasePath, flags);
-    const leaseStat = await handle.stat();
-    const currentPathStat = await fs.lstat(leasePath);
+    const leaseStat = await handle.stat({ bigint: true });
+    const currentPathStat = await fs.lstat(leasePath, { bigint: true });
     if (
       !leaseStat.isFile() ||
-      leaseStat.size > maximumTemporaryCopyLeaseBytes ||
+      leaseStat.size > BigInt(maximumTemporaryCopyLeaseBytes) ||
       !isSameRegularFile(leaseStat, initialPathStat) ||
       !isSameRegularFile(leaseStat, currentPathStat)
     ) {
@@ -81,7 +86,7 @@ export async function readTemporaryCopyLeaseOwner(
     if (contents === undefined) {
       return undefined;
     }
-    const finalPathStat = await fs.lstat(leasePath);
+    const finalPathStat = await fs.lstat(leasePath, { bigint: true });
     if (!isSameRegularFile(leaseStat, finalPathStat)) {
       return undefined;
     }

@@ -289,7 +289,7 @@ describe("preflightLocalFiles", () => {
     const repoRoot = await createTemporaryDirectory();
     const sourcePath = path.join(repoRoot, ".env.local");
     await fs.writeFile(sourcePath, "SOURCE=value");
-    const repoStat = await actualFs.lstat(repoRoot);
+    const repoStat = await actualFs.lstat(repoRoot, { bigint: true });
     vi.mocked(fs.lstat)
       .mockResolvedValueOnce(repoStat)
       .mockRejectedValueOnce(Object.assign(new Error("permission denied"), { code: "EACCES" }));

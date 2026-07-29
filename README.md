@@ -92,7 +92,7 @@ worktree-add feature/login-form --copy-file .env.local
 
 Each value must be a single regular file name in the current worktree's repository root. Names containing `/`, `\`, `:`, or control characters; absolute paths; traversal (`..`); symbolic links; and directories are rejected. On POSIX, the file is also opened with `O_NOFOLLOW`; Windows lacks that open flag, so it uses the same preflight and inode-stability checks instead. Existing destination files are preserved with a warning, so the command never overwrites tracked or generated content. A dry run reports each conditional copy attempt without writing files; because project setup is skipped, it cannot predict whether setup would create the destination first.
 
-Files are copied only after dependency installation and type generation. They cannot configure package registries, authentication, install lifecycle scripts, or anything else required for project setup to succeed.
+Files are copied only after dependency installation and type generation. They cannot configure package registries, authentication, install lifecycle scripts, or anything else required for project setup to succeed. If any requested copy fails, the prepared worktree is kept but requested apps are not launched, so nothing starts against missing or partial local configuration.
 
 The source inode is selected when the command starts and held open until copying. If an editor saves by replacing the file during project setup, the copy intentionally uses the original preflighted inode rather than the replacement. On POSIX, the copied file retains the source inode's permission bits regardless of the process umask.
 

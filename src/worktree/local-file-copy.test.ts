@@ -7,6 +7,7 @@ import { PassThrough, Readable } from "node:stream";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { copyLocalFiles } from "./copy-local-files.js";
+import { createLocalFileCopyFailure } from "./local-file-copy-failure.js";
 import { parseCopyFileNames } from "./local-file-paths.js";
 import type { PreflightedLocalFile } from "./preflight-local-files.js";
 import {
@@ -263,9 +264,10 @@ describe("copyLocalFiles", () => {
       },
     ] as unknown as PreflightedLocalFile[];
 
-    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toThrow(
-      "Failed to copy .env.local: write failed",
-    );
+    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toMatchObject({
+      code: "EIO",
+      message: "Failed to copy .env.local: write failed",
+    });
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
   });
 
@@ -302,6 +304,17 @@ describe("copyLocalFiles", () => {
     await expect(copying).rejects.toThrow(/aborted/u);
     await expect(fs.lstat(destinationPath)).rejects.toMatchObject({ code: "ENOENT" });
     await expect(fs.readdir(stagingParent)).resolves.toStrictEqual(["destination"]);
+  });
+
+  it("does not propagate a DOMException's numeric legacy code", () => {
+    const failure = createLocalFileCopyFailure(
+      ".env.local",
+      new DOMException("This operation was aborted", "AbortError"),
+      [],
+      [],
+    );
+
+    expect(failure).not.toHaveProperty("code");
   });
 
   it("removes secret-bearing staging even when no files are requested", async () => {

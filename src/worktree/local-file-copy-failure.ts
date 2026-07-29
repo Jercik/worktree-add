@@ -16,7 +16,7 @@ export function createLocalFileCopyFailure(
   const failure = new Error([`Failed to copy ${fileName}: ${message}`, ...progress].join("\n"), {
     cause: error,
   });
-  if (error instanceof Error && "code" in error) {
+  if (error instanceof Error && "code" in error && typeof error.code === "string") {
     Object.assign(failure, { code: error.code });
   }
   return failure;
