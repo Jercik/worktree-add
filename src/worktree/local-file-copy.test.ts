@@ -69,6 +69,7 @@ const ignoreMessage = (message: string): void => {
 const createLogger = (): StatusLogger => ({
   step: vi.fn(ignoreMessage),
   success: vi.fn(ignoreMessage),
+  info: vi.fn(ignoreMessage),
   detail: vi.fn(ignoreMessage),
   warn: vi.fn(ignoreMessage),
 });
@@ -330,7 +331,7 @@ describe("copyLocalFiles", () => {
     await fs.mkdir(destinationDirectory);
     await fs.writeFile(
       path.join(staleDirectory, "owner.json"),
-      `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
+      `${JSON.stringify({ hostname: os.hostname(), kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
     );
     await fs.writeFile(path.join(staleDirectory, "file"), "STALE_SECRET=value");
     const kill = vi.spyOn(process, "kill").mockImplementation((pid) => {
@@ -344,6 +345,34 @@ describe("copyLocalFiles", () => {
 
     await expect(fs.lstat(staleDirectory)).rejects.toMatchObject({ code: "ENOENT" });
     expect(kill).toHaveBeenCalledWith(stalePid, 0);
+  });
+
+  it("preserves a staging directory owned by another host", async () => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const stalePid = 543_210;
+    const staleDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+    );
+    const logger = createLogger();
+    await fs.mkdir(destinationDirectory);
+    await fs.writeFile(
+      path.join(staleDirectory, "owner.json"),
+      `${JSON.stringify({ hostname: "another-host.invalid", kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
+    );
+    await fs.writeFile(path.join(staleDirectory, "file"), "REMOTE_SECRET=value");
+    vi.spyOn(process, "kill").mockImplementation(() => {
+      throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+    });
+
+    await copyLocalFiles(destinationDirectory, [], { logger });
+
+    await expect(fs.readFile(path.join(staleDirectory, "file"), "utf8")).resolves.toBe(
+      "REMOTE_SECRET=value",
+    );
+    expect(logger.warn).toHaveBeenCalledWith(
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. After confirming no worktree-add process owns it, remove it manually.`,
+    );
   });
 
   it("keeps a stale-stage scan failure quiet when no files are requested", async () => {
@@ -384,7 +413,7 @@ describe("copyLocalFiles", () => {
     ["corrupt", "not-json"],
     [
       "mismatched",
-      `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: 543_211 })}\n`,
+      `${JSON.stringify({ hostname: os.hostname(), kind: "copy-stage", owner: "worktree-add", pid: 543_211 })}\n`,
     ],
   ])("warns when a %s lease prevents safe staging cleanup", async (_kind, leaseContents) => {
     const stagingParent = await createTemporaryDirectory();
@@ -410,7 +439,7 @@ describe("copyLocalFiles", () => {
       "STALE_SECRET=value",
     );
     expect(logger.warn).toHaveBeenCalledWith(
-      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. After confirming no worktree-add process owns it, remove it manually.`,
     );
   });
 
@@ -451,7 +480,7 @@ describe("copyLocalFiles", () => {
     expect(outcome).toBe("completed");
     await expect(fs.lstat(staleDirectory)).resolves.toBeDefined();
     expect(logger.warn).toHaveBeenCalledWith(
-      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. After confirming no worktree-add process owns it, remove it manually.`,
     );
   });
 
@@ -469,7 +498,7 @@ describe("copyLocalFiles", () => {
       await fs.mkdir(destinationDirectory);
       await fs.writeFile(
         outsideLease,
-        `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
+        `${JSON.stringify({ hostname: os.hostname(), kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
       );
       await fs.symlink(outsideLease, path.join(staleDirectory, "owner.json"));
       vi.spyOn(process, "kill").mockImplementation(() => {
@@ -480,7 +509,7 @@ describe("copyLocalFiles", () => {
 
       await expect(fs.lstat(staleDirectory)).resolves.toBeDefined();
       expect(logger.warn).toHaveBeenCalledWith(
-        `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+        `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. After confirming no worktree-add process owns it, remove it manually.`,
       );
     },
   );
@@ -503,7 +532,7 @@ describe("copyLocalFiles", () => {
 
     await expect(fs.lstat(staleDirectory)).resolves.toBeDefined();
     expect(logger.warn).toHaveBeenCalledWith(
-      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. After confirming no worktree-add process owns it, remove it manually.`,
     );
   });
 
@@ -521,7 +550,7 @@ describe("copyLocalFiles", () => {
     await fs.writeFile(path.join(repoRoot, ".env.local"), "CURRENT=value");
     await fs.writeFile(
       path.join(activeDirectory, "owner.json"),
-      `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: process.pid })}\n`,
+      `${JSON.stringify({ hostname: os.hostname(), kind: "copy-stage", owner: "worktree-add", pid: process.pid })}\n`,
     );
     await fs.writeFile(path.join(activeDirectory, "file"), "ACTIVE_SECRET=value");
     await fs.writeFile(path.join(unownedDirectory, "file"), "UNOWNED=value");

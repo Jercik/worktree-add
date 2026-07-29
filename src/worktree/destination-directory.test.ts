@@ -21,6 +21,9 @@ const createLogger = (): StatusLogger => ({
   success: vi.fn((message: string): void => {
     void message;
   }),
+  info: vi.fn((message: string): void => {
+    void message;
+  }),
   detail: vi.fn((message: string): void => {
     void message;
   }),

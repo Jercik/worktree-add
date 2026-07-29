@@ -33,6 +33,7 @@ const ignoreMessage = (message: string): void => {
 const createLogger = (): StatusLogger => ({
   step: vi.fn(ignoreMessage),
   success: vi.fn(ignoreMessage),
+  info: vi.fn(ignoreMessage),
   detail: vi.fn(ignoreMessage),
   warn: vi.fn(ignoreMessage),
 });
@@ -149,7 +150,7 @@ describe("copyLocalFiles", () => {
     const destinationDirectory = await createTemporaryDirectory();
     const abortController = new AbortController();
     const logger = createLogger();
-    vi.mocked(logger.success).mockImplementation((message) => {
+    vi.mocked(logger.info).mockImplementation((message) => {
       if (message === "Copied .env.local") {
         abortController.abort();
       }

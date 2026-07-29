@@ -1,9 +1,10 @@
 import type { Dirent } from "node:fs";
 import * as fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { isNotFound } from "./local-file-paths.js";
-import { readTemporaryCopyLeasePid, writeTemporaryCopyLease } from "./temporary-copy-lease.js";
+import { readTemporaryCopyLeaseOwner, writeTemporaryCopyLease } from "./temporary-copy-lease.js";
 
 const temporaryCopyDirectoryPrefix = ".worktree-add-copy-";
 
@@ -34,7 +35,7 @@ const warnPreservedUnverifiedTemporaryCopy = (
   logger: StatusLogger,
 ): void => {
   logger.warn(
-    `Preserved unverified local copy staging directory at ${JSON.stringify(temporaryDirectory)}. If no worktree-add process is running, remove it manually.`,
+    `Preserved unverified local copy staging directory at ${JSON.stringify(temporaryDirectory)}. After confirming no worktree-add process owns it, remove it manually.`,
   );
 };
 
@@ -88,12 +89,12 @@ export async function removeStaleTemporaryCopies(
     if (processIsRunning(ownerPid)) {
       continue;
     }
-    const leasePid = await readTemporaryCopyLeasePid(temporaryDirectory);
-    if (leasePid === undefined) {
+    const leaseOwner = await readTemporaryCopyLeaseOwner(temporaryDirectory);
+    if (leaseOwner === undefined) {
       await removeEmptyUnleasedTemporaryCopy(temporaryDirectory, logger);
       continue;
     }
-    if (leasePid !== ownerPid) {
+    if (leaseOwner.pid !== ownerPid || leaseOwner.hostname !== os.hostname()) {
       warnPreservedUnverifiedTemporaryCopy(temporaryDirectory, logger);
       continue;
     }

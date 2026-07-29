@@ -1,6 +1,7 @@
 export interface StatusLogger {
   readonly step: (message: string) => void;
   readonly success: (message: string) => void;
+  readonly info: (message: string) => void;
   readonly detail: (message: string) => void;
   readonly warn: (message: string) => void;
 }
@@ -32,7 +33,13 @@ export function createStatusLogger(options: StatusLoggerOptions): StatusLogger {
       emit(`${dryRunPrefix}${stepPrefix}${message}`);
     },
     success(message: string) {
+      if (!options.verbose) {
+        return;
+      }
       emit(`${dryRunPrefix}${successPrefix}${message}`);
+    },
+    info(message: string) {
+      emit(message);
     },
     detail(message: string) {
       if (!shouldLogDetails) {

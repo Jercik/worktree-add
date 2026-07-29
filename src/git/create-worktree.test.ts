@@ -16,6 +16,7 @@ const noop = (message: string): void => {
 const createLogger = (): StatusLogger => ({
   step: vi.fn(noop),
   success: vi.fn(noop),
+  info: vi.fn(noop),
   detail: vi.fn(noop),
   warn: vi.fn(noop),
 });

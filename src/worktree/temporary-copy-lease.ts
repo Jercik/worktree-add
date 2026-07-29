@@ -1,14 +1,19 @@
 import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
+import os from "node:os";
 import path from "node:path";
 
 const temporaryCopyLeaseFile = "owner.json";
 const maximumTemporaryCopyLeaseBytes = 1024;
 
-interface TemporaryCopyLease {
+export interface TemporaryCopyLeaseOwner {
+  readonly hostname: string;
+  readonly pid: number;
+}
+
+interface TemporaryCopyLease extends TemporaryCopyLeaseOwner {
   readonly kind: "copy-stage";
   readonly owner: "worktree-add";
-  readonly pid: number;
 }
 
 const isTemporaryCopyLease = (value: unknown): value is TemporaryCopyLease =>
@@ -18,6 +23,9 @@ const isTemporaryCopyLease = (value: unknown): value is TemporaryCopyLease =>
   value.kind === "copy-stage" &&
   "owner" in value &&
   value.owner === "worktree-add" &&
+  "hostname" in value &&
+  typeof value.hostname === "string" &&
+  value.hostname.length > 0 &&
   "pid" in value &&
   typeof value.pid === "number" &&
   Number.isSafeInteger(value.pid);
@@ -46,9 +54,9 @@ async function readBoundedFile(handle: fs.FileHandle): Promise<string | undefine
     : undefined;
 }
 
-export async function readTemporaryCopyLeasePid(
+export async function readTemporaryCopyLeaseOwner(
   temporaryDirectory: string,
-): Promise<number | undefined> {
+): Promise<TemporaryCopyLeaseOwner | undefined> {
   let handle: fs.FileHandle | undefined;
   try {
     const leasePath = path.join(temporaryDirectory, temporaryCopyLeaseFile);
@@ -78,7 +86,7 @@ export async function readTemporaryCopyLeasePid(
       return undefined;
     }
     const value: unknown = JSON.parse(contents);
-    return isTemporaryCopyLease(value) ? value.pid : undefined;
+    return isTemporaryCopyLease(value) ? { hostname: value.hostname, pid: value.pid } : undefined;
   } catch {
     return undefined;
   } finally {
@@ -88,6 +96,7 @@ export async function readTemporaryCopyLeasePid(
 
 export async function writeTemporaryCopyLease(temporaryDirectory: string): Promise<void> {
   const lease: TemporaryCopyLease = {
+    hostname: os.hostname(),
     kind: "copy-stage",
     owner: "worktree-add",
     pid: process.pid,

@@ -132,6 +132,6 @@ export async function copyLocalFiles(
       }
     }
     copiedFileNames.push(fileName);
-    logger.success(`Copied ${fileName}`);
+    logger.info(`Copied ${fileName}`);
   }
 }
