@@ -107,6 +107,7 @@ export async function copyLocalFiles(
         createWriteStream(temporaryPath, { flags: "wx", mode: sourceMode }),
         { signal: options.signal },
       );
+      await fs.chmod(temporaryPath, sourceMode);
       if (destinationIdentity === undefined) {
         throw new Error("Copy destination identity was not recorded.");
       }

@@ -1,6 +1,11 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-export type SigintCleanupOutcome = "destination-may-be-incomplete" | "kept" | "none" | "removed";
+export type SigintCleanupOutcome =
+  | "destination-may-be-incomplete"
+  | "destination-moved-to-trash"
+  | "kept"
+  | "none"
+  | "removed";
 
 interface SigintHandlerOptions {
   readonly destinationDirectory: string;
@@ -20,6 +25,9 @@ export function formatSigintAbortMessage(
   }
   if (cleanupOutcome === "destination-may-be-incomplete") {
     return `Worktree creation aborted. The destination may be incomplete at ${JSON.stringify(destinationDirectory)}.`;
+  }
+  if (cleanupOutcome === "destination-moved-to-trash") {
+    return `Worktree creation aborted. The previous destination was moved to trash, and no replacement was created at ${JSON.stringify(destinationDirectory)}.`;
   }
   return "Worktree creation aborted.";
 }

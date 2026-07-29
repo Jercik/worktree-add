@@ -39,23 +39,6 @@ function createFifo(filePath: string): Promise<void> {
   });
 }
 
-function readInheritedUmask(): Promise<number> {
-  return new Promise((resolve, reject) => {
-    execFile("/bin/sh", ["-c", "umask"], (error, stdout) => {
-      if (error !== null) {
-        reject(new Error("Could not read process umask.", { cause: error }));
-        return;
-      }
-      const umask = Number.parseInt(stdout.trim(), 8);
-      if (!Number.isInteger(umask)) {
-        reject(new Error(`Could not parse process umask: ${JSON.stringify(stdout)}`));
-        return;
-      }
-      resolve(umask);
-    });
-  });
-}
-
 async function createTemporaryDirectory(): Promise<string> {
   const directory = await fs.mkdtemp(path.join(os.tmpdir(), "worktree-add-test-"));
   temporaryDirectories.push(directory);
@@ -128,10 +111,9 @@ describe("copyLocalFiles", () => {
     });
   });
 
-  it.skipIf(!permissionsAreSupported)(
-    "never broadens source permissions under the active umask",
-    async () => {
-      const activeUmask = await readInheritedUmask();
+  it.skipIf(!permissionsAreSupported)("preserves source permissions", async () => {
+    const inheritedUmask = process.umask(0o077);
+    try {
       for (const sourceMode of [0o600, 0o664]) {
         const repoRoot = await createTemporaryDirectory();
         const destinationDirectory = await createTemporaryDirectory();
@@ -148,11 +130,12 @@ describe("copyLocalFiles", () => {
         const destinationStat = await fs.stat(destinationPath);
         // eslint-disable-next-line no-bitwise -- POSIX permission bits are a bit mask.
         const destinationMode = destinationStat.mode & 0o777;
-        // eslint-disable-next-line no-bitwise -- POSIX permission bits and umask are bit masks.
-        expect(destinationMode).toBe(sourceMode & ~activeUmask & 0o777);
+        expect(destinationMode).toBe(sourceMode);
       }
-    },
-  );
+    } finally {
+      process.umask(inheritedUmask);
+    }
+  });
 
   it("rejects paths instead of repository-root file names", () => {
     expect(() => {

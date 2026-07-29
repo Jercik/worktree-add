@@ -94,7 +94,7 @@ Each value must be a single regular file name in the current worktree's reposito
 
 Files are copied only after dependency installation and type generation. They cannot configure package registries, authentication, install lifecycle scripts, or anything else required for project setup to succeed.
 
-The source inode is selected when the command starts and held open until copying. If an editor saves by replacing the file during project setup, the copy intentionally uses the original preflighted inode rather than the replacement.
+The source inode is selected when the command starts and held open until copying. If an editor saves by replacing the file during project setup, the copy intentionally uses the original preflighted inode rather than the replacement. On POSIX, the copied file retains the source inode's permission bits regardless of the process umask.
 
 Copies are staged in private `.worktree-add-copy-<pid>-*` directories beside the destination worktree. A later non-dry-run invocation that reaches post-setup local-file handling removes stages it can verify belong to terminated processes on the same host. Cleanup preserves stages owned by another host on a shared filesystem. It also preserves a same-host stage while its recorded PID is active, so rare PID reuse can delay automatic removal, and preserves and warns about stages with mismatched ownership records or nonempty stages whose ownership record is missing, unreadable, or invalid. When no `worktree-add` process is running on the recorded host, a leftover staging directory is safe to remove manually.
 

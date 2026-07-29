@@ -189,6 +189,34 @@ describe("runWorktreeAdd", () => {
     await expect(run).resolves.toBeUndefined();
   });
 
+  it("reports a destination moved to trash before its replacement is created", async () => {
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
+    let finishDestinationHandling:
+      | ((result: { assumeDestinationEmpty: boolean; shouldContinue: boolean }) => void)
+      | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    handleExistingDirectory.mockImplementationOnce(
+      (_destinationDirectory, options) =>
+        new Promise((resolve) => {
+          options?.onMutationPhase?.("started");
+          options?.onMutationPhase?.("completed");
+          finishDestinationHandling = resolve;
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", { copyFile: [".env.local"] });
+    await vi.waitFor(() => {
+      expect(onCleanup).toBeTypeOf("function");
+      expect(finishDestinationHandling).toBeTypeOf("function");
+    });
+    await expect(onCleanup?.()).resolves.toBe("destination-moved-to-trash");
+    finishDestinationHandling?.({ assumeDestinationEmpty: false, shouldContinue: false });
+    await expect(run).resolves.toBeUndefined();
+  });
+
   it("closes preflighted local files when signal handler registration fails", async () => {
     registerSigintHandler.mockImplementationOnce(() => {
       throw new Error("signal handler failed");

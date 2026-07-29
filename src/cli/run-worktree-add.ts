@@ -13,6 +13,7 @@ import { createWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
 import { abortLocalFileCopy } from "./abort-local-file-copy.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
+import { createDestinationMutationState } from "./create-destination-mutation-state.js";
 import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
 import { handleWorktreeAddFailure } from "./handle-worktree-add-failure.js";
 import { openWorktreeApps } from "./open-worktree-apps.js";
@@ -48,7 +49,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   let copyAbortController: AbortController | undefined;
   let copying: Promise<void> | undefined;
   let sigintCleanupStarted = false;
-  let destinationMayBeIncomplete = false;
+  const destinationMutation = createDestinationMutationState();
   let worktreeCleanupAttempted = false;
   const cleanupIfNeeded = (reason: string): boolean => {
     if (!worktreeCreated || dryRun || worktreeCleanupAttempted) {
@@ -70,7 +71,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
           if (cleanupIfNeeded("after interruption")) {
             return "removed";
           }
-          return destinationMayBeIncomplete ? "destination-may-be-incomplete" : "none";
+          return destinationMutation.getSigintOutcome();
         }
         await abortLocalFileCopy(copyAbortController, copying, logger);
         return worktreeCreated ? "kept" : "none";
@@ -81,9 +82,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       assumeYes,
       interactive,
       logger,
-      onMutationPhase: (phase) => {
-        destinationMayBeIncomplete = phase === "started";
-      },
+      onMutationPhase: destinationMutation.onMutationPhase,
     });
     if (!existingDirectory.shouldContinue) {
       return;
