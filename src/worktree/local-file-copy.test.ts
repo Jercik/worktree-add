@@ -176,10 +176,21 @@ describe("copyLocalFiles", () => {
     );
   });
 
-  it.each(["bad\0name", "bad\nname"])("rejects control characters in %j", (fileName) => {
+  it.each([
+    "bad\0name",
+    "bad\nname",
+    "bad\u007Fname",
+    "bad\u0080name",
+    "bad\u0085name",
+    "bad\u009Fname",
+  ])("rejects control characters in %j", (fileName) => {
     expect(() => {
       parseCopyFileNames([fileName]);
     }).toThrow("must be a single file name in the repository root");
+  });
+
+  it("accepts the first character after the C1 control range", () => {
+    expect(parseCopyFileNames(["good\u00A0name"])).toStrictEqual(["good\u00A0name"]);
   });
 
   it("deduplicates repeated copy-file input", () => {
@@ -385,6 +396,93 @@ describe("copyLocalFiles", () => {
     await expect(fs.readFile(path.join(staleDirectory, "file"), "utf8")).resolves.toBe(
       "STALE_SECRET=value",
     );
+    expect(logger.warn).toHaveBeenCalledWith(
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+    );
+  });
+
+  it.skipIf(!fifoIsSupported)("preserves a FIFO lease without waiting for a writer", async () => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const stalePid = 543_210;
+    const staleDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+    );
+    const logger = createLogger();
+    await fs.mkdir(destinationDirectory);
+    await createFifo(path.join(staleDirectory, "owner.json"));
+    vi.spyOn(process, "kill").mockImplementation(() => {
+      throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+    });
+
+    const copying = copyLocalFiles(destinationDirectory, [], { logger });
+    const outcome = await Promise.race([
+      copying.then(() => "completed" as const),
+      new Promise<"blocked">((resolve) => {
+        setTimeout(() => {
+          resolve("blocked");
+        }, 100);
+      }),
+    ]);
+    if (outcome === "blocked") {
+      await fs.writeFile(path.join(staleDirectory, "owner.json"), "release blocked reader");
+      await copying;
+    }
+
+    expect(outcome).toBe("completed");
+    await expect(fs.lstat(staleDirectory)).resolves.toBeDefined();
+    expect(logger.warn).toHaveBeenCalledWith(
+      `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+    );
+  });
+
+  it.skipIf(process.platform === "win32")(
+    "preserves a symbolic-link lease without following it",
+    async () => {
+      const stagingParent = await createTemporaryDirectory();
+      const destinationDirectory = path.join(stagingParent, "destination");
+      const stalePid = 543_210;
+      const staleDirectory = await fs.mkdtemp(
+        path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+      );
+      const outsideLease = path.join(stagingParent, "outside-owner.json");
+      const logger = createLogger();
+      await fs.mkdir(destinationDirectory);
+      await fs.writeFile(
+        outsideLease,
+        `${JSON.stringify({ kind: "copy-stage", owner: "worktree-add", pid: stalePid })}\n`,
+      );
+      await fs.symlink(outsideLease, path.join(staleDirectory, "owner.json"));
+      vi.spyOn(process, "kill").mockImplementation(() => {
+        throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+      });
+
+      await copyLocalFiles(destinationDirectory, [], { logger });
+
+      await expect(fs.lstat(staleDirectory)).resolves.toBeDefined();
+      expect(logger.warn).toHaveBeenCalledWith(
+        `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
+      );
+    },
+  );
+
+  it("preserves an oversized lease without reading beyond the limit", async () => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const stalePid = 543_210;
+    const staleDirectory = await fs.mkdtemp(
+      path.join(stagingParent, `.worktree-add-copy-${stalePid}-`),
+    );
+    const logger = createLogger();
+    await fs.mkdir(destinationDirectory);
+    await fs.writeFile(path.join(staleDirectory, "owner.json"), "x".repeat(1025));
+    vi.spyOn(process, "kill").mockImplementation(() => {
+      throw Object.assign(new Error("no such process"), { code: "ESRCH" });
+    });
+
+    await copyLocalFiles(destinationDirectory, [], { logger });
+
+    await expect(fs.lstat(staleDirectory)).resolves.toBeDefined();
     expect(logger.warn).toHaveBeenCalledWith(
       `Preserved unverified local copy staging directory at ${JSON.stringify(staleDirectory)}. If no worktree-add process is running, remove it manually.`,
     );

@@ -1,4 +1,5 @@
 import type * as Fs from "node:fs/promises";
+import { renameSync, symlinkSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import { Readable } from "node:stream";
@@ -118,6 +119,126 @@ describe("copyLocalFiles", () => {
         "Copied before failure: .env.local.\n" +
         "Not attempted after this failure: .tool-versions.",
     );
+  });
+
+  it("reports progress when aborted between files", async () => {
+    const destinationDirectory = await createTemporaryDirectory();
+    const abortController = new AbortController();
+    const logger = createLogger();
+    vi.mocked(logger.detail).mockImplementation((message) => {
+      if (message === "Copied .env.local") {
+        abortController.abort();
+      }
+    });
+    const fileNames = parseCopyFileNames([".env.local", ".npmrc", ".tool-versions"]);
+    const localFiles = fileNames.map(
+      (fileName) =>
+        ({
+          fileName,
+          handle: { createReadStream: () => Readable.from([`SOURCE=${fileName}`]) },
+          sourceMode: 0o600,
+        }) as unknown as PreflightedLocalFile,
+    );
+
+    await expect(
+      copyLocalFiles(destinationDirectory, localFiles, {
+        logger,
+        signal: abortController.signal,
+      }),
+    ).rejects.toThrow(
+      "Failed to copy .npmrc: This operation was aborted\n" +
+        "Copied before failure: .env.local.\n" +
+        "Not attempted after this failure: .tool-versions.",
+    );
+  });
+
+  it("reports every file when already aborted before a multi-file copy", async () => {
+    const destinationDirectory = await createTemporaryDirectory();
+    const abortController = new AbortController();
+    abortController.abort();
+    const fileNames = parseCopyFileNames([".env.local", ".npmrc", ".tool-versions"]);
+    const localFiles = fileNames.map(
+      (fileName) =>
+        ({
+          fileName,
+          handle: { createReadStream: () => Readable.from([`SOURCE=${fileName}`]) },
+          sourceMode: 0o600,
+        }) as unknown as PreflightedLocalFile,
+    );
+
+    await expect(
+      copyLocalFiles(destinationDirectory, localFiles, { signal: abortController.signal }),
+    ).rejects.toThrow(
+      "Failed to copy .env.local: This operation was aborted\n" +
+        "Not attempted after this failure: .npmrc, .tool-versions.",
+    );
+  });
+
+  it("does not publish outside a destination directory replaced during staging", async () => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const movedDestination = path.join(stagingParent, "moved-destination");
+    const outsideDirectory = await createTemporaryDirectory();
+    await fs.mkdir(destinationDirectory);
+    const [fileName] = parseCopyFileNames([".env.local"]);
+    if (fileName === undefined) {
+      throw new Error("Expected a parsed local file name.");
+    }
+    let replaced = false;
+    const source = new Readable({
+      read() {
+        if (!replaced) {
+          replaced = true;
+          renameSync(destinationDirectory, movedDestination);
+          symlinkSync(outsideDirectory, destinationDirectory, "dir");
+        }
+        this.push("SECRET=value");
+        this.push(null);
+      },
+    });
+    const localFiles = [
+      {
+        fileName,
+        handle: { createReadStream: () => source },
+        sourceMode: 0o600,
+      },
+    ] as unknown as PreflightedLocalFile[];
+
+    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toThrow(
+      "Copy destination",
+    );
+
+    await expect(fs.readdir(movedDestination)).resolves.toStrictEqual([]);
+    await expect(fs.readdir(outsideDirectory)).resolves.toStrictEqual([]);
+  });
+
+  it("does not trust a replacement destination directory between files", async () => {
+    const stagingParent = await createTemporaryDirectory();
+    const destinationDirectory = path.join(stagingParent, "destination");
+    const movedDestination = path.join(stagingParent, "moved-destination");
+    const outsideDirectory = await createTemporaryDirectory();
+    await fs.mkdir(destinationDirectory);
+    const fileNames = parseCopyFileNames([".env.local", ".npmrc", ".tool-versions"]);
+    const localFiles = fileNames.map(
+      (fileName) =>
+        ({
+          fileName,
+          handle: { createReadStream: () => Readable.from([`SOURCE=${fileName}`]) },
+          sourceMode: 0o600,
+        }) as unknown as PreflightedLocalFile,
+    );
+    vi.mocked(fs.link).mockImplementationOnce(async (temporaryPath, destinationPath) => {
+      await fs.copyFile(temporaryPath, destinationPath);
+      renameSync(destinationDirectory, movedDestination);
+      symlinkSync(outsideDirectory, destinationDirectory, "dir");
+    });
+
+    await expect(copyLocalFiles(destinationDirectory, localFiles)).rejects.toThrow(
+      "Failed to copy .npmrc: Copy destination",
+    );
+
+    await expect(fs.readdir(movedDestination)).resolves.toStrictEqual([".env.local"]);
+    await expect(fs.readdir(outsideDirectory)).resolves.toStrictEqual([]);
   });
 });
 

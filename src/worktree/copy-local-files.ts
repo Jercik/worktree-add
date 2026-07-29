@@ -7,6 +7,7 @@ import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import {
   destinationExists,
   ensureRegularDirectory,
+  ensureSameRegularDirectory,
   getRootFilePath,
   isAlreadyExists,
 } from "./local-file-paths.js";
@@ -92,17 +93,23 @@ export async function copyLocalFiles(
   const dryRun = options.dryRun ?? false;
   const assumeDestinationEmpty = options.assumeDestinationEmpty ?? false;
   const stagingParent = path.dirname(path.resolve(destinationDirectory));
-  options.signal?.throwIfAborted();
+  if (localFiles.length === 0) {
+    options.signal?.throwIfAborted();
+  }
   if (!dryRun) {
     await removeStaleTemporaryCopies(stagingParent, logger);
   }
+  const destinationIdentity =
+    !dryRun && localFiles.length > 0
+      ? await ensureRegularDirectory(destinationDirectory, "Copy destination")
+      : undefined;
   const copiedFileNames: string[] = [];
 
   for (const [index, { fileName, handle, sourceMode }] of localFiles.entries()) {
-    options.signal?.throwIfAborted();
     const destinationPath = getRootFilePath(destinationDirectory, fileName);
     let temporaryDirectory: string | undefined;
     try {
+      options.signal?.throwIfAborted();
       if (!assumeDestinationEmpty && (await destinationExists(destinationPath))) {
         logger.warn(`Skipped ${fileName} (destination already exists).`);
         continue;
@@ -113,13 +120,20 @@ export async function copyLocalFiles(
         );
         continue;
       }
-      await ensureRegularDirectory(destinationDirectory, "Copy destination");
       temporaryDirectory = await createTemporaryCopyDirectory(stagingParent);
       const temporaryPath = path.join(temporaryDirectory, "file");
       await pipeline(
         handle.createReadStream({ autoClose: false }),
         createWriteStream(temporaryPath, { flags: "wx", mode: sourceMode }),
         { signal: options.signal },
+      );
+      if (destinationIdentity === undefined) {
+        throw new Error("Copy destination identity was not recorded.");
+      }
+      await ensureSameRegularDirectory(
+        destinationDirectory,
+        "Copy destination",
+        destinationIdentity,
       );
       if (!(await publishTemporaryCopy(temporaryPath, destinationPath))) {
         logger.warn(`Skipped ${fileName} (destination already exists).`);
