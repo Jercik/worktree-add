@@ -1,9 +1,12 @@
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { git } from "../git/git.js";
-import { EXTRA_IGNORED_PATTERNS, globToRegExp, toPosixPath } from "./file-patterns.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
+import { isGeneratedPath } from "./file-patterns.js";
+
+const hasErrorCode = (error: unknown, ...codes: string[]): boolean =>
+  error instanceof Error && "code" in error && codes.includes(String(error.code));
 
 export async function copyUntrackedFiles(
   repoRoot: string,
@@ -12,7 +15,6 @@ export async function copyUntrackedFiles(
 ): Promise<void> {
   const logger = options?.logger ?? fallbackStatusLogger;
   const dryRun = options?.dryRun ?? false;
-  const extraIgnoredRegexes = EXTRA_IGNORED_PATTERNS.map((pattern) => globToRegExp(pattern));
 
   const untrackedEntries = new Set<string>();
   // Combine untracked-not-ignored (`--others`) and untracked-ignored (`--others --ignored`) entries.
@@ -55,22 +57,16 @@ export async function copyUntrackedFiles(
       logger.warn(`Skipping ${relativePath} (path escapes repo root).`);
       continue;
     }
-    const posixPath = toPosixPath(relativePath);
-    if (extraIgnoredRegexes.some((regex) => regex.test(posixPath))) {
+    if (isGeneratedPath(relativePath)) {
       continue;
     }
     const sourcePath = resolvedSourcePath;
     const destinationPath = path.join(destinationDirectory, relativePath);
     const destinationExists = await fs
-      .stat(destinationPath)
+      .lstat(destinationPath)
       .then(() => true)
       .catch((error: unknown) => {
-        if (
-          error &&
-          typeof error === "object" &&
-          "code" in error &&
-          (error as NodeJS.ErrnoException).code === "ENOENT"
-        ) {
+        if (hasErrorCode(error, "ENOENT")) {
           return false;
         }
         throw error;
@@ -84,10 +80,20 @@ export async function copyUntrackedFiles(
       continue;
     }
     await fs.mkdir(path.dirname(destinationPath), { recursive: true });
-    await fs.cp(sourcePath, destinationPath, {
-      recursive: true,
-      errorOnExist: false,
-    });
+    try {
+      await fs.cp(sourcePath, destinationPath, {
+        recursive: true,
+        errorOnExist: true,
+        force: false,
+        verbatimSymlinks: true,
+      });
+    } catch (error: unknown) {
+      if (hasErrorCode(error, "EEXIST", "ERR_FS_CP_EEXIST")) {
+        logger.detail(`Skipped ${relativePath} (destination already exists).`);
+        continue;
+      }
+      throw error;
+    }
     logger.detail(`Copied ${relativePath}`);
   }
 }

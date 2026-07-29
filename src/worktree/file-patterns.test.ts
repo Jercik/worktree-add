@@ -1,26 +1,25 @@
 import { describe, expect, it } from "vitest";
 
-import { globToRegExp } from "./file-patterns.js";
+import { isGeneratedPath } from "./file-patterns.js";
 
-describe("globToRegExp", () => {
-  it("matches nested directories when using double star", () => {
-    const regex = globToRegExp("config/**");
-    expect(regex.test("config/.env")).toBe(true);
-    expect(regex.test("config/nested/file.txt")).toBe(true);
-    expect(regex.test("another/file.txt")).not.toBe(true);
+describe("isGeneratedPath", () => {
+  it("matches generated directories at any depth", () => {
+    expect(isGeneratedPath("node_modules/package/index.js")).toBe(true);
+    expect(isGeneratedPath("packages/app/node_modules/package/index.js")).toBe(true);
+    expect(isGeneratedPath("dist/index.js")).toBe(true);
+    expect(isGeneratedPath("packages/app/dist/index.js")).toBe(true);
+    expect(isGeneratedPath(String.raw`packages\app\dist\index.js`)).toBe(true);
   });
 
-  it("limits single star to a segment", () => {
-    const regex = globToRegExp("*.env");
-    expect(regex.test(".env")).toBe(true);
-    expect(regex.test("local.env")).toBe(true);
-    expect(regex.test("nested/local.env")).not.toBe(true);
+  it("matches TypeScript build metadata at any depth", () => {
+    expect(isGeneratedPath("tsconfig.tsbuildinfo")).toBe(true);
+    expect(isGeneratedPath("packages/app/tsconfig.tsbuildinfo")).toBe(true);
   });
 
-  it("supports question mark placeholders", () => {
-    const regex = globToRegExp("file?.txt");
-    expect(regex.test("file1.txt")).toBe(true);
-    expect(regex.test("fileA.txt")).toBe(true);
-    expect(regex.test("file10.txt")).not.toBe(true);
+  it("keeps useful local configuration", () => {
+    expect(isGeneratedPath(".env")).toBe(false);
+    expect(isGeneratedPath(".npmrc")).toBe(false);
+    expect(isGeneratedPath("packages/app/.env.local")).toBe(false);
+    expect(isGeneratedPath("docs/build-notes/example.md")).toBe(false);
   });
 });
