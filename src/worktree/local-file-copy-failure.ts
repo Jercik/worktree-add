@@ -21,3 +21,18 @@ export function createLocalFileCopyFailure(
   }
   return failure;
 }
+
+export function throwIfLocalFileCopyAborted(
+  signal: AbortSignal | undefined,
+  fileNames: readonly string[],
+): void {
+  try {
+    signal?.throwIfAborted();
+  } catch (error: unknown) {
+    const [fileName, ...notAttemptedFileNames] = fileNames;
+    if (fileName === undefined) {
+      throw error;
+    }
+    throw createLocalFileCopyFailure(fileName, error, [], notAttemptedFileNames);
+  }
+}

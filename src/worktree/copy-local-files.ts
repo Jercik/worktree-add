@@ -11,7 +11,10 @@ import {
   isAlreadyExists,
 } from "./local-file-paths.js";
 import { getCopyDestinationIdentity } from "./get-copy-destination-identity.js";
-import { createLocalFileCopyFailure } from "./local-file-copy-failure.js";
+import {
+  createLocalFileCopyFailure,
+  throwIfLocalFileCopyAborted,
+} from "./local-file-copy-failure.js";
 import type { PreflightedLocalFile } from "./preflight-local-files.js";
 import {
   createTemporaryCopyDirectory,
@@ -70,9 +73,10 @@ export async function copyLocalFiles(
   const dryRun = options.dryRun ?? false;
   const assumeDestinationEmpty = options.assumeDestinationEmpty ?? false;
   const stagingParent = path.dirname(path.resolve(destinationDirectory));
-  if (localFiles.length === 0) {
-    options.signal?.throwIfAborted();
-  }
+  throwIfLocalFileCopyAborted(
+    options.signal,
+    localFiles.map((localFile) => localFile.fileName),
+  );
   if (!dryRun) {
     await removeStaleTemporaryCopies(stagingParent, logger, {
       warnOnInspectionFailure: localFiles.length > 0,
