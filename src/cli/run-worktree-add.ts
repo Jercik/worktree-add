@@ -148,6 +148,9 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       copying = undefined;
       copyAbortController = undefined;
     }
+    if (sigintCleanupStarted) {
+      return;
+    }
 
     const apps = resolveApps({
       optionApps: options.app,

@@ -345,6 +345,18 @@ describe("copyLocalFiles", () => {
     expect(kill).toHaveBeenCalledWith(stalePid, 0);
   });
 
+  it("keeps a stale-stage scan failure quiet when no files are requested", async () => {
+    const missingParent = path.join(await createTemporaryDirectory(), "missing");
+    const logger = createLogger();
+
+    await copyLocalFiles(path.join(missingParent, "destination"), [], { logger });
+
+    expect(logger.warn).not.toHaveBeenCalled();
+    expect(logger.detail).toHaveBeenCalledWith(
+      expect.stringContaining("Failed to inspect stale local copy staging directories:"),
+    );
+  });
+
   it("removes an empty unleased staging directory left before lease publication", async () => {
     const stagingParent = await createTemporaryDirectory();
     const destinationDirectory = path.join(stagingParent, "destination");

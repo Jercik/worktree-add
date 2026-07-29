@@ -97,7 +97,9 @@ export async function copyLocalFiles(
     options.signal?.throwIfAborted();
   }
   if (!dryRun) {
-    await removeStaleTemporaryCopies(stagingParent, logger);
+    await removeStaleTemporaryCopies(stagingParent, logger, {
+      warnOnInspectionFailure: localFiles.length > 0,
+    });
   }
   const destinationIdentity =
     !dryRun && localFiles.length > 0

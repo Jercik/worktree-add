@@ -7,6 +7,10 @@ import { readTemporaryCopyLeasePid, writeTemporaryCopyLease } from "./temporary-
 
 const temporaryCopyDirectoryPrefix = ".worktree-add-copy-";
 
+interface RemoveStaleTemporaryCopiesOptions {
+  readonly warnOnInspectionFailure?: boolean;
+}
+
 const temporaryCopyOwnerPid = (directoryName: string): number | undefined => {
   const match = /^\.worktree-add-copy-(?<pid>[1-9]\d*)-/u.exec(directoryName);
   const pid = Number(match?.groups?.pid);
@@ -60,13 +64,19 @@ async function removeEmptyUnleasedTemporaryCopy(
 export async function removeStaleTemporaryCopies(
   stagingParent: string,
   logger: StatusLogger,
+  options: RemoveStaleTemporaryCopiesOptions = {},
 ): Promise<void> {
   let entries: Dirent[];
   try {
     entries = await fs.readdir(stagingParent, { withFileTypes: true });
   } catch (error: unknown) {
     const message = error instanceof Error ? error.message : String(error);
-    logger.warn(`Failed to inspect stale local copy staging directories: ${message}`);
+    const failure = `Failed to inspect stale local copy staging directories: ${message}`;
+    if (options.warnOnInspectionFailure ?? true) {
+      logger.warn(failure);
+    } else {
+      logger.detail(failure);
+    }
     return;
   }
   for (const entry of entries) {

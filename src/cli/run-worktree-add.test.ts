@@ -42,6 +42,7 @@ const setupProjectModule = await import("../project/setup.js");
 const destinationDirectoryModule = await import("../worktree/destination-directory.js");
 const registerSigintHandlerModule = await import("./register-sigint-handler.js");
 const cleanupWorktreeModule = await import("./cleanup-worktree.js");
+const openWorktreeAppsModule = await import("./open-worktree-apps.js");
 const { runWorktreeAdd } = await import("./run-worktree-add.js");
 const closePreflightedLocalFiles = vi.mocked(preflightLocalFilesModule.closePreflightedLocalFiles);
 const copyLocalFiles = vi.mocked(copyLocalFilesModule.copyLocalFiles);
@@ -50,6 +51,7 @@ const preflightLocalFiles = vi.mocked(preflightLocalFilesModule.preflightLocalFi
 const setupProject = vi.mocked(setupProjectModule.setupProject);
 const parseCopyFileNames = vi.mocked(localFilePathsModule.parseCopyFileNames);
 const handleExistingDirectory = vi.mocked(destinationDirectoryModule.handleExistingDirectory);
+const openWorktreeApps = vi.mocked(openWorktreeAppsModule.openWorktreeApps);
 const registerSigintHandler = vi.mocked(registerSigintHandlerModule.registerSigintHandler);
 
 describe("runWorktreeAdd", () => {
@@ -332,5 +334,37 @@ describe("runWorktreeAdd", () => {
     );
     expect(cleanupWorktree).not.toHaveBeenCalled();
     consoleError.mockRestore();
+  });
+
+  it("does not open apps when SIGINT wins the final copy-completion race", async () => {
+    let onCleanup: (() => SigintCleanupOutcome | Promise<SigintCleanupOutcome>) | undefined;
+    let copySignal: AbortSignal | undefined;
+    registerSigintHandler.mockImplementationOnce((options) => {
+      onCleanup = options.onCleanup;
+      return () => {};
+    });
+    copyLocalFiles.mockImplementationOnce(
+      (_destinationDirectory, _localFiles, options) =>
+        new Promise<void>((resolve) => {
+          copySignal = options?.signal;
+          copySignal?.addEventListener("abort", () => {
+            resolve();
+          });
+        }),
+    );
+
+    const run = runWorktreeAdd("feature/local-config", {
+      app: ["code"],
+      copyFile: [".env.local"],
+    });
+    await vi.waitFor(() => {
+      expect(copySignal).toBeDefined();
+      expect(onCleanup).toBeTypeOf("function");
+    });
+    const cleanup = onCleanup?.();
+
+    await expect(run).resolves.toBeUndefined();
+    await expect(cleanup).resolves.toBe("kept");
+    expect(openWorktreeApps).not.toHaveBeenCalled();
   });
 });

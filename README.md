@@ -96,7 +96,7 @@ Files are copied only after dependency installation and type generation. They ca
 
 The source inode is selected when the command starts and held open until copying. If an editor saves by replacing the file during project setup, the copy intentionally uses the original preflighted inode rather than the replacement.
 
-Copies are staged in private `.worktree-add-copy-<pid>-*` directories beside the destination worktree. A later non-dry-run invocation removes stages it can verify belong to terminated processes. Cleanup deliberately preserves a stage while its recorded PID is active, so rare PID reuse can delay automatic removal. It also preserves and warns about nonempty stages whose ownership record is missing, unreadable, invalid, or mismatched. When no `worktree-add` process is running, a leftover staging directory is safe to remove manually.
+Copies are staged in private `.worktree-add-copy-<pid>-*` directories beside the destination worktree. A later non-dry-run invocation removes stages it can verify belong to terminated processes. Cleanup deliberately preserves a stage while its recorded PID is active, so rare PID reuse can delay automatic removal. It also preserves and warns about stages with mismatched ownership records, and nonempty stages whose ownership record is missing, unreadable, or invalid. When no `worktree-add` process is running, a leftover staging directory is safe to remove manually.
 
 Publication normally uses an atomic hard link. On filesystems that do not support hard links, it falls back to an exclusive copy. Forced termination or power loss during that fallback can leave a partial destination file; inspect and delete that file before retrying because `worktree-add` preserves existing destinations.
 
