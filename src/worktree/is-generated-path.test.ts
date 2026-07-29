@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { isGeneratedPath } from "./file-patterns.js";
+import { isGeneratedPath } from "./is-generated-path.js";
 
 describe("isGeneratedPath", () => {
   it("matches generated directories at any depth", () => {
@@ -8,7 +8,6 @@ describe("isGeneratedPath", () => {
     expect(isGeneratedPath("packages/app/node_modules/package/index.js")).toBe(true);
     expect(isGeneratedPath("dist/index.js")).toBe(true);
     expect(isGeneratedPath("packages/app/dist/index.js")).toBe(true);
-    expect(isGeneratedPath(String.raw`packages\app\dist\index.js`)).toBe(true);
   });
 
   it("matches TypeScript build metadata at any depth", () => {

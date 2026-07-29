@@ -1,9 +1,10 @@
+import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { git } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
-import { isGeneratedPath } from "./file-patterns.js";
+import { isGeneratedPath } from "./is-generated-path.js";
 
 const hasErrorCode = (error: unknown, ...codes: string[]): boolean =>
   error instanceof Error && "code" in error && codes.includes(String(error.code));
@@ -85,6 +86,7 @@ export async function copyUntrackedFiles(
         recursive: true,
         errorOnExist: true,
         force: false,
+        mode: constants.COPYFILE_EXCL,
         verbatimSymlinks: true,
       });
     } catch (error: unknown) {

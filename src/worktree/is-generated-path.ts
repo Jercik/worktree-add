@@ -17,12 +17,11 @@ const generatedDirectoryNames = new Set([
 ]);
 
 export function isGeneratedPath(relativePath: string): boolean {
-  const posixPath = relativePath.replaceAll("\\", "/");
-  const segments = posixPath.split("/").filter(Boolean);
+  const segments = relativePath.split("/").filter(Boolean);
   const fileName = segments.at(-1);
   if (fileName?.endsWith(".tsbuildinfo") === true) {
     return true;
   }
-  const directorySegments = posixPath.endsWith("/") ? segments : segments.slice(0, -1);
+  const directorySegments = relativePath.endsWith("/") ? segments : segments.slice(0, -1);
   return directorySegments.some((segment) => generatedDirectoryNames.has(segment));
 }
