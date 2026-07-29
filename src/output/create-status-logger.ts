@@ -32,9 +32,6 @@ export function createStatusLogger(options: StatusLoggerOptions): StatusLogger {
       emit(`${dryRunPrefix}${stepPrefix}${message}`);
     },
     success(message: string) {
-      if (!options.verbose) {
-        return;
-      }
       emit(`${dryRunPrefix}${successPrefix}${message}`);
     },
     detail(message: string) {

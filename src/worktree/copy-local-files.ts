@@ -6,11 +6,12 @@ import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import {
   destinationExists,
-  ensureRegularDirectory,
   ensureSameRegularDirectory,
   getRootFilePath,
   isAlreadyExists,
 } from "./local-file-paths.js";
+import { getCopyDestinationIdentity } from "./get-copy-destination-identity.js";
+import { createLocalFileCopyFailure } from "./local-file-copy-failure.js";
 import type { PreflightedLocalFile } from "./preflight-local-files.js";
 import {
   createTemporaryCopyDirectory,
@@ -24,30 +25,6 @@ export interface CopyLocalFilesOptions {
   readonly logger?: StatusLogger;
   readonly signal?: AbortSignal;
 }
-
-const copyFailure = (
-  fileName: string,
-  error: unknown,
-  copiedFileNames: readonly string[],
-  notAttemptedFileNames: readonly string[],
-): Error => {
-  const message = error instanceof Error ? error.message : String(error);
-  const progress = [
-    copiedFileNames.length > 0
-      ? `Copied before failure: ${copiedFileNames.join(", ")}.`
-      : undefined,
-    notAttemptedFileNames.length > 0
-      ? `Not attempted after this failure: ${notAttemptedFileNames.join(", ")}.`
-      : undefined,
-  ].filter((detail) => detail !== undefined);
-  const failure = new Error([`Failed to copy ${fileName}: ${message}`, ...progress].join("\n"), {
-    cause: error,
-  });
-  if (error instanceof Error && "code" in error) {
-    Object.assign(failure, { code: error.code });
-  }
-  return failure;
-};
 
 const isHardLinkUnsupported = (error: unknown): boolean =>
   error instanceof Error &&
@@ -101,10 +78,11 @@ export async function copyLocalFiles(
       warnOnInspectionFailure: localFiles.length > 0,
     });
   }
-  const destinationIdentity =
-    !dryRun && localFiles.length > 0
-      ? await ensureRegularDirectory(destinationDirectory, "Copy destination")
-      : undefined;
+  const destinationIdentity = await getCopyDestinationIdentity(
+    destinationDirectory,
+    localFiles,
+    dryRun,
+  );
   const copiedFileNames: string[] = [];
 
   for (const [index, { fileName, handle, sourceMode }] of localFiles.entries()) {
@@ -142,7 +120,7 @@ export async function copyLocalFiles(
         continue;
       }
     } catch (error: unknown) {
-      throw copyFailure(
+      throw createLocalFileCopyFailure(
         fileName,
         error,
         copiedFileNames,
@@ -154,6 +132,6 @@ export async function copyLocalFiles(
       }
     }
     copiedFileNames.push(fileName);
-    logger.detail(`Copied ${fileName}`);
+    logger.success(`Copied ${fileName}`);
   }
 }

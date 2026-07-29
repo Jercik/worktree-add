@@ -1,4 +1,5 @@
 import { execFile } from "node:child_process";
+import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -437,8 +438,14 @@ describe("copyLocalFiles", () => {
       }),
     ]);
     if (outcome === "blocked") {
-      await fs.writeFile(path.join(staleDirectory, "owner.json"), "release blocked reader");
-      await copying;
+      const fifoPath = path.join(staleDirectory, "owner.json");
+      const nonblockingReader = await fs.open(fifoPath, composeSourceOpenFlags(constants));
+      try {
+        await fs.writeFile(fifoPath, "release blocked reader");
+        await copying;
+      } finally {
+        await nonblockingReader.close();
+      }
     }
 
     expect(outcome).toBe("completed");

@@ -56,6 +56,18 @@ const sourceOpenFailure = (fileName: CopyFileName, repoRoot: string, error: unkn
   return failure;
 };
 
+const sourceInspectFailure = (fileName: CopyFileName, repoRoot: string, error: unknown): Error => {
+  const message = error instanceof Error ? error.message : String(error);
+  const failure = new Error(
+    `Failed to inspect --copy-file '${fileName}' in repository root '${repoRoot}': ${message}`,
+    { cause: error },
+  );
+  if (error instanceof Error && "code" in error) {
+    Object.assign(failure, { code: error.code });
+  }
+  return failure;
+};
+
 async function getSourcePathStat(sourcePath: string, fileName: CopyFileName, repoRoot: string) {
   try {
     return await fs.lstat(sourcePath);
@@ -65,7 +77,7 @@ async function getSourcePathStat(sourcePath: string, fileName: CopyFileName, rep
         cause: error,
       });
     }
-    throw error;
+    throw sourceInspectFailure(fileName, repoRoot, error);
   }
 }
 
