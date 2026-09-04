@@ -1,7 +1,6 @@
 const releaseConfig = {
   plugins: [
-    // The default angular preset cannot parse the Conventional Commits "!" marker,
-    // so a "feat!:" squash subject silently produces no release instead of a major.
+    // Angular cannot parse the Conventional Commits "!" marker, so feat!: would skip the release.
     ["@semantic-release/commit-analyzer", { preset: "conventionalcommits" }],
     ["@semantic-release/release-notes-generator", { preset: "conventionalcommits" }],
     "@semantic-release/npm",
