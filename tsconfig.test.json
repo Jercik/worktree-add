@@ -6,7 +6,8 @@
     "types": ["vitest/globals", "node"],
     "composite": true,
     "noEmit": true,
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "target": "es2025"
   },
   "files": ["package.json"],
   "include": [
