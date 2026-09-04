@@ -18,7 +18,6 @@ export async function setupProject(
 
   await installDependencies(destinationDirectory, { dryRun, logger });
 
-  // ADR-0001: after install, run next typegen when the project depends on Next.js
   if (await isNextProject(destinationDirectory)) {
     if (dryRun) {
       logger.step("Would run next typegen if supported");
