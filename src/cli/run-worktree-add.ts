@@ -1,5 +1,5 @@
 import { createStatusLogger } from "../output/create-status-logger.js";
-import { resolveApps } from "../app/resolve-apps.js";
+import { resolveOpenTarget } from "../app/resolve-open-target.js";
 import { handleExistingDirectory } from "../worktree/destination-directory.js";
 import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
 import { setupProject } from "../project/setup.js";
@@ -14,6 +14,7 @@ import { resolveWorktreeContext } from "./resolve-worktree-context.js";
 
 export interface CliOptions {
   readonly app?: string[];
+  readonly open?: boolean;
   readonly offline?: boolean;
   readonly yes?: boolean;
   readonly interactive?: boolean;
@@ -109,12 +110,13 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
 
     await setupProject(context.destinationDirectory, { dryRun, logger });
 
-    const apps = resolveApps({
+    const target = resolveOpenTarget({
       optionApps: options.app,
       environmentApps: process.env.WORKTREE_ADD_APP,
+      open: options.open ?? false,
     });
 
-    await openWorktreeApps(context.destinationDirectory, apps, {
+    await openWorktreeApps(context.destinationDirectory, target, {
       dryRun,
       logger,
     });

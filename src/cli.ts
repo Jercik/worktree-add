@@ -16,6 +16,10 @@ const program = new Command()
   .argument("<branch>", "branch name for the worktree")
   .option("-a, --app <name>", "Open the worktree in an app (repeatable)", collectApp)
   .option(
+    "-o, --open",
+    "Open the worktree after creating it (uses WORKTREE_ADD_APP, or the OS default handler)",
+  )
+  .option(
     "--offline",
     "Allow creating a new local branch from HEAD when origin cannot be reached and the branch does not exist locally",
   )
@@ -31,14 +35,15 @@ const program = new Command()
 Examples:
   $ worktree-add feature/login-form
   $ worktree-add feature/api --app code
-  $ WORKTREE_ADD_APP=ghostty,code worktree-add feature/new-branch
+  $ worktree-add feature/new-branch --open
+  $ WORKTREE_ADD_APP=ghostty,code worktree-add feature/new-branch --open
   $ git branch --format="%(refname:short)" | head -n1 | xargs worktree-add
 
 App notes:
   - App names are executed on your machine; only use values you trust.
   - Arguments are not parsed; pass only the app name (e.g., "code", not "code --wait").
-  - WORKTREE_ADD_APP is a comma-separated list of apps (alternative to repeating --app).
-  - To explicitly open nothing when WORKTREE_ADD_APP is set, pass --app "".
+  - WORKTREE_ADD_APP is a comma-separated list of apps used by --open (it does not open on its own).
+  - To explicitly open nothing when --open is set, pass --app "".
 
 Dependencies:
   - git (with worktree support)
