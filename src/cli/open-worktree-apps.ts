@@ -2,17 +2,38 @@ import open from "open";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import { getUnsafeAppNameReason } from "../app/get-unsafe-app-name-reason.js";
+import type { OpenTarget } from "../app/resolve-open-target.js";
 
 export async function openWorktreeApps(
   destinationDirectory: string,
-  apps: string[],
+  target: OpenTarget,
   options: { dryRun?: boolean; logger?: StatusLogger } = {},
 ): Promise<void> {
   const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
 
+  if (target.type === "none") {
+    return;
+  }
+
+  if (target.type === "default") {
+    if (dryRun) {
+      logger.step(`Would open ${JSON.stringify(destinationDirectory)}`);
+      return;
+    }
+
+    logger.step(`Opening ${JSON.stringify(destinationDirectory)} …`);
+    try {
+      await open(destinationDirectory, { wait: false });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      logger.warn(`Failed to open ${JSON.stringify(destinationDirectory)}: ${message}.`);
+    }
+    return;
+  }
+
   await Promise.all(
-    apps.map(async (app) => {
+    target.apps.map(async (app) => {
       const unsafeReason = getUnsafeAppNameReason(app);
       if (unsafeReason) {
         logger.warn(`Skipping app ${JSON.stringify(app)}: ${unsafeReason}.`);

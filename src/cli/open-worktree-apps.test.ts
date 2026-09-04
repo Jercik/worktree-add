@@ -22,7 +22,30 @@ const createLogger = (step: StatusLogger["step"] = vi.fn(noop)): StatusLogger =>
 
 describe("openWorktreeApps", () => {
   beforeEach(() => {
-    vi.clearAllMocks();
+    open.mockReset();
+  });
+
+  it("does not launch anything when the target is none", async () => {
+    await expect(openWorktreeApps("/repo/project", { type: "none" })).resolves.toBeUndefined();
+
+    expect(open).not.toHaveBeenCalled();
+  });
+
+  it("opens the destination with the OS default handler", async () => {
+    await expect(openWorktreeApps("/repo/project", { type: "default" })).resolves.toBeUndefined();
+
+    expect(open).toHaveBeenCalledWith("/repo/project", { wait: false });
+  });
+
+  it("logs default-handler failures without rejecting", async () => {
+    open.mockRejectedValue(new Error("no handler"));
+    const logger = createLogger();
+
+    await expect(
+      openWorktreeApps("/repo/project", { type: "default" }, { logger }),
+    ).resolves.toBeUndefined();
+
+    expect(logger.warn).toHaveBeenCalledWith('Failed to open "/repo/project": no handler.');
   });
 
   it("logs open failures without rejecting", async () => {
@@ -30,7 +53,7 @@ describe("openWorktreeApps", () => {
     const logger = createLogger();
 
     await expect(
-      openWorktreeApps("/repo/project", ["Ghostty"], { logger }),
+      openWorktreeApps("/repo/project", { type: "apps", apps: ["Ghostty"] }, { logger }),
     ).resolves.toBeUndefined();
 
     expect(open).toHaveBeenCalledWith("/repo/project", {
