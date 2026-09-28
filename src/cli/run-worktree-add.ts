@@ -5,6 +5,7 @@ import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
 import { setupProject } from "../project/setup.js";
 import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
+import type { CreatedWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
 import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
@@ -34,12 +35,12 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   const assumeYes = options.yes ?? false;
 
   const context = resolveWorktreeContext(branchRaw);
-  let worktreeCreated = false;
+  let createdWorktree: CreatedWorktree | undefined;
   const cleanupIfNeeded = (reason: string): void => {
-    if (!worktreeCreated || dryRun) {
+    if (createdWorktree === undefined) {
       return;
     }
-    cleanupWorktree(context.destinationDirectory, logger, reason);
+    cleanupWorktree(createdWorktree, logger, reason);
   };
   const unregisterSigintHandler = registerSigintHandler({
     destinationDirectory: context.destinationDirectory,
@@ -94,14 +95,11 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
 
     // Only treat origin as existing when confirmed; "unknown" remains false.
     const remoteBranchExists = remoteStatus.status === "exists";
-    createWorktree(context.branch, context.destinationDirectory, {
+    createdWorktree = createWorktree(context.branch, context.destinationDirectory, {
       remoteBranchExists,
       dryRun,
       logger,
     });
-    if (!dryRun) {
-      worktreeCreated = true;
-    }
 
     await copyUntrackedFiles(context.repoRoot, context.destinationDirectory, {
       dryRun,

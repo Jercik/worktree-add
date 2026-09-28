@@ -64,6 +64,14 @@ export function fetchOriginBranch(branch: string): void {
   git("fetch", "origin", "--", refspec);
 }
 
+export function resolveCommit(revision: string): string | undefined {
+  try {
+    return git("rev-parse", "--verify", "--quiet", `${revision}^{commit}`);
+  } catch {
+    return undefined;
+  }
+}
+
 export function getLocalBranchHead(branch: string): string | undefined {
   try {
     const normalized = normalizeBranchName(branch);
