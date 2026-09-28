@@ -28,7 +28,7 @@ Running `worktree-add <branch>` from inside a repo:
 
 Your original checkout is left untouched.
 
-If a later step fails or you interrupt the run, the tool removes the new worktree. Once the worktree is removed, it also deletes the branch if this run created it (from `HEAD` or from `origin/<branch>`) and the branch still points at the commit it was created at. A branch that existed before the run, gained commits, or is checked out in another worktree is kept.
+If a later step fails or you interrupt the run, the tool removes the new worktree. Once the worktree is removed, it also deletes the branch if this run created it (from `HEAD` or from `origin/<branch>`) and the branch still points at the commit it was created at. Its `branch.<branch>.*` config goes back to what it was before the run: the tracking settings the run added are removed, and any values you had set are kept. A branch that existed before the run, gained commits, or is checked out in another worktree is kept.
 
 ## Requirements
 

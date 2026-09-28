@@ -6,6 +6,7 @@ const createdBranch = {
   name: "feature/new",
   ref: "refs/heads/feature/new",
   commit: "1111111111111111111111111111111111111111",
+  preexistingConfig: new Map<string, readonly string[]>(),
 };
 
 describe("planBranchCleanup", () => {

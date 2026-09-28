@@ -4,15 +4,19 @@ import {
   git,
   localBranchExists,
   normalizeBranchName,
+  readBranchConfig,
   remoteBranchExists,
   resolveCommit,
 } from "./git.js";
+import type { BranchConfig } from "./parse-branch-config.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
 export interface CreatedBranch {
   readonly name: string;
   readonly ref: string;
   readonly commit: string;
+  /** `git worktree add -b` keeps `branch.<name>.*` config that predates the branch. */
+  readonly preexistingConfig: BranchConfig;
 }
 
 export interface CreatedWorktree {
@@ -102,6 +106,8 @@ export function createWorktree(
     command.newBranchStartPoint === undefined
       ? undefined
       : resolveCommit(command.newBranchStartPoint);
+  const preexistingConfig: BranchConfig =
+    startCommit === undefined ? new Map<string, readonly string[]>() : readBranchConfig(normalized);
   git(...command.args);
 
   const ref = `refs/heads/${normalized}`;
@@ -109,7 +115,7 @@ export function createWorktree(
     directory: destinationDirectory,
     createdBranch:
       startCommit !== undefined && resolveCommit(ref) === startCommit
-        ? { name: normalized, ref, commit: startCommit }
+        ? { name: normalized, ref, commit: startCommit, preexistingConfig }
         : undefined,
   };
 }

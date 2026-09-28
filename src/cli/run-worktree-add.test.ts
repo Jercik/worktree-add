@@ -90,6 +90,62 @@ describe("runWorktreeAdd cleanup after a setup failure", () => {
     ).toBe("none");
   });
 
+  it("keeps branch config that predates the run and drops the tracking config it added", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    git("push", "--quiet", "origin", "main:refs/heads/feature/remote", { cwd: repoRoot });
+    git("config", "--local", "branch.feature/remote.description", "user note", { cwd: repoRoot });
+
+    await expect(runWorktreeAdd("feature/remote", {})).rejects.toThrow("install failed");
+
+    expect(listLocalBranches(repoRoot)).toBe("main");
+    expect(
+      git("config", "--local", "--get-regexp", String.raw`^branch\.feature/remote\.`, {
+        cwd: repoRoot,
+      }),
+    ).toBe("branch.feature/remote.description user note");
+  });
+
+  it("restores tracking config values that predate the run", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    git("push", "--quiet", "origin", "main:refs/heads/feature/remote", { cwd: repoRoot });
+    git("config", "--local", "branch.feature/remote.remote", "upstream", { cwd: repoRoot });
+    git("config", "--local", "branch.feature/remote.merge", "refs/heads/other", { cwd: repoRoot });
+
+    await expect(runWorktreeAdd("feature/remote", {})).rejects.toThrow("install failed");
+
+    expect(listLocalBranches(repoRoot)).toBe("main");
+    expect(
+      git("config", "--local", "--get-regexp", String.raw`^branch\.feature/remote\.`, {
+        cwd: repoRoot,
+      }),
+    ).toBe("branch.feature/remote.remote upstream\nbranch.feature/remote.merge refs/heads/other");
+  });
+
+  it("reports the pre-run config when restoring it fails after the branch is deleted", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    git("push", "--quiet", "origin", "main:refs/heads/feature/remote", { cwd: repoRoot });
+    git("config", "--local", "branch.feature/remote.description", "user note", { cwd: repoRoot });
+    vi.mocked(setupProject).mockImplementationOnce(async () => {
+      await fs.writeFile(path.join(repoRoot, ".git", "config.lock"), "");
+      throw new Error("install failed");
+    });
+
+    await expect(runWorktreeAdd("feature/remote", {})).rejects.toThrow("install failed");
+
+    expect(listLocalBranches(repoRoot)).toBe("main");
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("Deleted branch 'feature/remote'"),
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining(
+        `Its values before this run: {"branch.feature/remote.description":["user note"]}`,
+      ),
+    );
+    expect(console.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("Failed to delete branch"),
+    );
+  });
+
   it("keeps a local branch that existed before the run", async () => {
     const { repoRoot } = await createRepository({ withCommit: true });
     git("branch", "feature/existing", { cwd: repoRoot });

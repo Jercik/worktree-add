@@ -1,6 +1,8 @@
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as readline from "node:readline/promises";
+import type { BranchConfig } from "./parse-branch-config.js";
+import { parseBranchConfig } from "./parse-branch-config.js";
 
 export function git(...arguments_: [...string[], { cwd?: string }] | string[]): string {
   let cwd: string | undefined;
@@ -70,6 +72,10 @@ export function resolveCommit(revision: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+export function readBranchConfig(branchName: string): BranchConfig {
+  return parseBranchConfig(git("config", "--local", "--null", "--list"), branchName);
 }
 
 export function getLocalBranchHead(branch: string): string | undefined {

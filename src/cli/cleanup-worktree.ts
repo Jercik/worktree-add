@@ -4,8 +4,23 @@ import { deleteCreatedBranch } from "../git/delete-created-branch.js";
 import { extractDiagnosticLine } from "../git/extract-diagnostic-line.js";
 import { resolveCommit } from "../git/git.js";
 import { removeWorktree } from "../git/remove-worktree.js";
+import { restoreBranchConfig } from "../git/restore-branch-config.js";
 import { findWorktreeByBranchName } from "../git/worktree-discovery.js";
 import { planBranchCleanup } from "./plan-branch-cleanup.js";
+
+function restoreCreatedBranchConfig(branch: CreatedBranch, logger: StatusLogger): void {
+  try {
+    restoreBranchConfig(branch.name, branch.preexistingConfig);
+  } catch (error) {
+    const preexistingValues =
+      branch.preexistingConfig.size === 0
+        ? ""
+        : ` Its values before this run: ${JSON.stringify(Object.fromEntries(branch.preexistingConfig))}`;
+    logger.warn(
+      `Failed to restore the config of branch '${branch.name}': ${extractDiagnosticLine(error)}.${preexistingValues}`,
+    );
+  }
+}
 
 function cleanupCreatedBranch(branch: CreatedBranch, logger: StatusLogger): void {
   try {
@@ -18,6 +33,7 @@ function cleanupCreatedBranch(branch: CreatedBranch, logger: StatusLogger): void
       case "delete": {
         deleteCreatedBranch(branch);
         logger.warn(`Deleted branch '${branch.name}', which this run created.`);
+        restoreCreatedBranchConfig(branch, logger);
         break;
       }
       case "keep": {
