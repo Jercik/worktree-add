@@ -20,7 +20,8 @@ Running `worktree-add <branch>` from inside a repo:
    - or creates a tracking branch from `origin/<branch>`
    - or creates a new branch from the current `HEAD` (only when the branch does not exist on `origin/`, or when you pass `--offline` and `origin/` can’t be reached)
 7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
-   (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
+   (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.) and sockets and
+   FIFOs, which can't be copied.
 8. Detects your package manager and installs dependencies with lockfile‑safe flags
    (`npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable`, etc.).
 9. If the project uses Next.js and supports it, runs `next typegen`.
