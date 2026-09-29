@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -106,6 +107,56 @@ describe("copyUntrackedFiles", () => {
       code: "ENOENT",
     });
   });
+
+  it.skipIf(process.platform === "win32")(
+    "skips sockets and FIFOs inside an ignored nested clone",
+    async () => {
+      const repoRoot = await createRepository();
+      const destinationDirectory = await createTemporaryDirectory();
+      await fs.writeFile(path.join(repoRoot, ".gitignore"), "sources/\n");
+      const nestedGitDirectory = path.join(repoRoot, "sources/codex/.git");
+      git("init", "--quiet", "sources/codex", { cwd: repoRoot });
+      await fs.writeFile(path.join(repoRoot, "sources/codex/README"), "nested\n");
+      // A relative socket path stays under the platform's short sun_path limit.
+      execFileSync(
+        process.execPath,
+        [
+          "-e",
+          "require('node:net').createServer().listen('fsmonitor--daemon.ipc', () => process.exit(0))",
+        ],
+        { cwd: nestedGitDirectory },
+      );
+      execFileSync("mkfifo", [path.join(nestedGitDirectory, "events.fifo")]);
+      const details: string[] = [];
+      const logger: StatusLogger = {
+        step: vi.fn<(message: string) => void>(),
+        success: vi.fn<(message: string) => void>(),
+        detail(message) {
+          details.push(message);
+        },
+        warn: vi.fn<(message: string) => void>(),
+      };
+
+      await copyUntrackedFiles(repoRoot, destinationDirectory, { logger });
+
+      await expect(
+        fs.readFile(path.join(destinationDirectory, "sources/codex/README"), "utf8"),
+      ).resolves.toBe("nested\n");
+      await expect(
+        fs.lstat(path.join(destinationDirectory, "sources/codex/.git/fsmonitor--daemon.ipc")),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      await expect(
+        fs.lstat(path.join(destinationDirectory, "sources/codex/.git/events.fifo")),
+      ).rejects.toMatchObject({ code: "ENOENT" });
+      expect(details).toStrictEqual(
+        expect.arrayContaining([
+          "Skipped sources/codex/.git/events.fifo (FIFO).",
+          "Skipped sources/codex/.git/fsmonitor--daemon.ipc (socket).",
+          "Copied sources/codex/",
+        ]),
+      );
+    },
+  );
 
   it("atomically preserves a destination created by a concurrent copy", async () => {
     const firstRepoRoot = await createRepository();

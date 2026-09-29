@@ -1,4 +1,5 @@
 import { constants } from "node:fs";
+import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { git } from "../git/git.js";
@@ -8,6 +9,17 @@ import { isGeneratedPath } from "./is-generated-path.js";
 
 const hasErrorCode = (error: unknown, ...codes: string[]): boolean =>
   error instanceof Error && "code" in error && codes.includes(String(error.code));
+
+// Nested clones are copied whole, and fs.cp throws on their sockets (Git's fsmonitor) and FIFOs.
+function describeUncopyableFile(stats: Stats): string | undefined {
+  if (stats.isSocket()) {
+    return "socket";
+  }
+  if (stats.isFIFO()) {
+    return "FIFO";
+  }
+  return undefined;
+}
 
 export async function copyUntrackedFiles(
   repoRoot: string,
@@ -88,6 +100,14 @@ export async function copyUntrackedFiles(
         force: false,
         mode: constants.COPYFILE_EXCL,
         verbatimSymlinks: true,
+        filter: async (source) => {
+          const uncopyableFile = describeUncopyableFile(await fs.lstat(source));
+          if (uncopyableFile === undefined) {
+            return true;
+          }
+          logger.detail(`Skipped ${path.relative(repoRoot, source)} (${uncopyableFile}).`);
+          return false;
+        },
       });
     } catch (error: unknown) {
       if (hasErrorCode(error, "EEXIST", "ERR_FS_CP_EEXIST")) {
