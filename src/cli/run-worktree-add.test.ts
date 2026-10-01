@@ -155,6 +155,20 @@ describe("runWorktreeAdd cleanup after a setup failure", () => {
     expect(listLocalBranches(repoRoot)).toBe("feature/existing\nmain");
   });
 
+  it("checks out a local branch that existed before the run instead of detaching", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    git("branch", "feature/existing", { cwd: repoRoot });
+    let checkedOut: string | undefined;
+    vi.mocked(setupProject).mockImplementationOnce((destinationDirectory) => {
+      checkedOut = git("symbolic-ref", "HEAD", { cwd: destinationDirectory });
+      return Promise.reject(new Error("install failed"));
+    });
+
+    await expect(runWorktreeAdd("feature/existing", {})).rejects.toThrow("install failed");
+
+    expect(checkedOut).toBe("refs/heads/feature/existing");
+  });
+
   it("keeps a pre-existing local branch that the run fast-forwarded", async () => {
     const { repoRoot } = await createRepository({ withCommit: true });
     git("branch", "feature/behind", { cwd: repoRoot });

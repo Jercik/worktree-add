@@ -35,9 +35,7 @@ describe("createWorktree", () => {
 
     createWorktree("feature/a", "/repo-a", { dryRun: true, logger });
 
-    expect(logger.step).toHaveBeenCalledWith(
-      "Would run git worktree add -- /repo-a refs/heads/feature/a",
-    );
+    expect(logger.step).toHaveBeenCalledWith("Would run git worktree add -- /repo-a feature/a");
     expect(git).not.toHaveBeenCalled();
   });
 

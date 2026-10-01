@@ -37,8 +37,9 @@ function selectWorktreeAddCommand(
   remoteBranchExistsHint: boolean | undefined,
 ): WorktreeAddCommand {
   if (localBranchExists(normalized)) {
+    // The bare name checks the branch out; a full `refs/heads/` ref would detach HEAD.
     return {
-      args: ["worktree", "add", "--", destinationDirectory, `refs/heads/${normalized}`],
+      args: ["worktree", "add", "--", destinationDirectory, normalized],
       newBranchStartPoint: undefined,
     };
   }
