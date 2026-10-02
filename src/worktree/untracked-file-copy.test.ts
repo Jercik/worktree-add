@@ -21,6 +21,39 @@ async function createRepository(): Promise<string> {
   return repoRoot;
 }
 
+function commitEmpty(repoRoot: string): void {
+  git(
+    "-c",
+    "user.name=Test",
+    "-c",
+    "user.email=test@example.com",
+    "-c",
+    "commit.gpgsign=false",
+    "commit",
+    "--quiet",
+    "--allow-empty",
+    "-m",
+    "init",
+    { cwd: repoRoot },
+  );
+}
+
+function createRecordingLogger(): { logger: StatusLogger; details: string[]; warnings: string[] } {
+  const details: string[] = [];
+  const warnings: string[] = [];
+  const logger: StatusLogger = {
+    step: vi.fn<(message: string) => void>(),
+    success: vi.fn<(message: string) => void>(),
+    detail(message) {
+      details.push(message);
+    },
+    warn(message) {
+      warnings.push(message);
+    },
+  };
+  return { logger, details, warnings };
+}
+
 afterEach(async () => {
   await Promise.all(
     temporaryDirectories.splice(0).map((directory) =>
@@ -108,15 +141,110 @@ describe("copyUntrackedFiles", () => {
     });
   });
 
+  it("skips an ignored nested clone with a .git directory and names it on stderr", async () => {
+    const repoRoot = await createRepository();
+    const destinationDirectory = await createTemporaryDirectory();
+    await fs.writeFile(path.join(repoRoot, ".gitignore"), "sources/\n");
+    git("init", "--quiet", "sources/codex", { cwd: repoRoot });
+    await fs.writeFile(path.join(repoRoot, "sources/codex/README"), "nested\n");
+    const { logger, warnings } = createRecordingLogger();
+
+    await copyUntrackedFiles(repoRoot, destinationDirectory, { logger });
+
+    await expect(fs.lstat(path.join(destinationDirectory, "sources"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(warnings).toStrictEqual(["Skipping sources/codex (nested git repository)."]);
+  });
+
+  it("skips an ignored nested worktree with a .git file", async () => {
+    const repoRoot = await createRepository();
+    const otherRepoRoot = await createRepository();
+    const destinationDirectory = await createTemporaryDirectory();
+    await fs.writeFile(path.join(repoRoot, ".gitignore"), "sources/\n");
+    commitEmpty(otherRepoRoot);
+    await fs.mkdir(path.join(repoRoot, "sources"));
+    git("worktree", "add", "--quiet", "-b", "nested", path.join(repoRoot, "sources/linked"), {
+      cwd: otherRepoRoot,
+    });
+    await fs.writeFile(path.join(repoRoot, "sources/linked/notes.txt"), "nested\n");
+    const gitMarker = await fs.lstat(path.join(repoRoot, "sources/linked/.git"));
+    expect(gitMarker.isFile()).toBe(true);
+    const { logger, warnings } = createRecordingLogger();
+
+    await copyUntrackedFiles(repoRoot, destinationDirectory, { logger });
+
+    await expect(fs.lstat(path.join(destinationDirectory, "sources"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(warnings).toStrictEqual(["Skipping sources/linked (nested git repository)."]);
+  });
+
+  it("skips a directory whose .git file points nowhere and names it once", async () => {
+    const repoRoot = await createRepository();
+    const destinationDirectory = await createTemporaryDirectory();
+    await fs.writeFile(path.join(repoRoot, ".gitignore"), "sources/\n");
+    await fs.mkdir(path.join(repoRoot, "sources/broken/src"), { recursive: true });
+    await fs.writeFile(path.join(repoRoot, "sources/broken/.git"), "gitdir: /nonexistent\n");
+    await fs.writeFile(path.join(repoRoot, "sources/broken/README"), "nested\n");
+    await fs.writeFile(path.join(repoRoot, "sources/broken/src/index.ts"), "nested\n");
+    const { logger, warnings } = createRecordingLogger();
+
+    await copyUntrackedFiles(repoRoot, destinationDirectory, { logger });
+
+    await expect(fs.lstat(path.join(destinationDirectory, "sources"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(warnings).toStrictEqual(["Skipping sources/broken (nested git repository)."]);
+  });
+
+  it("keeps copying ordinary local files next to a nested repository", async () => {
+    const repoRoot = await createRepository();
+    const destinationDirectory = await createTemporaryDirectory();
+    await fs.writeFile(path.join(repoRoot, ".gitignore"), ".env\nsources/\nlocal/\n");
+    await fs.writeFile(path.join(repoRoot, ".env"), "LOCAL=true\n");
+    await fs.writeFile(path.join(repoRoot, "notes.txt"), "untracked\n");
+    await fs.mkdir(path.join(repoRoot, "local"));
+    await fs.writeFile(path.join(repoRoot, "local/token"), "secret\n");
+    git("init", "--quiet", "sources/codex", { cwd: repoRoot });
+    await fs.writeFile(path.join(repoRoot, "sources/codex/README"), "nested\n");
+    const { logger, warnings } = createRecordingLogger();
+
+    await copyUntrackedFiles(repoRoot, destinationDirectory, { logger });
+
+    await expect(fs.readFile(path.join(destinationDirectory, ".env"), "utf8")).resolves.toBe(
+      "LOCAL=true\n",
+    );
+    await expect(fs.readFile(path.join(destinationDirectory, "notes.txt"), "utf8")).resolves.toBe(
+      "untracked\n",
+    );
+    await expect(fs.readFile(path.join(destinationDirectory, "local/token"), "utf8")).resolves.toBe(
+      "secret\n",
+    );
+    expect(warnings).toStrictEqual(["Skipping sources/codex (nested git repository)."]);
+  });
+
+  it("reports a skipped nested repository without copying anything on a dry run", async () => {
+    const repoRoot = await createRepository();
+    const destinationDirectory = await createTemporaryDirectory();
+    await fs.writeFile(path.join(repoRoot, ".gitignore"), "sources/\n");
+    git("init", "--quiet", "sources/codex", { cwd: repoRoot });
+    await fs.writeFile(path.join(repoRoot, "sources/codex/README"), "nested\n");
+    const { logger, warnings } = createRecordingLogger();
+
+    await copyUntrackedFiles(repoRoot, destinationDirectory, { dryRun: true, logger });
+
+    expect(warnings).toStrictEqual(["Skipping sources/codex (nested git repository)."]);
+  });
+
   it.skipIf(process.platform === "win32")(
-    "skips sockets and FIFOs inside an ignored nested clone",
+    "does not fail on a socket or FIFO inside a skipped nested clone",
     async () => {
       const repoRoot = await createRepository();
       const destinationDirectory = await createTemporaryDirectory();
       await fs.writeFile(path.join(repoRoot, ".gitignore"), "sources/\n");
       const nestedGitDirectory = path.join(repoRoot, "sources/codex/.git");
       git("init", "--quiet", "sources/codex", { cwd: repoRoot });
-      await fs.writeFile(path.join(repoRoot, "sources/codex/README"), "nested\n");
       // A relative socket path stays under the platform's short sun_path limit.
       execFileSync(
         process.execPath,
@@ -127,34 +255,38 @@ describe("copyUntrackedFiles", () => {
         { cwd: nestedGitDirectory },
       );
       execFileSync("mkfifo", [path.join(nestedGitDirectory, "events.fifo")]);
-      const details: string[] = [];
-      const logger: StatusLogger = {
-        step: vi.fn<(message: string) => void>(),
-        success: vi.fn<(message: string) => void>(),
-        detail(message) {
-          details.push(message);
-        },
-        warn: vi.fn<(message: string) => void>(),
-      };
+      const { logger, warnings } = createRecordingLogger();
 
       await copyUntrackedFiles(repoRoot, destinationDirectory, { logger });
 
-      await expect(
-        fs.readFile(path.join(destinationDirectory, "sources/codex/README"), "utf8"),
-      ).resolves.toBe("nested\n");
-      await expect(
-        fs.lstat(path.join(destinationDirectory, "sources/codex/.git/fsmonitor--daemon.ipc")),
-      ).rejects.toMatchObject({ code: "ENOENT" });
-      await expect(
-        fs.lstat(path.join(destinationDirectory, "sources/codex/.git/events.fifo")),
-      ).rejects.toMatchObject({ code: "ENOENT" });
-      expect(details).toStrictEqual(
-        expect.arrayContaining([
-          "Skipped sources/codex/.git/events.fifo (FIFO).",
-          "Skipped sources/codex/.git/fsmonitor--daemon.ipc (socket).",
-          "Copied sources/codex/",
-        ]),
+      await expect(fs.lstat(path.join(destinationDirectory, "sources"))).rejects.toMatchObject({
+        code: "ENOENT",
+      });
+      expect(warnings).toStrictEqual(["Skipping sources/codex (nested git repository)."]);
+    },
+  );
+
+  it.skipIf(process.platform === "win32")(
+    "copies an ignored plain directory's regular files and never meets its socket or FIFO",
+    async () => {
+      const repoRoot = await createRepository();
+      const destinationDirectory = await createTemporaryDirectory();
+      await fs.writeFile(path.join(repoRoot, ".gitignore"), ".state/\n");
+      await fs.mkdir(path.join(repoRoot, ".state"));
+      await fs.writeFile(path.join(repoRoot, ".state/config.json"), "{}\n");
+      // A relative socket path stays under the platform's short sun_path limit.
+      execFileSync(
+        process.execPath,
+        ["-e", "require('node:net').createServer().listen('daemon.sock', () => process.exit(0))"],
+        { cwd: path.join(repoRoot, ".state") },
       );
+      execFileSync("mkfifo", [path.join(repoRoot, ".state/events.fifo")]);
+
+      await expect(copyUntrackedFiles(repoRoot, destinationDirectory)).resolves.toBeUndefined();
+
+      await expect(fs.readdir(path.join(destinationDirectory, ".state"))).resolves.toStrictEqual([
+        "config.json",
+      ]);
     },
   );
 
