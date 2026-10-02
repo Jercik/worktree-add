@@ -266,6 +266,30 @@ describe("copyUntrackedFiles", () => {
     },
   );
 
+  it.skipIf(process.platform === "win32")(
+    "copies an ignored plain directory's regular files and never meets its socket or FIFO",
+    async () => {
+      const repoRoot = await createRepository();
+      const destinationDirectory = await createTemporaryDirectory();
+      await fs.writeFile(path.join(repoRoot, ".gitignore"), ".state/\n");
+      await fs.mkdir(path.join(repoRoot, ".state"));
+      await fs.writeFile(path.join(repoRoot, ".state/config.json"), "{}\n");
+      // A relative socket path stays under the platform's short sun_path limit.
+      execFileSync(
+        process.execPath,
+        ["-e", "require('node:net').createServer().listen('daemon.sock', () => process.exit(0))"],
+        { cwd: path.join(repoRoot, ".state") },
+      );
+      execFileSync("mkfifo", [path.join(repoRoot, ".state/events.fifo")]);
+
+      await expect(copyUntrackedFiles(repoRoot, destinationDirectory)).resolves.toBeUndefined();
+
+      await expect(fs.readdir(path.join(destinationDirectory, ".state"))).resolves.toStrictEqual([
+        "config.json",
+      ]);
+    },
+  );
+
   it("atomically preserves a destination created by a concurrent copy", async () => {
     const firstRepoRoot = await createRepository();
     const secondRepoRoot = await createRepository();

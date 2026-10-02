@@ -21,7 +21,7 @@ Running `worktree-add <branch>` from inside a repo:
    - or creates a new branch from the current `HEAD` (only when the branch does not exist on `origin/`, or when you pass `--offline` and `origin/` can’t be reached)
 7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
    (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
-   - It also skips any directory that has its own `.git` (a nested clone or linked worktree, such as third-party sources under an ignored directory), so a worktree doesn't carry full copies of other repositories. Each skipped directory is named on stderr, for example `Warning: Skipping sources/codex (nested git repository).`
+   - It also skips any directory that has its own `.git` (a nested clone or linked worktree, such as third-party sources under an ignored directory), so a worktree doesn't carry full copies of other repositories. Each skipped directory is named on stderr, for example `Skipping sources/codex (nested git repository).`
 8. Detects your package manager and installs dependencies with lockfile‑safe flags
    (`npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable`, etc.).
 9. If the project uses Next.js and supports it, runs `next typegen`.
