@@ -1,5 +1,4 @@
 import { constants } from "node:fs";
-import type { Stats } from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { git } from "../git/git.js";
@@ -10,15 +9,41 @@ import { isGeneratedPath } from "./is-generated-path.js";
 const hasErrorCode = (error: unknown, ...codes: string[]): boolean =>
   error instanceof Error && "code" in error && codes.includes(String(error.code));
 
-// Nested clones are copied whole, and fs.cp throws on their sockets (Git's fsmonitor) and FIFOs.
-function describeUncopyableFile(stats: Stats): string | undefined {
-  if (stats.isSocket()) {
-    return "socket";
+// Git collapses a valid nested repo into one entry but lists the files of one with a broken `.git` individually.
+function createNestedRepositoryFinder(
+  repoRoot: string,
+): (relativePath: string) => Promise<string | undefined> {
+  const hasGitEntry = new Map<string, boolean>();
+
+  async function containsGitEntry(directory: string): Promise<boolean> {
+    const known = hasGitEntry.get(directory);
+    if (known !== undefined) {
+      return known;
+    }
+    const found = await fs
+      .lstat(path.join(repoRoot, directory, ".git"))
+      .then(() => true)
+      .catch((error: unknown) => {
+        if (hasErrorCode(error, "ENOENT")) {
+          return false;
+        }
+        throw error;
+      });
+    hasGitEntry.set(directory, found);
+    return found;
   }
-  if (stats.isFIFO()) {
-    return "FIFO";
-  }
-  return undefined;
+
+  return async (relativePath) => {
+    const segments = relativePath.split("/").filter(Boolean);
+    const directorySegments = relativePath.endsWith("/") ? segments : segments.slice(0, -1);
+    for (let depth = 1; depth <= directorySegments.length; depth += 1) {
+      const directory = directorySegments.slice(0, depth).join("/");
+      if (await containsGitEntry(directory)) {
+        return directory;
+      }
+    }
+    return undefined;
+  };
 }
 
 export async function copyUntrackedFiles(
@@ -29,6 +54,8 @@ export async function copyUntrackedFiles(
   const logger = options?.logger ?? fallbackStatusLogger;
   const dryRun = options?.dryRun ?? false;
 
+  const findNestedRepository = createNestedRepositoryFinder(repoRoot);
+  const skippedNestedRepositories = new Set<string>();
   const untrackedEntries = new Set<string>();
   // Combine untracked-not-ignored (`--others`) and untracked-ignored (`--others --ignored`) entries.
   // These sets should be disjoint, but we dedupe defensively.
@@ -73,6 +100,14 @@ export async function copyUntrackedFiles(
     if (isGeneratedPath(relativePath)) {
       continue;
     }
+    const nestedRepository = await findNestedRepository(relativePath);
+    if (nestedRepository !== undefined) {
+      if (!skippedNestedRepositories.has(nestedRepository)) {
+        skippedNestedRepositories.add(nestedRepository);
+        logger.warn(`Skipping ${nestedRepository} (nested git repository).`);
+      }
+      continue;
+    }
     const sourcePath = resolvedSourcePath;
     const destinationPath = path.join(destinationDirectory, relativePath);
     const destinationExists = await fs
@@ -100,14 +135,6 @@ export async function copyUntrackedFiles(
         force: false,
         mode: constants.COPYFILE_EXCL,
         verbatimSymlinks: true,
-        filter: async (source) => {
-          const uncopyableFile = describeUncopyableFile(await fs.lstat(source));
-          if (uncopyableFile === undefined) {
-            return true;
-          }
-          logger.detail(`Skipped ${path.relative(repoRoot, source)} (${uncopyableFile}).`);
-          return false;
-        },
       });
     } catch (error: unknown) {
       if (hasErrorCode(error, "EEXIST", "ERR_FS_CP_EEXIST")) {
