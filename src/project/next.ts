@@ -28,7 +28,23 @@ export const isNextProject = async (directory: string): Promise<boolean> => {
   if (!packageJson) {
     return false;
   }
-  return Boolean(packageJson.dependencies?.next ?? packageJson.devDependencies?.next);
+  if (!(packageJson.dependencies?.next ?? packageJson.devDependencies?.next)) {
+    return false;
+  }
+  for (const relativeDirectory of ["app", "pages", "src/app", "src/pages"]) {
+    try {
+      const routeDirectory = await fs.stat(path.join(directory, relativeDirectory));
+      if (routeDirectory.isDirectory()) {
+        return true;
+      }
+    } catch (error) {
+      const code = (error as NodeJS.ErrnoException).code;
+      if (code !== "ENOENT" && code !== "ENOTDIR") {
+        throw error;
+      }
+    }
+  }
+  return false;
 };
 
 export const isNextTypegenSupported = async (
