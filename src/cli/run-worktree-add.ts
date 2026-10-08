@@ -7,8 +7,10 @@ import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
 import type { CreatedWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
+import { findStaleStartPoint } from "../git/find-stale-start-point.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
 import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
+import { formatStaleStartPointMessage } from "./format-stale-start-point-message.js";
 import { openWorktreeApps } from "./open-worktree-apps.js";
 import { registerSigintHandler } from "./register-sigint-handler.js";
 import { resolveWorktreeContext } from "./resolve-worktree-context.js";
@@ -17,6 +19,7 @@ export interface CliOptions {
   readonly app?: string[];
   readonly open?: boolean;
   readonly offline?: boolean;
+  readonly allowStale?: boolean;
   readonly yes?: boolean;
   readonly interactive?: boolean;
   readonly dryRun?: boolean;
@@ -91,6 +94,14 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
           behind,
         }),
       );
+    }
+
+    // Only a new branch starts from HEAD. With origin unreachable (--offline) there is nothing to compare.
+    if (remoteStatus.status === "missing" && !remoteStatus.localExists && !options.allowStale) {
+      const staleStartPoint = findStaleStartPoint({ dryRun, logger });
+      if (staleStartPoint !== undefined) {
+        throw new Error(formatStaleStartPointMessage(context.branch, staleStartPoint));
+      }
     }
 
     // Only treat origin as existing when confirmed; "unknown" remains false.

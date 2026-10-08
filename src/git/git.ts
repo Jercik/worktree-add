@@ -53,10 +53,39 @@ export function localBranchExists(branch: string): boolean {
 
 // Network/auth failures surface so callers must choose whether offline fallback is allowed.
 export function remoteBranchExists(branch: string): boolean {
+  return getRemoteBranchCommit(branch) !== undefined;
+}
+
+/** The commit origin's branch points at right now, or undefined when origin has no such branch. */
+export function getRemoteBranchCommit(branch: string): string | undefined {
   const normalized = normalizeBranchName(branch);
   // Use a fully-qualified ref to avoid option-parsing ambiguity for branch
   // names starting with '-'.
-  return Boolean(git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`));
+  const output = git("ls-remote", "--heads", "origin", `refs/heads/${normalized}`);
+  const commit = output.split(/\s+/u)[0];
+  return commit === undefined || commit === "" ? undefined : commit;
+}
+
+/** The checked-out branch, or undefined when `HEAD` is detached. */
+export function getCurrentBranch(): string | undefined {
+  try {
+    return git("symbolic-ref", "--quiet", "--short", "HEAD");
+  } catch {
+    return undefined;
+  }
+}
+
+export function isAncestor(ancestor: string, descendant: string): boolean {
+  try {
+    git("merge-base", "--is-ancestor", ancestor, descendant);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function countCommitsBehind(revision: string, upstream: string): number {
+  return Number(git("rev-list", "--count", `${revision}..${upstream}`));
 }
 
 // Fetch only refreshes the remote-tracking ref; local branch heads stay untouched.
