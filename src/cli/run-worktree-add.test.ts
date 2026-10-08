@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { git } from "../git/git.js";
 
 vi.mock("../project/setup.js");
+vi.mock("trash");
 
+const { default: trash } = await import("trash");
 const { setupProject } = await import("../project/setup.js");
 const { runWorktreeAdd } = await import("./run-worktree-add.js");
 
@@ -40,6 +42,20 @@ async function createRepository(options: {
 
 const listLocalBranches = (repoRoot: string): string =>
   git("for-each-ref", "--format=%(refname:short)", "refs/heads", { cwd: repoRoot });
+
+const pushNewerMain = (repoRoot: string, count: number): void => {
+  let tip = "main";
+  for (let index = 0; index < count; index += 1) {
+    tip = git("commit-tree", "-p", tip, "-m", `newer ${index}`, "main^{tree}", {
+      cwd: repoRoot,
+    });
+  }
+  git("push", "--quiet", "origin", `${tip}:refs/heads/main`, { cwd: repoRoot });
+  // Drop the pushed objects so the repository only learns about them by fetching.
+  git("reflog", "expire", "--expire=now", "--all", { cwd: repoRoot });
+  git("update-ref", "-d", "refs/remotes/origin/main", { cwd: repoRoot });
+  git("gc", "--quiet", "--prune=now", { cwd: repoRoot });
+};
 
 beforeEach(() => {
   // Keep the machine's git config (identity, signing, hooksPath) out of the scratch repos.
@@ -297,5 +313,94 @@ describe("runWorktreeAdd in a repository with no commits yet", () => {
     expect(
       git("symbolic-ref", "--short", "HEAD", { cwd: path.join(sandbox, "app-feature-new") }),
     ).toBe("feature/new");
+  });
+});
+
+describe("runWorktreeAdd when the current branch is behind origin", () => {
+  it("refuses to create a new branch from the outdated HEAD", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 2);
+
+    await expect(runWorktreeAdd("feature/new", {})).rejects.toThrow(
+      "Local 'main' is 2 commits behind origin/main.\nRefusing to create 'feature/new' from an outdated HEAD.",
+    );
+
+    await expect(fs.lstat(path.join(sandbox, "app-feature-new"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(listLocalBranches(repoRoot)).toBe("main");
+  });
+
+  it("refuses before moving an existing destination to trash", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 1);
+    await fs.mkdir(path.join(sandbox, "app-feature-new"));
+
+    await expect(runWorktreeAdd("feature/new", { yes: true })).rejects.toThrow(
+      "Local 'main' is 1 commit behind origin/main.",
+    );
+
+    expect(trash).not.toHaveBeenCalled();
+  });
+
+  it("refuses on a dry run without fetching", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 1);
+
+    await expect(runWorktreeAdd("feature/new", { dryRun: true })).rejects.toThrow(
+      "Local 'main' is behind origin/main.",
+    );
+
+    expect(git("for-each-ref", "--format=%(refname)", "refs/remotes", { cwd: repoRoot })).toBe("");
+  });
+
+  it("refuses when the current branch has also gained local commits", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 1);
+    commit(repoRoot, "local only");
+
+    await expect(runWorktreeAdd("feature/new", {})).rejects.toThrow(
+      "Local 'main' is 1 commit behind origin/main and has 1 commit that origin/main lacks.",
+    );
+  });
+
+  it("creates the branch from the outdated HEAD with --allow-stale", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 1);
+    vi.mocked(setupProject).mockResolvedValueOnce();
+
+    await expect(runWorktreeAdd("feature/new", { allowStale: true })).resolves.toBeUndefined();
+
+    expect(git("rev-parse", "HEAD", { cwd: path.join(sandbox, "app-feature-new") })).toBe(
+      git("rev-parse", "main", { cwd: repoRoot }),
+    );
+  });
+
+  it("creates the branch when the current branch is only ahead of origin", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    commit(repoRoot, "local only");
+    vi.mocked(setupProject).mockResolvedValueOnce();
+
+    await expect(runWorktreeAdd("feature/new", {})).resolves.toBeUndefined();
+
+    expect(listLocalBranches(repoRoot)).toBe("feature/new\nmain");
+  });
+
+  it("creates the branch from a detached HEAD without checking origin", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 1);
+    git("checkout", "--quiet", "--detach", { cwd: repoRoot });
+    vi.mocked(setupProject).mockResolvedValueOnce();
+
+    await expect(runWorktreeAdd("feature/new", {})).resolves.toBeUndefined();
+  });
+
+  it("still tracks a branch that exists on origin", async () => {
+    const { repoRoot } = await createRepository({ withCommit: true });
+    git("push", "--quiet", "origin", "main:refs/heads/feature/remote", { cwd: repoRoot });
+    pushNewerMain(repoRoot, 1);
+    vi.mocked(setupProject).mockResolvedValueOnce();
+
+    await expect(runWorktreeAdd("feature/remote", {})).resolves.toBeUndefined();
   });
 });

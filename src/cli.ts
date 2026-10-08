@@ -23,6 +23,10 @@ const program = new Command()
     "--offline",
     "Allow creating a new local branch from HEAD when origin cannot be reached and the branch does not exist locally",
   )
+  .option(
+    "--allow-stale",
+    "Create a new branch from HEAD even when the current branch is behind its origin counterpart",
+  )
   .option("-y, --yes", "Skip confirmation and replace existing destination")
   .option("--dry-run", "Show what would happen without making changes")
   .option("--interactive", "Allow confirmation prompts (requires a TTY)")
