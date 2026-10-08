@@ -5,7 +5,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { git } from "../git/git.js";
 
 vi.mock("../project/setup.js");
+vi.mock("trash");
 
+const { default: trash } = await import("trash");
 const { setupProject } = await import("../project/setup.js");
 const { runWorktreeAdd } = await import("./run-worktree-add.js");
 
@@ -320,14 +322,25 @@ describe("runWorktreeAdd when the current branch is behind origin", () => {
     pushNewerMain(repoRoot, 2);
 
     await expect(runWorktreeAdd("feature/new", {})).rejects.toThrow(
-      "Local 'main' is 2 commits behind origin/main.\n" +
-        "Refusing to create 'feature/new' from an outdated HEAD.",
+      "Local 'main' is 2 commits behind origin/main.\nRefusing to create 'feature/new' from an outdated HEAD.",
     );
 
     await expect(fs.lstat(path.join(sandbox, "app-feature-new"))).rejects.toMatchObject({
       code: "ENOENT",
     });
     expect(listLocalBranches(repoRoot)).toBe("main");
+  });
+
+  it("refuses before moving an existing destination to trash", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    pushNewerMain(repoRoot, 1);
+    await fs.mkdir(path.join(sandbox, "app-feature-new"));
+
+    await expect(runWorktreeAdd("feature/new", { yes: true })).rejects.toThrow(
+      "Local 'main' is 1 commit behind origin/main.",
+    );
+
+    expect(trash).not.toHaveBeenCalled();
   });
 
   it("refuses on a dry run without fetching", async () => {
@@ -347,7 +360,7 @@ describe("runWorktreeAdd when the current branch is behind origin", () => {
     commit(repoRoot, "local only");
 
     await expect(runWorktreeAdd("feature/new", {})).rejects.toThrow(
-      "Local 'main' is 1 commit behind origin/main.",
+      "Local 'main' is 1 commit behind origin/main and has 1 commit that origin/main lacks.",
     );
   });
 

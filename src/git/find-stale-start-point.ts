@@ -1,8 +1,8 @@
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import {
-  countCommitsBehind,
   fetchOriginBranch,
+  getAheadBehindCounts,
   getCurrentBranch,
   getRemoteBranchCommit,
   isAncestor,
@@ -14,14 +14,9 @@ export interface StaleStartPoint {
   /** The checked-out branch a new branch would start from. */
   readonly branch: string;
   /** Undefined when origin's commits are not available locally to count (dry run, unborn branch). */
-  readonly behind: number | undefined;
+  readonly counts: { readonly ahead: number; readonly behind: number } | undefined;
 }
 
-/**
- * Reports whether `HEAD` is missing commits from the checked-out branch's counterpart on
- * origin. Returns undefined when there is nothing to compare: a detached `HEAD`, or a branch
- * that does not exist on origin.
- */
 export function findStaleStartPoint(options?: {
   dryRun?: boolean;
   logger?: StatusLogger;
@@ -52,12 +47,12 @@ export function findStaleStartPoint(options?: {
   }
   if (localHead === undefined) {
     // An unborn branch has none of origin's commits.
-    return { branch, behind: undefined };
+    return { branch, counts: undefined };
   }
 
   if (resolveCommit(remoteHead) === undefined) {
     if (dryRun) {
-      return { branch, behind: undefined };
+      return { branch, counts: undefined };
     }
     logger.step(`Fetching origin/${branch} …`);
     try {
@@ -71,5 +66,5 @@ export function findStaleStartPoint(options?: {
   if (isAncestor(remoteHead, localHead)) {
     return undefined;
   }
-  return { branch, behind: countCommitsBehind(localHead, remoteHead) };
+  return { branch, counts: getAheadBehindCounts(localHead, remoteHead) };
 }

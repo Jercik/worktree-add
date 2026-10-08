@@ -3,7 +3,7 @@ import { resolveOpenTarget } from "../app/resolve-open-target.js";
 import { handleExistingDirectory } from "../worktree/destination-directory.js";
 import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
 import { setupProject } from "../project/setup.js";
-import { exitWithMessage } from "../git/git.js";
+import { exitWithMessage, localBranchExists } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
 import type { CreatedWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
@@ -54,53 +54,68 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   });
 
   try {
-    const shouldContinue = await handleExistingDirectory(context.destinationDirectory, {
-      dryRun,
-      assumeYes,
-      interactive,
-      logger,
-    });
-    if (!shouldContinue) {
-      return;
-    }
-
-    const remoteStatus = (() => {
-      try {
-        return fetchRemoteBranch(context.branch, { dryRun, logger });
-      } catch (error) {
-        const message = error instanceof Error ? error.message : String(error);
-        const prefix = `Failed to fetch origin/${context.branch}: `;
-        const failure = message.startsWith(prefix) ? message : `${prefix}${message}`;
-        return exitWithMessage(
-          `${failure}\n` +
-            "If you expected this to work, check your network/credentials and retry.\n" +
-            "If you want a new local branch from HEAD instead, pass --offline.",
+    const clearDestination = (): Promise<boolean> =>
+      handleExistingDirectory(context.destinationDirectory, {
+        dryRun,
+        assumeYes,
+        interactive,
+        logger,
+      });
+    const resolveRemoteStatus = (): ReturnType<typeof fetchRemoteBranch> => {
+      const remoteStatus = (() => {
+        try {
+          return fetchRemoteBranch(context.branch, { dryRun, logger });
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error);
+          const prefix = `Failed to fetch origin/${context.branch}: `;
+          const failure = message.startsWith(prefix) ? message : `${prefix}${message}`;
+          return exitWithMessage(
+            `${failure}\n` +
+              "If you expected this to work, check your network/credentials and retry.\n" +
+              "If you want a new local branch from HEAD instead, pass --offline.",
+          );
+        }
+      })();
+      if (remoteStatus.status === "unknown" && !remoteStatus.localExists && !options.offline) {
+        exitWithMessage(
+          `Could not reach origin to check whether '${context.branch}' exists, and the branch does not exist locally.\n` +
+            "Refusing to create a new branch from HEAD in this ambiguous state.\n" +
+            `Re-run with --offline to force creating a new local '${context.branch}' from the current HEAD.`,
         );
       }
-    })();
-    if (remoteStatus.status === "unknown" && !remoteStatus.localExists && !options.offline) {
-      exitWithMessage(
-        `Could not reach origin to check whether '${context.branch}' exists, and the branch does not exist locally.\n` +
-          "Refusing to create a new branch from HEAD in this ambiguous state.\n" +
-          `Re-run with --offline to force creating a new local '${context.branch}' from the current HEAD.`,
-      );
-    }
-    if (remoteStatus.status === "diverged") {
-      const { ahead, behind } = remoteStatus.divergence;
-      exitWithMessage(
-        formatDivergedBranchMessage({
-          branch: context.branch,
-          ahead,
-          behind,
-        }),
-      );
-    }
+      if (remoteStatus.status === "diverged") {
+        const { ahead, behind } = remoteStatus.divergence;
+        exitWithMessage(
+          formatDivergedBranchMessage({
+            branch: context.branch,
+            ahead,
+            behind,
+          }),
+        );
+      }
 
-    // Only a new branch starts from HEAD. With origin unreachable (--offline) there is nothing to compare.
-    if (remoteStatus.status === "missing" && !remoteStatus.localExists && !options.allowStale) {
-      const staleStartPoint = findStaleStartPoint({ dryRun, logger });
-      if (staleStartPoint !== undefined) {
-        throw new Error(formatStaleStartPointMessage(context.branch, staleStartPoint));
+      // Only a new branch starts from HEAD. With origin unreachable (--offline) there is nothing to compare.
+      if (remoteStatus.status === "missing" && !remoteStatus.localExists && !options.allowStale) {
+        const staleStartPoint = findStaleStartPoint({ dryRun, logger });
+        if (staleStartPoint !== undefined) {
+          throw new Error(formatStaleStartPointMessage(context.branch, staleStartPoint));
+        }
+      }
+      return remoteStatus;
+    };
+
+    let remoteStatus: ReturnType<typeof fetchRemoteBranch>;
+    if (localBranchExists(context.branch)) {
+      // The destination being replaced may have this branch checked out, which blocks fast-forwarding it.
+      if (!(await clearDestination())) {
+        return;
+      }
+      remoteStatus = resolveRemoteStatus();
+    } else {
+      // A refusal must leave an existing destination in place: nothing restores it from the trash.
+      remoteStatus = resolveRemoteStatus();
+      if (!(await clearDestination())) {
+        return;
       }
     }
 

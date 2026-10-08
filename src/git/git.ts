@@ -84,10 +84,6 @@ export function isAncestor(ancestor: string, descendant: string): boolean {
   }
 }
 
-export function countCommitsBehind(revision: string, upstream: string): number {
-  return Number(git("rev-list", "--count", `${revision}..${upstream}`));
-}
-
 // Fetch only refreshes the remote-tracking ref; local branch heads stay untouched.
 export function fetchOriginBranch(branch: string): void {
   const normalized = normalizeBranchName(branch);
