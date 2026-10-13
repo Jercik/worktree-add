@@ -35,14 +35,16 @@
   },
   "scripts": {
     "build": "tsc -p tsconfig.app.json",
+    "check:dts": "node scripts/check-dts.ts",
     "clean": "rm -rf dist *.tsbuildinfo",
+    "commit-msg": "conventional-commit-msg",
     "format": "oxfmt --config .oxfmtrc.json .",
     "format:check": "oxfmt --check --config .oxfmtrc.json .",
     "fta": "fta-check",
     "knip": "knip",
     "lint": "oxlint --deny-warnings --report-unused-disable-directives .",
     "prepack": "pnpm run rebuild",
-    "prepare": "if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then git config core.hooksPath .githooks; fi",
+    "prepare": "if git rev-parse --is-inside-work-tree >/dev/null 2>&1; then hooks_path=$(git config --local --get-all core.hooksPath 2>/dev/null && echo .) && [ \"$hooks_path\" = \"$(echo .githooks; echo .)\" ] || git config core.hooksPath .githooks; fi",
     "rebuild": "pnpm run clean && pnpm run build",
     "start": "pnpm run rebuild && node bin/worktree-add",
     "test": "vitest run",
@@ -63,6 +65,7 @@
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^4.1.8",
     "conventional-changelog-conventionalcommits": "^9.3.1",
+    "conventional-commit-msg": "catalog:",
     "fta-check": "^1.5.8",
     "fta-cli": "^3.0.0",
     "knip": "^6.16.1",
@@ -76,5 +79,8 @@
   "engines": {
     "node": ">=24.15.0"
   },
-  "packageManager": "pnpm@11.22.0"
+  "packageManager": "pnpm@12.11.2",
+  "j4k": {
+    "alignDtsCheck": true
+  }
 }
