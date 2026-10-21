@@ -10,7 +10,7 @@ function collectApp(app: string, previous: string[] | undefined): string[] {
 }
 
 const program = new Command()
-  .name(packageJson.name)
+  .name("worktree-add")
   .description(packageJson.description)
   .version(packageJson.version)
   .argument("<branch>", "branch name for the worktree")

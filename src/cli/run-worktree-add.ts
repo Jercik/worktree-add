@@ -8,6 +8,10 @@ import { createWorktree } from "../git/create-worktree.js";
 import type { CreatedWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
 import { findStaleStartPoint } from "../git/find-stale-start-point.js";
+import {
+  findTooOldGitForUnbornHead,
+  formatUnbornHeadGitMessage,
+} from "../git/unborn-head-support.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
 import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
 import { formatStaleStartPointMessage } from "./format-stale-start-point-message.js";
@@ -94,7 +98,14 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
         );
       }
 
-      // Only a new branch starts from HEAD. With origin unreachable (--offline) there is nothing to compare.
+      // Only a new branch starts from HEAD, and an unborn HEAD needs a newer git than the rest of the tool.
+      if (remoteStatus.status !== "exists" && !remoteStatus.localExists) {
+        const oldGitVersion = findTooOldGitForUnbornHead();
+        if (oldGitVersion !== undefined) {
+          throw new Error(formatUnbornHeadGitMessage(oldGitVersion));
+        }
+      }
+      // With origin unreachable (--offline) there is nothing to compare.
       if (remoteStatus.status === "missing" && !remoteStatus.localExists && !options.allowStale) {
         const staleStartPoint = findStaleStartPoint({ dryRun, logger });
         if (staleStartPoint !== undefined) {

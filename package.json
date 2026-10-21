@@ -1,5 +1,5 @@
 {
-  "name": "worktree-add",
+  "name": "@j4k-oss/worktree-add",
   "version": "1.0.0",
   "description": "Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your apps.",
   "keywords": [
@@ -10,15 +10,15 @@
     "workflow",
     "worktree"
   ],
-  "homepage": "https://github.com/Jercik/worktree-add#readme",
+  "homepage": "https://code.j4k.dev/j4k-oss/worktree-add#readme",
   "bugs": {
-    "url": "https://github.com/Jercik/worktree-add/issues"
+    "url": "https://code.j4k.dev/j4k-oss/worktree-add/issues"
   },
   "license": "MIT",
   "author": "Łukasz Jerciński",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/Jercik/worktree-add.git"
+    "url": "https://code.j4k.dev/j4k-oss/worktree-add.git"
   },
   "bin": {
     "worktree-add": "bin/worktree-add"
@@ -31,13 +31,12 @@
   ],
   "type": "module",
   "publishConfig": {
-    "registry": "https://registry.npmjs.org/"
+    "registry": "https://code.j4k.dev/api/packages/j4k-oss/npm/"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.app.json",
+    "build": "tsc -p tsconfig.build.json",
     "check:dts": "node scripts/check-dts.ts",
     "clean": "rm -rf dist *.tsbuildinfo",
-    "commit-msg": "conventional-commit-msg",
     "format": "oxfmt --config .oxfmtrc.json .",
     "format:check": "oxfmt --check --config .oxfmtrc.json .",
     "fta": "fta-check",
@@ -50,7 +49,7 @@
     "test": "vitest run",
     "test:coverage": "vitest run --coverage",
     "test:watch": "vitest",
-    "typecheck": "tsc -b --noEmit"
+    "typecheck": "tsc -b tsconfig.check.json tsconfig.test.json tsconfig.scripts.json tsconfig.app.json tsconfig.build.json --noEmit"
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
@@ -60,18 +59,18 @@
     "trash": "^10.1.1"
   },
   "devDependencies": {
-    "@j4k/oxlint-config": "^2.11.0",
+    "@j4k-oss/fta-check": "^1.5.11",
+    "@j4k/oxlint-config": "^2.14.2",
+    "@j4k/semantic-release-forgejo": "^1.2.4",
     "@total-typescript/ts-reset": "^0.6.1",
     "@types/node": "^24.0.0",
     "@vitest/coverage-v8": "^4.1.8",
     "conventional-changelog-conventionalcommits": "^9.3.1",
-    "conventional-commit-msg": "catalog:",
-    "fta-check": "^1.5.8",
     "fta-cli": "^3.0.0",
     "knip": "^6.16.1",
     "oxfmt": "^0.57.0",
-    "oxlint": "^1.72.0",
-    "oxlint-tsgolint": "^0.23.0",
+    "oxlint": "^1.86.0",
+    "oxlint-tsgolint": "^7.0.2003",
     "semantic-release": "^25.0.5",
     "typescript": "^7.0.2",
     "vitest": "^4.1.8"
@@ -81,6 +80,7 @@
   },
   "packageManager": "pnpm@12.11.2",
   "j4k": {
-    "alignDtsCheck": true
+    "alignDtsCheck": true,
+    "alignModuleContract": "esm-only"
   }
 }

@@ -1,5 +1,7 @@
 # worktree-add
 
+Source: https://code.j4k.dev/j4k-oss/worktree-add. github.com/Jercik/worktree-add is a read-only mirror; open issues and pull requests on the Forge.
+
 Create a Git worktree next to your current repo for a branch, copy useful local files, install deps, and open it in your apps.
 
 ## What it does
@@ -36,9 +38,30 @@ If a later step fails or you interrupt the run, the tool removes the new worktre
 
 - Node.js ≥ 24.15.0
 - Git with `git worktree` support
+- Git 2.42 or newer to create a worktree in a repository with no commits yet. Older versions exit with an error that names the requirement.
 - Git credentials configured for `origin/` (the tool is non-interactive and won’t prompt for authentication)
 
 ## Install / run
+
+Each release is published under two names with the same files:
+
+- `worktree-add` on npmjs.org, for `npx` and `npm exec`. All examples here use it.
+- `@j4k-oss/worktree-add` on the `code.j4k.dev` registry, for pnpm projects that exempt the `@j4k-oss` scope from `minimumReleaseAge`. The registry reads anonymously.
+
+To use the `code.j4k.dev` copy, map the scope to its registry and exempt it in `pnpm-workspace.yaml`, then add the package:
+
+```yaml
+registries:
+  "@j4k-oss": https://code.j4k.dev/api/packages/j4k-oss/npm/
+minimumReleaseAgeExclude:
+  - "@j4k-oss/*"
+```
+
+```bash
+pnpm add -D @j4k-oss/worktree-add
+```
+
+Both packages install the same `worktree-add` command.
 
 You usually don’t need a global install.
 

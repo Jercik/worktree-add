@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { git } from "../git/git.js";
+import { findTooOldGitForUnbornHead } from "../git/unborn-head-support.js";
 
 vi.mock("../project/setup.js");
 vi.mock("trash");
@@ -28,7 +29,7 @@ async function createRepository(options: {
   const repoRoot = path.join(sandbox, "app");
   git("init", "--quiet", "--bare", "origin.git", { cwd: sandbox });
   // Loose refs let a test hold a ref lock to make a branch deletion fail.
-  git("init", "--quiet", "--initial-branch=main", "--ref-format=files", "app", {
+  git("init", "--quiet", "--initial-branch=main", "app", {
     cwd: sandbox,
   });
   git("remote", "add", "origin", path.join(sandbox, "origin.git"), { cwd: repoRoot });
@@ -294,8 +295,13 @@ describe("runWorktreeAdd cleanup after a setup failure", () => {
 
   it("removes the worktree in a repository with no commits yet", async () => {
     const { sandbox } = await createRepository({ withCommit: false });
+    // The assertion follows the installed git: older releases refuse before touching anything.
+    const expectedError =
+      findTooOldGitForUnbornHead() === undefined
+        ? "install failed"
+        : "Creating a worktree in a repository with no commits needs git 2.42 or newer";
 
-    await expect(runWorktreeAdd("feature/new", {})).rejects.toThrow("install failed");
+    await expect(runWorktreeAdd("feature/new", {})).rejects.toThrow(expectedError);
 
     await expect(fs.lstat(path.join(sandbox, "app-feature-new"))).rejects.toMatchObject({
       code: "ENOENT",
@@ -307,12 +313,25 @@ describe("runWorktreeAdd in a repository with no commits yet", () => {
   it("creates the worktree", async () => {
     const { sandbox } = await createRepository({ withCommit: false });
     vi.mocked(setupProject).mockResolvedValueOnce();
+    // The expected outcome follows the installed git: older releases refuse before creating anything.
+    const oldGitVersion = findTooOldGitForUnbornHead();
+    const worktreeDirectory = path.join(sandbox, "app-feature-new");
 
-    await expect(runWorktreeAdd("feature/new", {})).resolves.toBeUndefined();
+    const outcome = await runWorktreeAdd("feature/new", {}).then(
+      () => "created",
+      (error: unknown) => (error instanceof Error ? error.message : String(error)),
+    );
 
-    expect(
-      git("symbolic-ref", "--short", "HEAD", { cwd: path.join(sandbox, "app-feature-new") }),
-    ).toBe("feature/new");
+    expect(outcome).toBe(
+      oldGitVersion === undefined
+        ? "created"
+        : `Creating a worktree in a repository with no commits needs git 2.42 or newer (found ${oldGitVersion}).`,
+    );
+    const worktreeBranch = await fs.lstat(worktreeDirectory).then(
+      () => git("symbolic-ref", "--short", "HEAD", { cwd: worktreeDirectory }),
+      () => "no worktree",
+    );
+    expect(worktreeBranch).toBe(oldGitVersion === undefined ? "feature/new" : "no worktree");
   });
 });
 
