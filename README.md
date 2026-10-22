@@ -155,10 +155,10 @@ Platform note: on macOS the app value is passed to `open -a`, so use an applicat
 
 Terminal-based editors (vim/nvim/nano) are not supported via `--app` — apps are launched detached from the current terminal.
 
-Tip: set default apps for `--open` in your shell profile, then pass `-o` when you want them:
+Tip: set default apps for `--open` in your shell profile, then pass `-o` when you want them. In bash or zsh:
 
 ```bash
-worktree-add() { WORKTREE_ADD_APP=ghostty,code command worktree-add "$@" }
+worktree-add() { WORKTREE_ADD_APP=ghostty,code command worktree-add "$@"; }
 # worktree-add feature/foo     # create only
 # worktree-add feature/foo -o  # create and open in Ghostty + VS Code
 ```
@@ -167,7 +167,14 @@ Add it to your shell profile:
 
 - zsh: `~/.zshrc` or `~/.zprofile`
 - bash: `~/.bashrc` or `~/.bash_profile`
-- fish: `~/.config/fish/config.fish`
+
+In fish, that syntax is a parse error. Add this function to `~/.config/fish/config.fish` instead:
+
+```fish
+function worktree-add
+    env WORKTREE_ADD_APP=ghostty,code worktree-add $argv
+end
+```
 
 ## Agent rule
 
