@@ -43,12 +43,35 @@ If a later step fails or you interrupt the run, the tool removes the new worktre
 
 ## Install / run
 
-Each release is published under two names with the same files:
+Releases publish only as `@j4k-oss/worktree-add` on the `code.j4k.dev` registry, which reads anonymously. The unscoped `worktree-add` package on npmjs.org is frozen at its last version and gets no updates.
 
-- `worktree-add` on npmjs.org, for `npx` and `npm exec`. All examples here use it.
-- `@j4k-oss/worktree-add` on the `code.j4k.dev` registry, for pnpm projects that exempt the `@j4k-oss` scope from `minimumReleaseAge`. The registry reads anonymously.
+The `@j4k-oss` scope also exists on npmjs.org, so a command that doesn't map the scope to `code.j4k.dev` can resolve there instead. Map it once in `~/.npmrc`:
 
-To use the `code.j4k.dev` copy, map the scope to its registry and exempt it in `pnpm-workspace.yaml`, then add the package:
+```ini
+@j4k-oss:registry=https://code.j4k.dev/api/packages/j4k-oss/npm/
+```
+
+You usually don’t need a global install. The inline registry flag is enough for a single `npx` run. Keep the `~/.npmrc` line for global installs: without it, `npm update -g` and `npm outdated -g` look the scoped name up on npmjs.org.
+
+If you installed the unscoped package globally, remove it first (`npm uninstall -g worktree-add` or `pnpm remove -g worktree-add`). Both packages provide the `worktree-add` command: npm stops with `EEXIST`, and pnpm keeps running the old copy.
+
+```bash
+# inside /my/path/my-app
+# one‑off
+npx -y --@j4k-oss:registry=https://code.j4k.dev/api/packages/j4k-oss/npm/ @j4k-oss/worktree-add@latest feature/my-branch
+
+# or install globally
+npm install -g --@j4k-oss:registry=https://code.j4k.dev/api/packages/j4k-oss/npm/ @j4k-oss/worktree-add
+worktree-add feature/my-branch
+```
+
+pnpm rejects the inline flag, so a global pnpm install relies on the `~/.npmrc` line above:
+
+```bash
+pnpm add -g @j4k-oss/worktree-add
+```
+
+To add it to a pnpm project instead, map the scope and exempt it from `minimumReleaseAge` in `pnpm-workspace.yaml`, then add the package:
 
 ```yaml
 registries:
@@ -61,19 +84,7 @@ minimumReleaseAgeExclude:
 pnpm add -D @j4k-oss/worktree-add
 ```
 
-Both packages install the same `worktree-add` command.
-
-You usually don’t need a global install.
-
-```bash
-# inside /my/path/my-app
-# one‑off
-npx worktree-add feature/my-branch
-
-# or install globally
-pnpm add -g worktree-add   # or: npm i -g worktree-add
-worktree-add feature/my-branch
-```
+After a project-local install, run the examples with `pnpm exec worktree-add` in place of `worktree-add`. Global installs expose `worktree-add` directly.
 
 Run it from anywhere inside an existing worktree of the repo.
 
