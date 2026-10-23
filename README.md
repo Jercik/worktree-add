@@ -43,9 +43,9 @@ If a later step fails or you interrupt the run, the tool removes the new worktre
 
 ## Install / run
 
-Releases publish only as `@j4k-oss/worktree-add` on the `code.j4k.dev` registry, which reads anonymously. The unscoped `worktree-add` package on npmjs.org is frozen at its last version and gets no updates.
+Releases publish only as `@j4k-oss/worktree-add` on the `code.j4k.dev` registry, which reads anonymously. The unscoped `worktree-add` package on npmjs.org is deprecated and gets no updates.
 
-The `@j4k-oss` scope also exists on npmjs.org, so a command that doesn't map the scope to `code.j4k.dev` can resolve there instead. Map it once in `~/.npmrc`:
+A command that doesn't map the scope to `code.j4k.dev` looks on npmjs.org, finds nothing, and fails with a 404. Map it once in `~/.npmrc`:
 
 ```ini
 @j4k-oss:registry=https://code.j4k.dev/api/packages/j4k-oss/npm/
