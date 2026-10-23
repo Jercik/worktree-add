@@ -27,6 +27,7 @@ const program = new Command()
     "--allow-stale",
     "Create a new branch from HEAD even when the current branch is behind its origin counterpart",
   )
+  .option("--no-setup", "Skip dependency installation and Next.js type generation")
   .option("-y, --yes", "Skip confirmation and replace existing destination")
   .option("--dry-run", "Show what would happen without making changes")
   .option("--interactive", "Allow confirmation prompts (requires a TTY)")
@@ -51,7 +52,7 @@ App notes:
 
 Dependencies:
   - git (with worktree support)
-  - a package manager when package.json is present (npm, pnpm, yarn, bun, deno)
+  - a package manager when package.json is present, unless --no-setup (npm, pnpm, yarn, bun, deno)
 `,
   )
   .action(async (branch: string, options: CliOptions) => {

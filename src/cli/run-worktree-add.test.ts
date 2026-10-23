@@ -7,8 +7,10 @@ import { findTooOldGitForUnbornHead } from "../git/unborn-head-support.js";
 
 vi.mock("../project/setup.js");
 vi.mock("trash");
+vi.mock("../worktree/untracked-file-copy.js", { spy: true });
 
 const { default: trash } = await import("trash");
+const { copyUntrackedFiles } = await import("../worktree/untracked-file-copy.js");
 const { setupProject } = await import("../project/setup.js");
 const { runWorktreeAdd } = await import("./run-worktree-add.js");
 
@@ -421,5 +423,70 @@ describe("runWorktreeAdd when the current branch is behind origin", () => {
     vi.mocked(setupProject).mockResolvedValueOnce();
 
     await expect(runWorktreeAdd("feature/remote", {})).resolves.toBeUndefined();
+  });
+});
+
+async function prepareCopyFailure(
+  existing: boolean,
+): Promise<{ sandbox: string; repoRoot: string }> {
+  const fixture = await createRepository({ withCommit: true });
+  if (existing) {
+    git("branch", "feature/repair", { cwd: fixture.repoRoot });
+  }
+  await fs.writeFile(path.join(fixture.repoRoot, ".env"), "LOCAL_FIXTURE=yes\n");
+  return fixture;
+}
+
+describe("runWorktreeAdd without project setup", () => {
+  it("keeps the linked checkout and copies local files despite unavailable setup", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    await fs.writeFile(path.join(repoRoot, ".env"), "LOCAL_FIXTURE=yes\n");
+
+    await runWorktreeAdd("feature/repair", { setup: false });
+
+    expect(
+      git("symbolic-ref", "--short", "HEAD", { cwd: path.join(sandbox, "app-feature-repair") }),
+    ).toBe("feature/repair");
+    await expect(
+      fs.readFile(path.join(sandbox, "app-feature-repair", ".env"), "utf8"),
+    ).resolves.toBe("LOCAL_FIXTURE=yes\n");
+    await expect(fs.readFile(path.join(repoRoot, ".env"), "utf8")).resolves.toBe(
+      "LOCAL_FIXTURE=yes\n",
+    );
+    expect(console.error).toHaveBeenCalledWith(
+      "Skipping project setup (--no-setup): dependency installation and Next.js type generation.",
+    );
+  });
+
+  it("plans the skipped setup without creating a checkout", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+
+    await runWorktreeAdd("feature/repair", { setup: false, dryRun: true });
+
+    await expect(fs.lstat(path.join(sandbox, "app-feature-repair"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(listLocalBranches(repoRoot)).toBe("main");
+    expect(console.error).toHaveBeenCalledWith(
+      "DRY RUN: Would skip project setup (--no-setup): dependency installation and Next.js type generation.",
+    );
+  });
+
+  it.each([
+    { existing: false, branches: "main" },
+    { existing: true, branches: "feature/repair\nmain" },
+  ])("cleans up a failed copy with existing branch: $existing", async ({ existing, branches }) => {
+    const { sandbox, repoRoot } = await prepareCopyFailure(existing);
+    vi.mocked(copyUntrackedFiles).mockRejectedValueOnce(new Error("copy failed"));
+
+    await expect(runWorktreeAdd("feature/repair", { setup: false })).rejects.toThrow("copy failed");
+
+    await expect(fs.lstat(path.join(sandbox, "app-feature-repair"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(listLocalBranches(repoRoot)).toBe(branches);
+    await expect(fs.readFile(path.join(repoRoot, ".env"), "utf8")).resolves.toBe(
+      "LOCAL_FIXTURE=yes\n",
+    );
   });
 });

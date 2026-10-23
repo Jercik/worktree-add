@@ -30,6 +30,8 @@ Running `worktree-add <branch>` from inside a repo:
 9. If the project uses Next.js and supports it, runs `next typegen`.
 10. Opens the new worktree if you passed `--app` or `--open`.
 
+Pass `--no-setup` to skip dependency installation and Next.js type generation, including their detection. Branch creation, local file copying and app opening still run; ordinary Git hooks still apply. Run any needed setup yourself afterward.
+
 Your original checkout is left untouched.
 
 If a later step fails or you interrupt the run, the tool removes the new worktree. Once the worktree is removed, it also deletes the branch if this run created it (from `HEAD` or from `origin/<branch>`) and the branch still points at the commit it was created at. Its `branch.<branch>.*` config goes back to what it was before the run: the tracking settings the run added are removed, and any values you had set are kept. A branch that existed before the run, gained commits, or is checked out in another worktree is kept.
@@ -39,6 +41,7 @@ If a later step fails or you interrupt the run, the tool removes the new worktre
 - Node.js ≥ 24.15.0
 - Git with `git worktree` support
 - Git 2.42 or newer to create a worktree in a repository with no commits yet. Older versions exit with an error that names the requirement.
+- A package manager when `package.json` is present, unless you pass `--no-setup`
 - Git credentials configured for `origin/` (the tool is non-interactive and won’t prompt for authentication)
 
 ## Install / run
@@ -113,6 +116,7 @@ Common options:
   -o, --open         Open the worktree after creating it
   --offline          Create from HEAD when origin can't be reached
   --allow-stale      Create from HEAD even when the current branch is behind origin
+  --no-setup         Skip dependency installation and Next.js type generation
   -y, --yes          Skip confirmation and replace existing destination
   --interactive      Allow confirmation prompts (requires a TTY)
   --dry-run          Show what would happen without making changes
@@ -160,7 +164,7 @@ If `--open` is set and no apps are configured, the destination is opened with th
 To explicitly open nothing even when `--open` is set, pass `--app ""`.
 Whitespace-only values like `--app "   "` are treated as absent and do not override `WORKTREE_ADD_APP`.
 
-If launching an app fails to start, the worktree still stays created and ready.
+If launching an app fails to start, the worktree remains created.
 
 Platform note: on macOS the app value is passed to `open -a`, so use an application name like `Visual Studio Code` (or an `.app` path). On Linux/Windows it’s typically treated as an executable name/path.
 

@@ -24,6 +24,7 @@ export interface CliOptions {
   readonly open?: boolean;
   readonly offline?: boolean;
   readonly allowStale?: boolean;
+  readonly setup?: boolean;
   readonly yes?: boolean;
   readonly interactive?: boolean;
   readonly dryRun?: boolean;
@@ -143,7 +144,17 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       logger,
     });
 
-    await setupProject(context.destinationDirectory, { dryRun, logger });
+    if (options.setup !== false) {
+      await setupProject(context.destinationDirectory, { dryRun, logger });
+    } else if (dryRun) {
+      logger.step(
+        "Would skip project setup (--no-setup): dependency installation and Next.js type generation.",
+      );
+    } else {
+      console.error(
+        "Skipping project setup (--no-setup): dependency installation and Next.js type generation.",
+      );
+    }
 
     const target = resolveOpenTarget({
       optionApps: options.app,
