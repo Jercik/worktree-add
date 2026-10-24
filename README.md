@@ -30,7 +30,9 @@ Running `worktree-add <branch>` from inside a repo:
 9. If the project uses Next.js and supports it, runs `next typegen`.
 10. Opens the new worktree if you passed `--app` or `--open`.
 
-Pass `--no-setup` to skip dependency installation and Next.js type generation, including their detection. Branch creation, local file copying and app opening still run; ordinary Git hooks still apply. Run any needed setup yourself afterward.
+Pass `--no-copy` to skip copying untracked and ignored local files. Combine it with `--no-setup` to create a worktree without copying local files or running project setup.
+
+Pass `--no-setup` to skip dependency installation and Next.js type generation, including their detection. Branch creation, local file copying and app opening still run unless separately disabled; ordinary Git hooks still apply. Run any needed setup yourself afterward.
 
 Your original checkout is left untouched.
 
@@ -116,6 +118,7 @@ Common options:
   -o, --open         Open the worktree after creating it
   --offline          Create from HEAD when origin can't be reached
   --allow-stale      Create from HEAD even when the current branch is behind origin
+  --no-copy          Skip copying untracked and ignored local files
   --no-setup         Skip dependency installation and Next.js type generation
   -y, --yes          Skip confirmation and replace existing destination
   --interactive      Allow confirmation prompts (requires a TTY)

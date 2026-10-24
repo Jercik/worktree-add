@@ -24,6 +24,7 @@ export interface CliOptions {
   readonly open?: boolean;
   readonly offline?: boolean;
   readonly allowStale?: boolean;
+  readonly copy?: boolean;
   readonly setup?: boolean;
   readonly yes?: boolean;
   readonly interactive?: boolean;
@@ -139,10 +140,16 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       logger,
     });
 
-    await copyUntrackedFiles(context.repoRoot, context.destinationDirectory, {
-      dryRun,
-      logger,
-    });
+    if (options.copy !== false) {
+      await copyUntrackedFiles(context.repoRoot, context.destinationDirectory, {
+        dryRun,
+        logger,
+      });
+    } else if (dryRun) {
+      logger.step("Would skip copying untracked and ignored local files (--no-copy).");
+    } else {
+      console.error("Skipping copying untracked and ignored local files (--no-copy).");
+    }
 
     if (options.setup !== false) {
       await setupProject(context.destinationDirectory, { dryRun, logger });

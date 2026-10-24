@@ -69,7 +69,7 @@ beforeEach(() => {
   vi.stubEnv("GIT_COMMITTER_NAME", "Test");
   vi.stubEnv("GIT_COMMITTER_EMAIL", "test@example.com");
   vi.spyOn(console, "error").mockImplementation(() => {});
-  vi.mocked(setupProject).mockRejectedValue(new Error("install failed"));
+  vi.mocked(setupProject).mockReset().mockRejectedValue(new Error("install failed"));
 });
 
 afterEach(async () => {
@@ -436,6 +436,64 @@ async function prepareCopyFailure(
   await fs.writeFile(path.join(fixture.repoRoot, ".env"), "LOCAL_FIXTURE=yes\n");
   return fixture;
 }
+
+describe("runWorktreeAdd without local file copying", () => {
+  it("keeps tracked files but leaves untracked and ignored files in the source checkout", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    await fs.writeFile(path.join(repoRoot, ".gitignore"), ".env\n");
+    git("add", ".gitignore", { cwd: repoRoot });
+    commit(repoRoot, "ignore local environment");
+    await fs.writeFile(path.join(repoRoot, ".env"), "LOCAL_FIXTURE=yes\n");
+    await fs.writeFile(path.join(repoRoot, "local.txt"), "local fixture\n");
+
+    await runWorktreeAdd("feature/clean", { copy: false, setup: false });
+
+    expect(
+      git("symbolic-ref", "--short", "HEAD", { cwd: path.join(sandbox, "app-feature-clean") }),
+    ).toBe("feature/clean");
+    await expect(fs.readdir(path.join(sandbox, "app-feature-clean"))).resolves.toStrictEqual([
+      ".git",
+      ".gitignore",
+    ]);
+    await expect(fs.readFile(path.join(repoRoot, ".env"), "utf8")).resolves.toBe(
+      "LOCAL_FIXTURE=yes\n",
+    );
+    await expect(fs.readFile(path.join(repoRoot, "local.txt"), "utf8")).resolves.toBe(
+      "local fixture\n",
+    );
+  });
+
+  it("still runs project setup when copying is disabled", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+
+    await expect(runWorktreeAdd("feature/clean", { copy: false })).rejects.toThrow(
+      "install failed",
+    );
+
+    await expect(fs.lstat(path.join(sandbox, "app-feature-clean"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(listLocalBranches(repoRoot)).toBe("main");
+  });
+
+  it("previews the skipped copy without enumerating local files or creating a checkout", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    await fs.writeFile(path.join(repoRoot, "local.txt"), "local fixture\n");
+    vi.mocked(copyUntrackedFiles).mockClear();
+
+    await runWorktreeAdd("feature/clean", { copy: false, setup: false, dryRun: true });
+
+    await expect(fs.lstat(path.join(sandbox, "app-feature-clean"))).rejects.toMatchObject({
+      code: "ENOENT",
+    });
+    expect(listLocalBranches(repoRoot)).toBe("main");
+    expect(copyUntrackedFiles).not.toHaveBeenCalled();
+    expect(console.error).toHaveBeenCalledWith(
+      "DRY RUN: Would skip copying untracked and ignored local files (--no-copy).",
+    );
+    expect(console.error).not.toHaveBeenCalledWith(expect.stringContaining("Would copy"));
+  });
+});
 
 describe("runWorktreeAdd without project setup", () => {
   it("keeps the linked checkout and copies local files despite unavailable setup", async () => {

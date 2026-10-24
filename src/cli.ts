@@ -27,6 +27,7 @@ const program = new Command()
     "--allow-stale",
     "Create a new branch from HEAD even when the current branch is behind its origin counterpart",
   )
+  .option("--no-copy", "Skip copying untracked and ignored local files")
   .option("--no-setup", "Skip dependency installation and Next.js type generation")
   .option("-y, --yes", "Skip confirmation and replace existing destination")
   .option("--dry-run", "Show what would happen without making changes")
