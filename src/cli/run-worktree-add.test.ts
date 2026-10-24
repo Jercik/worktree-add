@@ -165,16 +165,7 @@ describe("runWorktreeAdd cleanup after a setup failure", () => {
     );
   });
 
-  it("keeps a local branch that existed before the run", async () => {
-    const { repoRoot } = await createRepository({ withCommit: true });
-    git("branch", "feature/existing", { cwd: repoRoot });
-
-    await expect(runWorktreeAdd("feature/existing", {})).rejects.toThrow("install failed");
-
-    expect(listLocalBranches(repoRoot)).toBe("feature/existing\nmain");
-  });
-
-  it("checks out a local branch that existed before the run instead of detaching", async () => {
+  it("checks out a pre-existing local branch by name and keeps it after setup fails", async () => {
     const { repoRoot } = await createRepository({ withCommit: true });
     git("branch", "feature/existing", { cwd: repoRoot });
     let checkedOut: string | undefined;
@@ -186,6 +177,7 @@ describe("runWorktreeAdd cleanup after a setup failure", () => {
     await expect(runWorktreeAdd("feature/existing", {})).rejects.toThrow("install failed");
 
     expect(checkedOut).toBe("refs/heads/feature/existing");
+    expect(listLocalBranches(repoRoot)).toBe("feature/existing\nmain");
   });
 
   it("keeps a pre-existing local branch that the run fast-forwarded", async () => {
