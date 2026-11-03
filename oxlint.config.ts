@@ -1,7 +1,7 @@
-import { compose, esmOnly, node, vitest } from "@j4k/oxlint-config";
+import { compose, esmOnly, node, nodeTest, vitest } from "@j4k/oxlint-config";
 
 const config = {
-  ...compose(node, esmOnly, vitest),
+  ...compose(node, esmOnly, vitest, nodeTest),
   ignorePatterns: [".claude/", ".clawpatch/", ".codex/"],
 };
 

@@ -40,7 +40,7 @@ If a later step fails or you interrupt the run, the tool removes the new worktre
 
 ## Requirements
 
-- Node.js ≥ 24.15.0
+- Node.js ≥ 26.0.0
 - Git with `git worktree` support
 - Git 2.42 or newer to create a worktree in a repository with no commits yet. Older versions exit with an error that names the requirement.
 - A package manager when `package.json` is present, unless you pass `--no-setup`
