@@ -18,18 +18,10 @@ const {
 } = gitModule;
 
 const createLogger = (): StatusLogger => ({
-  step: vi.fn((message: string): void => {
-    void message;
-  }),
-  success: vi.fn((message: string): void => {
-    void message;
-  }),
-  detail: vi.fn((message: string): void => {
-    void message;
-  }),
-  warn: vi.fn((message: string): void => {
-    void message;
-  }),
+  step: vi.fn<StatusLogger["step"]>(),
+  success: vi.fn<StatusLogger["success"]>(),
+  detail: vi.fn<StatusLogger["detail"]>(),
+  warn: vi.fn<StatusLogger["warn"]>(),
 });
 
 describe("fetchRemoteBranch", () => {
