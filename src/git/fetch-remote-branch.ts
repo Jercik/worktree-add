@@ -10,6 +10,7 @@ import {
   normalizeBranchName,
   remoteBranchExists,
 } from "./git.js";
+import { classifyBranchDivergence } from "./classify-branch-divergence.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 
 type RemoteBranchStatus = "exists" | "missing" | "unknown" | "diverged";
@@ -93,15 +94,16 @@ export function fetchRemoteBranch(
       return { status: "exists", localExists, divergence: undefined };
     }
     const { ahead, behind } = counts;
+    const relation = classifyBranchDivergence(counts);
 
-    if (ahead === 0 && behind > 0) {
+    if (relation === "behind") {
       logger.detail(`Fast-forwarding '${normalized}' from ${localHead} to ${remoteHead}.`);
       logger.step(`Fast-forwarding local '${normalized}' to origin/${normalized} …`);
       git("branch", "-f", "--", normalized, `origin/${normalized}`);
       return { status: "exists", localExists, divergence: undefined };
     }
 
-    if (ahead === 0 && behind === 0) {
+    if (relation === "even") {
       // Defensive: rev-list should report differences when heads differ,
       // but shallow/corrupted refs can yield 0/0 counts.
       logger.warn(
@@ -110,7 +112,7 @@ export function fetchRemoteBranch(
       return { status: "exists", localExists, divergence: undefined };
     }
 
-    if (ahead > 0 && behind > 0) {
+    if (relation === "diverged") {
       return {
         status: "diverged",
         localExists,
