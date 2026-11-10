@@ -13,10 +13,7 @@ function readGitVersion(): { major: number; minor: number } | undefined {
 }
 
 /** The installed git's version when it is too old to start a branch from an unborn `HEAD`, else undefined. */
-export function findTooOldGitForUnbornHead(): string | undefined {
-  if (resolveCommit("HEAD") !== undefined) {
-    return undefined;
-  }
+export function findGitLackingUnbornHeadSupport(): string | undefined {
   const version = readGitVersion();
   if (
     version === undefined ||
@@ -26,6 +23,11 @@ export function findTooOldGitForUnbornHead(): string | undefined {
     return undefined;
   }
   return `${version.major}.${version.minor}`;
+}
+
+/** The installed git's version when the current repository's `HEAD` is unborn and git is too old to start a branch from it, else undefined. */
+export function findUnbornHeadGitBlocker(): string | undefined {
+  return resolveCommit("HEAD") === undefined ? findGitLackingUnbornHeadSupport() : undefined;
 }
 
 export function formatUnbornHeadGitMessage(found: string): string {

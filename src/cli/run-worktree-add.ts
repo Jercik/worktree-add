@@ -9,7 +9,7 @@ import type { CreatedWorktree } from "../git/create-worktree.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
 import { findStaleStartPoint } from "../git/find-stale-start-point.js";
 import {
-  findTooOldGitForUnbornHead,
+  findUnbornHeadGitBlocker,
   formatUnbornHeadGitMessage,
 } from "../git/unborn-head-support.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
@@ -102,7 +102,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
 
       // Only a new branch starts from HEAD, and an unborn HEAD needs a newer git than the rest of the tool.
       if (remoteStatus.status !== "exists" && !remoteStatus.localExists) {
-        const oldGitVersion = findTooOldGitForUnbornHead();
+        const oldGitVersion = findUnbornHeadGitBlocker();
         if (oldGitVersion !== undefined) {
           throw new Error(formatUnbornHeadGitMessage(oldGitVersion));
         }
