@@ -4,6 +4,7 @@ import { detect } from "package-manager-detector/detect";
 import { formatCommand, getBinaryRunCommand } from "./package-manager-commands.js";
 import { getInstallCommand, getInstallMessage } from "./install-commands.js";
 import type { DetectedPackageManagerName } from "./package-manager-name.js";
+import { supportedPackageManagerName } from "./package-manager-name.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 
@@ -55,7 +56,7 @@ async function detectPackageManager(cwd: string): Promise<DetectedPackageManager
     cwd,
     strategies: ["packageManager-field", "lockfile"],
   });
-  return result?.name;
+  return supportedPackageManagerName(result?.name);
 }
 
 export async function installDependencies(
