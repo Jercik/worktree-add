@@ -311,20 +311,22 @@ describe("runWorktreeAdd in a repository with no commits yet", () => {
     const oldGitVersion = findTooOldGitForUnbornHead();
     const worktreeDirectory = path.join(sandbox, "app-feature-new");
 
-    const outcome = await runWorktreeAdd("feature/new", {}).then(
-      () => "created",
-      (error: unknown) => (error instanceof Error ? error.message : String(error)),
-    );
+    const outcome = await runWorktreeAdd("feature/new", {})
+      .then(() => "created")
+      .catch((error: unknown) => (error instanceof Error ? error.message : String(error)));
 
     expect(outcome).toBe(
       oldGitVersion === undefined
         ? "created"
         : `Creating a worktree in a repository with no commits needs git 2.42 or newer (found ${oldGitVersion}).`,
     );
-    const worktreeBranch = await fs.lstat(worktreeDirectory).then(
-      () => git("symbolic-ref", "--short", "HEAD", { cwd: worktreeDirectory }),
-      () => "no worktree",
-    );
+    const worktreeExists = await fs
+      .lstat(worktreeDirectory)
+      .then(() => true)
+      .catch(() => false);
+    const worktreeBranch = worktreeExists
+      ? git("symbolic-ref", "--short", "HEAD", { cwd: worktreeDirectory })
+      : "no worktree";
     expect(worktreeBranch).toBe(oldGitVersion === undefined ? "feature/new" : "no worktree");
   });
 });
