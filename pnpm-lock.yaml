@@ -184,6 +184,9 @@ importers:
         specifier: ^10.1.1
         version: 10.1.1
     devDependencies:
+      '@j4k-oss/dts-leaks':
+        specifier: ^1.0.0
+        version: 1.0.0(typescript@7.0.2)
       '@j4k-oss/fta-check':
         specifier: ^1.6.3
         version: 1.6.3(fta-cli@3.1.0)
@@ -289,6 +292,12 @@ packages:
 
   '@emnapi/wasi-threads@1.2.2':
     resolution: {integrity: sha512-c95qOXkHdydNKhscBTebqEC1CVAZpyqOfVfBzQ1qgzyl3gfeldUjIggDbIZgDKsHLgnsM+igH7TJ/eAasaVuMA==}
+
+  '@j4k-oss/dts-leaks@1.0.0':
+    resolution: {integrity: sha512-S8e51SZ1vJ7X5/MxgMCw1ETtD8KZOpnbBc5b3sVaiuU7eavupL2P92U3zWz6yNmZoBWkqJlovmR0C09ez/pPLw==, tarball: https://code.j4k.dev/api/packages/j4k-oss/npm/%40j4k-oss%2Fdts-leaks/-/1.0.0/dts-leaks-1.0.0.tgz}
+    hasBin: true
+    peerDependencies:
+      typescript: '>=6.0.0 <8.0.0'
 
   '@j4k-oss/fta-check@1.6.3':
     resolution: {integrity: sha512-eZCDwUhwMQ+eVoeVq9JMQyaBFCpMtNLdzby7ZCEzrKZd0nVbP1wao24X3JrlnRhDaw5QdMoSJ+AWj0+nwHoJrg==, tarball: https://code.j4k.dev/api/packages/j4k-oss/npm/%40j4k-oss%2Ffta-check/-/1.6.3/fta-check-1.6.3.tgz}
@@ -2922,6 +2931,10 @@ snapshots:
     dependencies:
       tslib: 2.9.1
     optional: true
+
+  '@j4k-oss/dts-leaks@1.0.0(typescript@7.0.2)':
+    dependencies:
+      typescript: 7.0.2
 
   '@j4k-oss/fta-check@1.6.3(fta-cli@3.1.0)':
     dependencies:
