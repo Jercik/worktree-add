@@ -66,6 +66,8 @@ async function prepareTrackedClones(
     return [];
   }
 
+  // clonefile carries xattrs and BSD flags that a Git checkout would not create.
+  // BSD find matches flags exactly: nouchg by itself is the zero-flags mask.
   const stdout = execFileSync(
     "/usr/bin/find",
     [
@@ -85,13 +87,14 @@ async function prepareTrackedClones(
     ],
     {
       encoding: "utf8",
-      maxBuffer: Math.max(
-        1024 * 1024,
-        entries.length * (Buffer.byteLength(scratchDirectory) + 40) * 2,
+      maxBuffer: clones.reduce(
+        (bytes, clone) => bytes + Buffer.byteLength(clone.scratchPath) + 1,
+        0,
       ),
     },
   );
   const unsafe = new Set(stdout.split("\0"));
+  // The mode of a newly created file reflects the process umask, not the source permissions.
   const modePath = path.join(scratchDirectory, ".mode");
   const modeFile = await fs.open(modePath, "wx", 0o777);
   const { mode } = await modeFile.stat();
@@ -109,6 +112,7 @@ async function prepareTrackedClones(
     }
     // oxlint-disable-next-line no-bitwise -- apply the process creation mask to Git's file mode.
     await fs.chmod(clone.scratchPath, (clone.executable ? 0o777 : 0o666) & mode);
+    // A fresh checkout would not inherit the source file's modification time.
     const now = new Date();
     await fs.utimes(clone.scratchPath, now, now);
     prepared.push(clone);
@@ -125,6 +129,7 @@ async function publishTrackedClones(
   if (clones.length === 0) {
     return [];
   }
+  // Cloning one absent top-level name avoids replacing files or following a destination symlink.
   const groups = new Map<string, TrackedClone[]>();
   for (const clone of clones) {
     const top = clone.path.split("/").shift() ?? clone.path;

@@ -1,4 +1,4 @@
-import { spawnSync } from "node:child_process";
+import { git, gitBytes } from "./git.js";
 
 export interface TrackedCloneEntry {
   readonly path: string;
@@ -6,32 +6,17 @@ export interface TrackedCloneEntry {
   readonly executable: boolean;
 }
 
-function runGit(cwd: string, args: string[], input?: string): Buffer | undefined {
-  const result = spawnSync("git", args, {
-    cwd,
-    input,
-    maxBuffer: 100 * 1024 * 1024,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-  });
-  return result.status === 0 ? result.stdout : undefined;
+function falseOrUnset(cwd: string, key: string): boolean {
+  return git("config", "--type=bool", "--default=false", "--get", key, { cwd }) === "false";
 }
 
-function config(cwd: string, key: string, boolean = false): string | null | undefined {
-  const result = spawnSync("git", ["config", ...(boolean ? ["--type=bool"] : []), "--get", key], {
-    cwd,
-    encoding: "utf8",
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-  });
-  if (result.status === 1) {
-    return null;
-  }
-  if (result.status !== 0) {
-    return undefined;
-  }
-  return result.stdout.trim().toLowerCase();
+function checkoutUsesLf(cwd: string): boolean {
+  const value = git("config", "--default=native", "--get", "core.eol", { cwd }).toLowerCase();
+  return value === "lf" || (value === "native" && process.platform !== "win32");
 }
 
 function unambiguousTree(entries: string[]): boolean {
+  // An alias could make a published path collide with another entry or Git's admin directory.
   const names = new Set<string>();
   for (const entry of entries) {
     const name = entry
@@ -71,38 +56,19 @@ export function trackedCloneEntries(
   if (!/^[a-f\d]{40}(?:[a-f\d]{24})?$/u.test(targetCommit)) {
     return [];
   }
-  const sourceSparse = config(sourceRoot, "core.sparseCheckout", true);
-  const sparse = config(destinationRoot, "core.sparseCheckout", true);
-  const autoCrlf = config(destinationRoot, "core.autocrlf", true);
-  const eol = config(destinationRoot, "core.eol");
-  const nativeLf = process.platform === "darwin" || process.platform === "linux";
   if (
-    sourceSparse === undefined ||
-    (sourceSparse !== null && sourceSparse !== "false") ||
-    sparse === undefined ||
-    (sparse !== null && sparse !== "false") ||
-    autoCrlf === undefined ||
-    (autoCrlf !== null && autoCrlf !== "false") ||
-    eol === undefined ||
-    (eol !== "lf" && !((eol === null || eol === "native") && nativeLf))
+    !falseOrUnset(sourceRoot, "core.sparseCheckout") ||
+    !falseOrUnset(destinationRoot, "core.sparseCheckout") ||
+    !falseOrUnset(destinationRoot, "core.autocrlf") ||
+    !checkoutUsesLf(destinationRoot)
   ) {
     return [];
   }
 
-  const sourceOutput = runGit(sourceRoot, ["ls-files", "--stage", "-z"]);
-  const targetOutput = runGit(destinationRoot, [
-    "ls-tree",
-    "-r",
-    "-t",
-    "-z",
-    "--full-tree",
-    targetCommit,
-  ]);
-  if (!sourceOutput || !targetOutput) {
-    return [];
-  }
-  const sourceRecords = records(sourceOutput);
-  const targetRecords = records(targetOutput);
+  const sourceRecords = records(gitBytes(["ls-files", "--stage", "-z"], { cwd: sourceRoot }));
+  const targetRecords = records(
+    gitBytes(["ls-tree", "-r", "-t", "-z", "--full-tree", targetCommit], { cwd: destinationRoot }),
+  );
   if (!sourceRecords || !targetRecords || !unambiguousTree(targetRecords)) {
     return [];
   }
@@ -134,15 +100,13 @@ export function trackedCloneEntries(
     return [];
   }
 
-  const output = runGit(
-    destinationRoot,
-    ["check-attr", `--source=${targetCommit}`, "-z", "--stdin", "--all"],
-    `${candidates.map((entry) => entry.path).join("\0")}\0`,
+  const input = candidates.map((entry) => `${entry.path}\0`).join("");
+  const values = records(
+    gitBytes(["check-attr", `--source=${targetCommit}`, "-z", "--stdin", "--all"], {
+      cwd: destinationRoot,
+      input,
+    }),
   );
-  if (!output) {
-    return [];
-  }
-  const values = records(output);
   if (!values || values.length % 3 !== 0) {
     return [];
   }
@@ -155,14 +119,19 @@ export function trackedCloneEntries(
     if (path === undefined || attribute === undefined || value === undefined || !paths.has(path)) {
       return [];
     }
-    if (
-      (attribute === "text" && !["set", "auto", "unset"].includes(value)) ||
-      (attribute === "crlf" && !["set", "input", "unset"].includes(value)) ||
-      (attribute === "eol" && value !== "lf") ||
-      ["ident", "filter", "working-tree-encoding"].includes(attribute)
-    ) {
+    if (!checkoutPreservesBytes(attribute, value)) {
       rejected.add(path);
     }
   }
   return candidates.filter((candidate) => !rejected.has(candidate.path));
+}
+
+function checkoutPreservesBytes(attribute: string, value: string): boolean {
+  // Matching the stored blob is insufficient when Git transforms its bytes on checkout.
+  return !(
+    (attribute === "text" && !["set", "auto", "unset"].includes(value)) ||
+    (attribute === "crlf" && !["set", "input", "unset"].includes(value)) ||
+    (attribute === "eol" && value !== "lf") ||
+    ["ident", "filter", "working-tree-encoding"].includes(attribute)
+  );
 }

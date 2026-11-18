@@ -1,35 +1,51 @@
+import type { SpawnSyncReturns } from "node:child_process";
 import { spawnSync } from "node:child_process";
 import * as fs from "node:fs/promises";
 import * as readline from "node:readline/promises";
 import type { BranchConfig } from "./parse-branch-config.js";
 import { parseBranchConfig } from "./parse-branch-config.js";
 
-export function git(...arguments_: [...string[], { cwd?: string }] | string[]): string {
-  let cwd: string | undefined;
+interface GitOptions {
+  cwd?: string;
+  input?: string;
+}
+
+export function runGitRaw(args: string[], options: GitOptions): SpawnSyncReturns<Buffer> {
+  return spawnSync("git", args, {
+    maxBuffer: 100 * 1024 * 1024,
+    stdio: [options.input === undefined ? "ignore" : "pipe", "pipe", "pipe"],
+    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
+    ...(options.cwd && { cwd: options.cwd }),
+    ...(options.input !== undefined && { input: options.input }),
+  });
+}
+
+export function git(...arguments_: [...string[], GitOptions] | string[]): string {
+  let options: GitOptions = {};
   let gitArguments: string[];
 
   const lastArgument = arguments_.at(-1);
-  if (lastArgument && typeof lastArgument === "object" && "cwd" in lastArgument) {
-    cwd = lastArgument.cwd;
+  if (lastArgument && typeof lastArgument === "object") {
+    options = lastArgument;
     gitArguments = arguments_.slice(0, -1) as string[];
   } else {
     gitArguments = arguments_ as string[];
   }
 
-  const result = spawnSync("git", gitArguments, {
-    encoding: "utf8",
-    maxBuffer: 100 * 1024 * 1024, // 100 MB to accommodate large outputs
-    stdio: ["ignore", "pipe", "pipe"],
-    env: { ...process.env, GIT_TERMINAL_PROMPT: "0" },
-    ...(cwd && { cwd }),
-  });
+  return gitBytes(gitArguments, options).toString("utf8").trim();
+}
+
+export function gitBytes(gitArguments: string[], options: GitOptions): Buffer {
+  const result = runGitRaw(gitArguments, options);
   if (result.error) {
     throw result.error;
   }
   if (result.status !== 0) {
-    throw new Error(result.stderr || `git ${gitArguments[0] ?? "command"} failed`);
+    throw new Error(
+      result.stderr?.toString("utf8") || `git ${gitArguments[0] ?? "command"} failed`,
+    );
   }
-  return result.stdout.trim();
+  return result.stdout;
 }
 
 export function normalizeBranchName(name: string): string {

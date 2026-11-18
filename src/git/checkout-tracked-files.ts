@@ -1,18 +1,15 @@
-import { execFileSync, spawnSync } from "node:child_process";
 import { cloneTrackedFiles } from "../worktree/clone-tracked-files.js";
-import { git } from "./git.js";
+import { git, runGitRaw } from "./git.js";
 import { trackedCloneEntries } from "./tracked-clone-entries.js";
 import type { TrackedCloneEntry } from "./tracked-clone-entries.js";
 
 export function canSeedCheckout(sourceRoot: string): boolean {
-  // Leave hook selection, working directory, and timing entirely to git worktree add.
+  // Splitting worktree add and reset changes when these hooks run and what they see.
   return (
     process.platform === "darwin" &&
     process.env.GIT_INDEX_FILE === undefined &&
     ["post-checkout", "post-index-change", "reference-transaction"].every(
-      (event) =>
-        spawnSync("git", ["hook", "list", event], { cwd: sourceRoot, stdio: "ignore" }).status ===
-        1,
+      (event) => runGitRaw(["hook", "list", event], { cwd: sourceRoot }).status === 1,
     )
   );
 }
@@ -36,11 +33,7 @@ async function seedIndex(sourceRoot: string, destination: string): Promise<numbe
       .map((entry) => `${entry.executable ? "100755" : "100644"} ${entry.oid}\t${entry.path}\0`)
       .join("");
     const indexGit = ["-c", "core.hooksPath=/dev/null", "update-index"];
-    execFileSync("git", [...indexGit, "-z", "--index-info"], {
-      cwd: destination,
-      input,
-      stdio: "pipe",
-    });
+    git(...indexGit, "-z", "--index-info", { cwd: destination, input });
     git(...indexGit, "-q", "--refresh", { cwd: destination });
   }
   return published.length;

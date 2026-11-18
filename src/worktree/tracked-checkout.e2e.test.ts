@@ -32,7 +32,7 @@ function git(cwd: string, ...args: string[]): string {
 
 async function repository(): Promise<{ repo: string; target: string }> {
   const sandbox = await temporaryDirectory();
-  git(sandbox, "init", "--quiet", "--initial-branch=main", "app");
+  git(sandbox, "init", "--quiet", "--template=", "--initial-branch=main", "app");
   const repo = path.join(sandbox, "app");
   git(repo, "config", "commit.gpgsign", "false");
   git(repo, "config", "core.autocrlf", "false");
@@ -127,9 +127,11 @@ describe.skipIf(process.platform !== "darwin")("tracked checkout through the CLI
       path.join(target, "src/clean.txt"),
     );
     skip(status === "unsupported", "Temporary volume does not support cloning");
-    const hookListSupported =
-      spawnSync("git", ["hook", "list", "post-checkout"], { cwd: repo }).status === 1;
-    expect(status).toBe(String(hookListSupported));
+    const hookListStatus = spawnSync("git", ["hook", "list", "post-checkout"], {
+      cwd: repo,
+    }).status;
+    skip(hookListStatus !== 0 && hookListStatus !== 1, "Git does not support hook listing");
+    expect(status).toBe("true");
     const mode = await fs.stat(path.join(target, "run.sh"));
     const result = {
       branch: await fs.readFile(path.join(target, "branch.txt"), "utf8"),
@@ -167,6 +169,7 @@ describe.skipIf(process.platform !== "darwin")("tracked checkout through the CLI
     await fs.writeFile(path.join(repo, "tracked.txt"), "committed\n");
     commit(repo);
     const hook = path.join(repo, ".git/hooks/post-checkout");
+    await fs.mkdir(path.dirname(hook), { recursive: true });
     await fs.writeFile(
       hook,
       "#!/bin/sh\ncat tracked.txt > hook-saw.txt\nprintf 'hook edit\\n' > tracked.txt\n",

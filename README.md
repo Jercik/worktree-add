@@ -22,7 +22,7 @@ Running `worktree-add <branch>` from inside a repo:
    - or creates a tracking branch from `origin/<branch>`
    - or creates a new branch from the current `HEAD` (only when the branch does not exist on `origin/`, or when you pass `--offline` and `origin/` can’t be reached)
    - before creating a new branch from `HEAD`, it checks the branch you are on against `origin/` and exits if that branch is behind, so new work doesn't start from outdated code. Update the branch and retry, or pass `--allow-stale` to create the branch anyway. A detached `HEAD` and a branch that doesn't exist on `origin/` are not checked. The check runs before an existing destination is moved to the trash, so a refusal leaves that directory in place.
-   - On macOS, matching tracked files can share disk blocks with your current checkout on the same APFS volume. Editing either file leaves the other alone. Git checks out changed files and files that need filters or line-ending conversion. Sparse checkouts, checkout hooks, and Git versions without `git hook list` use the ordinary checkout.
+   - On macOS, matching tracked files can share disk blocks with your current checkout on the same APFS volume. Editing either file leaves the other alone. Git uses its ordinary checkout when sharing would change the result, for example in a sparse checkout or when a file needs line-ending conversion.
 7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
    (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
    - On the same APFS volume, copies of regular files share disk space until you edit them. Edits in one worktree do not change the other. Where cloning is unavailable, the files are copied normally.
