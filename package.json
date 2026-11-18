@@ -55,6 +55,7 @@
   },
   "dependencies": {
     "@commander-js/extra-typings": "^15.0.0",
+    "@reflink/reflink": "^0.1.19",
     "commander": "^15.0.0",
     "open": "^11.0.0",
     "package-manager-detector": "^1.9.0",

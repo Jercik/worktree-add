@@ -1,9 +1,9 @@
-import { constants } from "node:fs";
 import * as fs from "node:fs/promises";
 import path from "node:path";
 import { git } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
+import { copyLocalEntry } from "./copy-local-entry.js";
 import { isGeneratedPath } from "./is-generated-path.js";
 
 const hasErrorCode = (error: unknown, ...codes: string[]): boolean =>
@@ -127,21 +127,9 @@ export async function copyUntrackedFiles(
       logger.detail(`Would copy ${relativePath}`);
       continue;
     }
-    await fs.mkdir(path.dirname(destinationPath), { recursive: true });
-    try {
-      await fs.cp(sourcePath, destinationPath, {
-        recursive: true,
-        errorOnExist: true,
-        force: false,
-        mode: constants.COPYFILE_EXCL,
-        verbatimSymlinks: true,
-      });
-    } catch (error: unknown) {
-      if (hasErrorCode(error, "EEXIST", "ERR_FS_CP_EEXIST")) {
-        logger.detail(`Skipped ${relativePath} (destination already exists).`);
-        continue;
-      }
-      throw error;
+    if ((await copyLocalEntry(sourcePath, destinationPath)) === "exists") {
+      logger.detail(`Skipped ${relativePath} (destination already exists).`);
+      continue;
     }
     logger.detail(`Copied ${relativePath}`);
   }

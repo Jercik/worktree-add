@@ -24,6 +24,7 @@ Running `worktree-add <branch>` from inside a repo:
    - before creating a new branch from `HEAD`, it checks the branch you are on against `origin/` and exits if that branch is behind, so new work doesn't start from outdated code. Update the branch and retry, or pass `--allow-stale` to create the branch anyway. A detached `HEAD` and a branch that doesn't exist on `origin/` are not checked. The check runs before an existing destination is moved to the trash, so a refusal leaves that directory in place.
 7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
    (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).
+   - On the same APFS volume, copies of regular files share disk space until you edit them. Edits in one worktree do not change the other. Where cloning is unavailable, the files are copied normally.
    - It also skips any directory that has its own `.git` (a nested clone or linked worktree, such as third-party sources under an ignored directory), so a worktree doesn't carry full copies of other repositories. Each skipped directory is named on stderr, for example `Skipping sources/codex (nested git repository).`
 8. Detects your package manager and installs dependencies with lockfile‑safe flags
    (`npm ci`, `pnpm install --frozen-lockfile`, `yarn install --immutable`, etc.).

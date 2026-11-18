@@ -105,6 +105,65 @@ describe("copyUntrackedFiles", () => {
     ).rejects.toMatchObject({ code: "ENOENT" });
   });
 
+  it.skipIf(process.platform !== "darwin")(
+    "shares file data on clone-capable macOS volumes without sharing edits",
+    async ({ skip }) => {
+      const repoRoot = await createRepository();
+      const destinationDirectory = await createTemporaryDirectory();
+      const source = path.join(repoRoot, ".env");
+      const copy = path.join(destinationDirectory, ".env");
+      await fs.writeFile(source, "LOCAL=true\n");
+
+      await copyUntrackedFiles(repoRoot, destinationDirectory);
+
+      const cloneStatus = execFileSync(
+        "/usr/bin/swift",
+        [
+          "-e",
+          `import Foundation
+        let files = try CommandLine.arguments.dropFirst().map {
+          try URL(fileURLWithPath: $0).resourceValues(forKeys: [.volumeSupportsFileCloningKey, .fileContentIdentifierKey])
+        }
+        if files[0].volumeSupportsFileCloning == false {
+          print("unsupported")
+        } else {
+          print(files[0].fileContentIdentifier != nil && files[0].fileContentIdentifier == files[1].fileContentIdentifier)
+        }`,
+          source,
+          copy,
+        ],
+        { encoding: "utf8" },
+      ).trim();
+      skip(cloneStatus === "unsupported", "Temporary volume does not support cloning");
+      expect(cloneStatus).toBe("true");
+      await fs.writeFile(copy, "LOCAL=false\n");
+      await expect(fs.readFile(source, "utf8")).resolves.toBe("LOCAL=true\n");
+    },
+  );
+
+  it.skipIf(process.platform !== "darwin")(
+    "copies local files when Node is run without native addons",
+    async () => {
+      const repoRoot = await createRepository();
+      const destinationDirectory = await createTemporaryDirectory();
+      const source = path.join(repoRoot, ".env");
+      const copy = path.join(destinationDirectory, ".env");
+      await fs.writeFile(source, "LOCAL=true\n");
+
+      execFileSync(process.execPath, [
+        "--no-addons",
+        "--input-type=module",
+        "-e",
+        "const { copyLocalEntry } = await import(process.argv[1]); await copyLocalEntry(process.argv[2], process.argv[3]);",
+        new URL("copy-local-entry.ts", import.meta.url).href,
+        source,
+        copy,
+      ]);
+
+      await expect(fs.readFile(copy, "utf8")).resolves.toBe("LOCAL=true\n");
+    },
+  );
+
   it.skipIf(process.platform === "win32")(
     "preserves relative links to copied local configuration",
     async () => {
