@@ -29,21 +29,30 @@ describe("createWorktree", () => {
     vi.mocked(remoteBranchExists).mockReturnValue(false);
   });
 
-  it("renders the local-branch dry-run command without executing git", () => {
+  it("renders the local-branch dry-run command without executing git", async () => {
     vi.mocked(localBranchExists).mockReturnValue(true);
     const logger = createLogger();
 
-    createWorktree("feature/a", "/repo-a", { dryRun: true, logger });
+    await createWorktree("feature/a", "/repo-a", {
+      sourceRoot: "/repo",
+      onCreated: vi.fn<() => void>(),
+      dryRun: true,
+      logger,
+    });
 
     expect(logger.step).toHaveBeenCalledWith("Would run git worktree add -- /repo-a feature/a");
     expect(git).not.toHaveBeenCalled();
   });
 
-  it("executes the remote-branch worktree argv", () => {
+  it("executes the remote-branch worktree argv", async () => {
     vi.mocked(remoteBranchExists).mockReturnValue(true);
     const logger = createLogger();
 
-    createWorktree("feature/a", "/repo-a", { logger });
+    await createWorktree("feature/a", "/repo-a", {
+      sourceRoot: "/repo",
+      onCreated: vi.fn<() => void>(),
+      logger,
+    });
 
     expect(git).toHaveBeenCalledWith(
       "worktree",

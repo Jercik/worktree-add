@@ -1,3 +1,4 @@
+import { canSeedCheckout, checkoutTrackedFiles } from "./checkout-tracked-files.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import {
@@ -79,28 +80,29 @@ function selectWorktreeAddCommand(
   };
 }
 
-/** Returns what was created, or undefined on a dry run. */
-export function createWorktree(
+export async function createWorktree(
   branch: string,
   destinationDirectory: string,
-  options?: {
+  options: {
+    sourceRoot: string;
+    onCreated: (worktree: CreatedWorktree) => void;
     remoteBranchExists?: boolean;
     dryRun?: boolean;
     logger?: StatusLogger;
   },
-): CreatedWorktree | undefined {
-  const logger = options?.logger ?? fallbackStatusLogger;
-  const dryRun = options?.dryRun ?? false;
+): Promise<void> {
+  const logger = options.logger ?? fallbackStatusLogger;
+  const dryRun = options.dryRun ?? false;
   const normalized = normalizeBranchName(branch);
   const command = selectWorktreeAddCommand(
     normalized,
     destinationDirectory,
-    options?.remoteBranchExists,
+    options.remoteBranchExists,
   );
 
-  logger.step(`${dryRun ? "Would run " : ""}git ${command.args.join(" ")}`);
   if (dryRun) {
-    return undefined;
+    logger.step(`Would run git ${command.args.join(" ")}`);
+    return;
   }
   // Resolved before the add: a post-checkout hook can commit onto the new branch during it.
   const startCommit =
@@ -109,14 +111,24 @@ export function createWorktree(
       : resolveCommit(command.newBranchStartPoint);
   const preexistingConfig: BranchConfig =
     startCommit === undefined ? new Map<string, readonly string[]>() : readBranchConfig(normalized);
+  const seedCheckout =
+    (startCommit ?? resolveCommit(normalized)) !== undefined && canSeedCheckout(options.sourceRoot);
+  if (seedCheckout) {
+    command.args.splice(2, 0, "--no-checkout");
+  }
+  logger.step(`git ${command.args.join(" ")}`);
   git(...command.args);
 
   const ref = `refs/heads/${normalized}`;
-  return {
+  options.onCreated({
     directory: destinationDirectory,
     createdBranch:
       startCommit !== undefined && resolveCommit(ref) === startCommit
         ? { name: normalized, ref, commit: startCommit, preexistingConfig }
         : undefined,
-  };
+  });
+  if (seedCheckout) {
+    const shared = await checkoutTrackedFiles(options.sourceRoot, destinationDirectory);
+    logger.detail(`Tracked files sharing disk space: ${shared}.`);
+  }
 }

@@ -134,7 +134,11 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
 
     // Only treat origin as existing when confirmed; "unknown" remains false.
     const remoteBranchExists = remoteStatus.status === "exists";
-    createdWorktree = createWorktree(context.branch, context.destinationDirectory, {
+    await createWorktree(context.branch, context.destinationDirectory, {
+      sourceRoot: context.repoRoot,
+      onCreated(worktree) {
+        createdWorktree = worktree;
+      },
       remoteBranchExists,
       dryRun,
       logger,
