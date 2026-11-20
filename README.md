@@ -12,7 +12,7 @@ Running `worktree-add <branch>` from inside a repo:
 2. Refuses if that branch is already checked out in any worktree.
 3. Picks a destination next to your current repo: `../<repo>-<safe-branch>`.
    - If the current checkout is a submodule inside a parent repo, it places the new worktree outside the parent repo so it does not show up as an untracked directory there.
-4. If the destination exists, pass `--interactive` to be prompted for confirmation, or `--yes` to move it to the system trash without prompting. Without either flag, the command exits.
+4. If the destination exists, pass `--interactive` to be prompted for confirmation, or `--yes` to move it to the system trash without prompting. Without either flag, the command exits. A run refused because of `origin/` leaves the directory in place, and the local branch is fast-forwarded only after the directory is moved.
 5. Fetches `origin/<branch>` and refreshes your local branch when safe:
    - fast-forwards the local branch if it’s strictly behind `origin/<branch>`
    - warns and keeps the local branch as-is if it’s ahead
@@ -21,7 +21,7 @@ Running `worktree-add <branch>` from inside a repo:
    - reuses an existing local branch
    - or creates a tracking branch from `origin/<branch>`
    - or creates a new branch from the current `HEAD` (only when the branch does not exist on `origin/`, or when you pass `--offline` and `origin/` can’t be reached)
-   - before creating a new branch from `HEAD`, it checks the branch you are on against `origin/` and exits if that branch is behind, so new work doesn't start from outdated code. Update the branch and retry, or pass `--allow-stale` to create the branch anyway. A detached `HEAD` and a branch that doesn't exist on `origin/` are not checked. The check runs before an existing destination is moved to the trash, so a refusal leaves that directory in place.
+   - before creating a new branch from `HEAD`, it checks the branch you are on against `origin/` and exits if that branch is behind, so new work doesn't start from outdated code. Update the branch and retry, or pass `--allow-stale` to create the branch anyway. A detached `HEAD` and a branch that doesn't exist on `origin/` are not checked.
    - On macOS, matching tracked files can share disk blocks with your current checkout on the same APFS volume. Editing either file leaves the other alone. Git uses its ordinary checkout when sharing would change the result, for example in a sparse checkout or when a file needs line-ending conversion.
 7. Copies untracked / ignored files into the new worktree, skipping heavy stuff
    (`node_modules`, `dist`, `.next`, caches, virtualenvs, etc.).

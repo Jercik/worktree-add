@@ -3,9 +3,10 @@ import { resolveOpenTarget } from "../app/resolve-open-target.js";
 import { handleExistingDirectory } from "../worktree/destination-directory.js";
 import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
 import { setupProject } from "../project/setup.js";
-import { exitWithMessage, localBranchExists } from "../git/git.js";
+import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
 import type { CreatedWorktree } from "../git/create-worktree.js";
+import { fastForwardLocalBranch } from "../git/fast-forward-local-branch.js";
 import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
 import { findStaleStartPoint } from "../git/find-stale-start-point.js";
 import {
@@ -117,19 +118,13 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       return remoteStatus;
     };
 
-    let remoteStatus: ReturnType<typeof fetchRemoteBranch>;
-    if (localBranchExists(context.branch)) {
-      // The destination being replaced may have this branch checked out, which blocks fast-forwarding it.
-      if (!(await clearDestination())) {
-        return;
-      }
-      remoteStatus = resolveRemoteStatus();
-    } else {
-      // A refusal must leave an existing destination in place: nothing restores it from the trash.
-      remoteStatus = resolveRemoteStatus();
-      if (!(await clearDestination())) {
-        return;
-      }
+    // Every check against origin runs before clearing the destination: nothing restores it from the trash.
+    const remoteStatus = resolveRemoteStatus();
+    if (!(await clearDestination())) {
+      return;
+    }
+    if (remoteStatus.status === "exists" && remoteStatus.fastForward !== undefined) {
+      fastForwardLocalBranch(remoteStatus.fastForward, logger);
     }
 
     // Only treat origin as existing when confirmed; "unknown" remains false.

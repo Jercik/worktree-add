@@ -321,6 +321,77 @@ describe("runWorktreeAdd when the destination is the current checkout", () => {
   });
 });
 
+describe("runWorktreeAdd when the local branch has diverged from origin", () => {
+  it("refuses before moving an existing destination to trash", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    const local = git("commit-tree", "-p", "main", "-m", "local", "main^{tree}", { cwd: repoRoot });
+    git("branch", "feature/x", local, { cwd: repoRoot });
+    const remote = git("commit-tree", "-p", "main", "-m", "remote", "main^{tree}", {
+      cwd: repoRoot,
+    });
+    git("push", "--quiet", "origin", `${remote}:refs/heads/feature/x`, { cwd: repoRoot });
+    await fs.mkdir(path.join(sandbox, "app-feature-x"));
+    vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    await expect(runWorktreeAdd("feature/x", { yes: true })).rejects.toThrow("process.exit");
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining(
+        "Local branch 'feature/x' and origin/feature/x have diverged (ahead by 1 and behind by 1).",
+      ),
+    );
+    expect(trash).not.toHaveBeenCalled();
+  });
+});
+
+describe("runWorktreeAdd when an existing destination is not replaced", () => {
+  it("leaves a local branch that is behind origin where it was", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    git("branch", "feature/behind", { cwd: repoRoot });
+    const ahead = git("commit-tree", "-p", "main", "-m", "ahead", "main^{tree}", {
+      cwd: repoRoot,
+    });
+    git("push", "--quiet", "origin", `${ahead}:refs/heads/feature/behind`, { cwd: repoRoot });
+    await fs.mkdir(path.join(sandbox, "app-feature-behind"));
+    vi.spyOn(process, "exit").mockImplementation(() => {
+      throw new Error("process.exit");
+    });
+
+    await expect(runWorktreeAdd("feature/behind", {})).rejects.toThrow("process.exit");
+
+    expect(console.error).toHaveBeenCalledWith(
+      expect.stringContaining("Refusing to prompt in non-interactive mode."),
+    );
+    expect(git("log", "-1", "--format=%s", "feature/behind", { cwd: repoRoot })).toBe("initial");
+  });
+});
+
+describe("runWorktreeAdd when the local branch moves before the fast-forward", () => {
+  it("keeps the commit the branch moved to", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    git("branch", "feature/behind", { cwd: repoRoot });
+    const ahead = git("commit-tree", "-p", "main", "-m", "ahead", "main^{tree}", {
+      cwd: repoRoot,
+    });
+    git("push", "--quiet", "origin", `${ahead}:refs/heads/feature/behind`, { cwd: repoRoot });
+    await fs.mkdir(path.join(sandbox, "app-feature-behind"));
+    vi.mocked(trash).mockImplementationOnce(async () => {
+      const localWork = git("commit-tree", "-p", "main", "-m", "local work", "main^{tree}", {
+        cwd: repoRoot,
+      });
+      git("branch", "--force", "feature/behind", localWork, { cwd: repoRoot });
+    });
+
+    await expect(runWorktreeAdd("feature/behind", { yes: true })).rejects.toThrow(
+      "Failed to fast-forward 'feature/behind' to origin/feature/behind:",
+    );
+
+    expect(git("log", "-1", "--format=%s", "feature/behind", { cwd: repoRoot })).toBe("local work");
+  });
+});
+
 describe("runWorktreeAdd in a repository with no commits yet", () => {
   // Which of the two outcomes applies depends on the installed git.
   const oldGitVersion = findGitLackingUnbornHeadSupport();

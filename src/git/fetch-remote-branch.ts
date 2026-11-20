@@ -5,20 +5,18 @@ import {
   getAheadBehindCounts,
   getLocalBranchHead,
   getRemoteBranchHead,
-  git,
   localBranchExists,
   normalizeBranchName,
   remoteBranchExists,
 } from "./git.js";
 import { classifyBranchDivergence } from "./classify-branch-divergence.js";
 import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
+import type { BranchFastForward } from "./fast-forward-local-branch.js";
 
-type RemoteBranchStatus = "exists" | "missing" | "unknown" | "diverged";
 interface BranchDivergence {
   ahead: number;
   behind: number;
 }
-type NonDivergedRemoteBranchStatus = Exclude<RemoteBranchStatus, "diverged">;
 type FetchRemoteBranchResult =
   | {
       status: "diverged";
@@ -26,7 +24,13 @@ type FetchRemoteBranchResult =
       divergence: BranchDivergence;
     }
   | {
-      status: NonDivergedRemoteBranchStatus;
+      status: "exists";
+      localExists: boolean;
+      divergence: undefined;
+      fastForward: BranchFastForward | undefined;
+    }
+  | {
+      status: "missing" | "unknown";
       localExists: boolean;
       divergence: undefined;
     };
@@ -65,7 +69,7 @@ export function fetchRemoteBranch(
         logger.detail(
           "Dry run does not check local/remote divergence because it skips fetch; a real run may stop with a divergence error.",
         );
-        return { status: "exists", localExists, divergence: undefined };
+        return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
       }
       logger.step(`Fetching origin/${normalized} …`);
       fetchOriginBranch(normalized);
@@ -80,7 +84,7 @@ export function fetchRemoteBranch(
     const localHead = getLocalBranchHead(normalized);
     const remoteHead = getRemoteBranchHead(normalized);
     if (!localHead || !remoteHead || localHead === remoteHead) {
-      return { status: "exists", localExists, divergence: undefined };
+      return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
     }
 
     let counts: { ahead: number; behind: number };
@@ -91,16 +95,18 @@ export function fetchRemoteBranch(
       logger.warn(
         `Failed to compare local '${normalized}' with origin/${normalized}: ${diagnostic}. Using existing local branch as-is.`,
       );
-      return { status: "exists", localExists, divergence: undefined };
+      return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
     }
     const { ahead, behind } = counts;
     const relation = classifyBranchDivergence(counts);
 
     if (relation === "behind") {
-      logger.detail(`Fast-forwarding '${normalized}' from ${localHead} to ${remoteHead}.`);
-      logger.step(`Fast-forwarding local '${normalized}' to origin/${normalized} …`);
-      git("branch", "-f", "--", normalized, `origin/${normalized}`);
-      return { status: "exists", localExists, divergence: undefined };
+      return {
+        status: "exists",
+        localExists,
+        divergence: undefined,
+        fastForward: { branch: normalized, from: localHead, to: remoteHead },
+      };
     }
 
     if (relation === "even") {
@@ -109,7 +115,7 @@ export function fetchRemoteBranch(
       logger.warn(
         `Local branch '${normalized}' differs from origin/${normalized}, but Git reports no ahead/behind differences. Using existing local branch; if you encounter issues, try re-cloning the repository.`,
       );
-      return { status: "exists", localExists, divergence: undefined };
+      return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
     }
 
     if (relation === "diverged") {
@@ -123,7 +129,7 @@ export function fetchRemoteBranch(
     logger.warn(
       `Local branch '${normalized}' is ahead of origin/${normalized} (ahead by ${ahead}); using existing local branch as-is.`,
     );
-    return { status: "exists", localExists, divergence: undefined };
+    return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
   }
 
   let remoteExists: boolean;
@@ -144,7 +150,7 @@ export function fetchRemoteBranch(
   try {
     if (dryRun) {
       logger.step(`Would fetch origin/${normalized}`);
-      return { status: "exists", localExists, divergence: undefined };
+      return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
     }
     logger.step(`Fetching origin/${normalized} …`);
     fetchOriginBranch(normalized);
@@ -155,5 +161,5 @@ export function fetchRemoteBranch(
       { cause: error },
     );
   }
-  return { status: "exists", localExists, divergence: undefined };
+  return { status: "exists", localExists, divergence: undefined, fastForward: undefined };
 }

@@ -35,6 +35,7 @@ describe("fetchRemoteBranch", () => {
       status: "exists",
       localExists: true,
       divergence: undefined,
+      fastForward: undefined,
     });
 
     expect(logger.step).toHaveBeenCalledWith(
