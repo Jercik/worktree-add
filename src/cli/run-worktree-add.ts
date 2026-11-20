@@ -5,18 +5,10 @@ import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
 import { setupProject } from "../project/setup.js";
 import { createWorktree } from "../git/create-worktree.js";
 import type { CreatedWorktree } from "../git/create-worktree.js";
-import { fastForwardLocalBranch } from "../git/fast-forward-local-branch.js";
-import { fetchRemoteBranch } from "../git/fetch-remote-branch.js";
-import { findStaleStartPoint } from "../git/find-stale-start-point.js";
-import {
-  findUnbornHeadGitBlocker,
-  formatUnbornHeadGitMessage,
-} from "../git/unborn-head-support.js";
 import { cleanupWorktree } from "./cleanup-worktree.js";
-import { formatDivergedBranchMessage } from "./format-diverged-branch-message.js";
-import { formatStaleStartPointMessage } from "./format-stale-start-point-message.js";
 import { openWorktreeApps } from "./open-worktree-apps.js";
 import { registerSigintHandler } from "./register-sigint-handler.js";
+import { resolveBranchSource } from "./resolve-branch-source.js";
 import { resolveWorktreeContext } from "./resolve-worktree-context.js";
 
 export interface CliOptions {
@@ -60,81 +52,29 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
   });
 
   try {
-    const clearDestination = (): Promise<boolean> =>
-      handleExistingDirectory(context.destinationDirectory, {
+    // Every check against origin runs before clearing the destination: nothing restores it from the trash.
+    const source = resolveBranchSource(context.branch, {
+      offline: options.offline ?? false,
+      allowStale: options.allowStale ?? false,
+      dryRun,
+      logger,
+    });
+    if (
+      !(await handleExistingDirectory(context.destinationDirectory, {
         dryRun,
         assumeYes,
         interactive,
         logger,
-      });
-    const resolveRemoteStatus = (): ReturnType<typeof fetchRemoteBranch> => {
-      const remoteStatus = (() => {
-        try {
-          return fetchRemoteBranch(context.branch, { dryRun, logger });
-        } catch (error) {
-          const message = error instanceof Error ? error.message : String(error);
-          const prefix = `Failed to fetch origin/${context.branch}: `;
-          const failure = message.startsWith(prefix) ? message : `${prefix}${message}`;
-          throw new Error(
-            `${failure}\n` +
-              "If you expected this to work, check your network/credentials and retry.\n" +
-              "If you want a new local branch from HEAD instead, pass --offline.",
-            { cause: error },
-          );
-        }
-      })();
-      if (remoteStatus.status === "unknown" && !remoteStatus.localExists && !options.offline) {
-        throw new Error(
-          `Could not reach origin to check whether '${context.branch}' exists, and the branch does not exist locally.\n` +
-            "Refusing to create a new branch from HEAD in this ambiguous state.\n" +
-            `Re-run with --offline to force creating a new local '${context.branch}' from the current HEAD.`,
-        );
-      }
-      if (remoteStatus.status === "diverged") {
-        const { ahead, behind } = remoteStatus.divergence;
-        throw new Error(
-          formatDivergedBranchMessage({
-            branch: context.branch,
-            ahead,
-            behind,
-          }),
-        );
-      }
-
-      // Only a new branch starts from HEAD, and an unborn HEAD needs a newer git than the rest of the tool.
-      if (remoteStatus.status !== "exists" && !remoteStatus.localExists) {
-        const oldGitVersion = findUnbornHeadGitBlocker();
-        if (oldGitVersion !== undefined) {
-          throw new Error(formatUnbornHeadGitMessage(oldGitVersion));
-        }
-      }
-      // With origin unreachable (--offline) there is nothing to compare.
-      if (remoteStatus.status === "missing" && !remoteStatus.localExists && !options.allowStale) {
-        const staleStartPoint = findStaleStartPoint({ dryRun, logger });
-        if (staleStartPoint !== undefined) {
-          throw new Error(formatStaleStartPointMessage(context.branch, staleStartPoint));
-        }
-      }
-      return remoteStatus;
-    };
-
-    // Every check against origin runs before clearing the destination: nothing restores it from the trash.
-    const remoteStatus = resolveRemoteStatus();
-    if (!(await clearDestination())) {
+      }))
+    ) {
       return;
     }
-    if (remoteStatus.status === "exists" && remoteStatus.fastForward !== undefined) {
-      fastForwardLocalBranch(remoteStatus.fastForward, logger);
-    }
-
-    // Only treat origin as existing when confirmed; "unknown" remains false.
-    const remoteBranchExists = remoteStatus.status === "exists";
     await createWorktree(context.branch, context.destinationDirectory, {
       sourceRoot: context.repoRoot,
       onCreated(worktree) {
         createdWorktree = worktree;
       },
-      remoteBranchExists,
+      source,
       dryRun,
       logger,
     });

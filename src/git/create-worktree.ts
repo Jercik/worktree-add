@@ -1,16 +1,15 @@
 import { canSeedCheckout, checkoutTrackedFiles } from "./checkout-tracked-files.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
-import {
-  git,
-  localBranchExists,
-  normalizeBranchName,
-  readBranchConfig,
-  remoteBranchExists,
-  resolveCommit,
-} from "./git.js";
+import { git, normalizeBranchName, readBranchConfig, resolveCommit } from "./git.js";
+import type { BranchFastForward } from "./fast-forward-local-branch.js";
+import { fastForwardLocalBranch } from "./fast-forward-local-branch.js";
 import type { BranchConfig } from "./parse-branch-config.js";
-import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
+
+export type BranchSource =
+  | { readonly kind: "local"; readonly fastForward: BranchFastForward | undefined }
+  | { readonly kind: "origin" }
+  | { readonly kind: "head" };
 
 export interface CreatedBranch {
   readonly name: string;
@@ -35,49 +34,42 @@ interface WorktreeAddCommand {
 function selectWorktreeAddCommand(
   normalized: string,
   destinationDirectory: string,
-  remoteBranchExistsHint: boolean | undefined,
+  source: BranchSource,
 ): WorktreeAddCommand {
-  if (localBranchExists(normalized)) {
-    // The bare name checks the branch out; a full `refs/heads/` ref would detach HEAD.
-    return {
-      args: ["worktree", "add", "--", destinationDirectory, normalized],
-      newBranchStartPoint: undefined,
-    };
-  }
-
-  let branchExistsOnOrigin = remoteBranchExistsHint;
-  if (branchExistsOnOrigin === undefined) {
-    try {
-      branchExistsOnOrigin = remoteBranchExists(normalized);
-    } catch (error) {
-      const diagnostic = extractDiagnosticLine(error);
-      throw new Error(
-        `Failed to reach origin to check whether '${normalized}' exists: ${diagnostic}`,
-        { cause: error },
-      );
+  switch (source.kind) {
+    case "local": {
+      // The bare name checks the branch out; a full `refs/heads/` ref would detach HEAD.
+      return {
+        args: ["worktree", "add", "--", destinationDirectory, normalized],
+        newBranchStartPoint: undefined,
+      };
+    }
+    case "origin": {
+      return {
+        args: [
+          "worktree",
+          "add",
+          "--track",
+          "-b",
+          normalized,
+          "--",
+          destinationDirectory,
+          `origin/${normalized}`,
+        ],
+        newBranchStartPoint: `refs/remotes/origin/${normalized}`,
+      };
+    }
+    case "head": {
+      return {
+        args: ["worktree", "add", "-b", normalized, "--", destinationDirectory],
+        newBranchStartPoint: "HEAD",
+      };
+    }
+    default: {
+      const exhaustive: never = source;
+      return exhaustive;
     }
   }
-
-  if (branchExistsOnOrigin) {
-    return {
-      args: [
-        "worktree",
-        "add",
-        "--track",
-        "-b",
-        normalized,
-        "--",
-        destinationDirectory,
-        `origin/${normalized}`,
-      ],
-      newBranchStartPoint: `refs/remotes/origin/${normalized}`,
-    };
-  }
-
-  return {
-    args: ["worktree", "add", "-b", normalized, "--", destinationDirectory],
-    newBranchStartPoint: "HEAD",
-  };
 }
 
 export async function createWorktree(
@@ -86,7 +78,7 @@ export async function createWorktree(
   options: {
     sourceRoot: string;
     onCreated: (worktree: CreatedWorktree) => void;
-    remoteBranchExists?: boolean;
+    source: BranchSource;
     dryRun?: boolean;
     logger?: StatusLogger;
   },
@@ -94,15 +86,14 @@ export async function createWorktree(
   const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
   const normalized = normalizeBranchName(branch);
-  const command = selectWorktreeAddCommand(
-    normalized,
-    destinationDirectory,
-    options.remoteBranchExists,
-  );
+  const command = selectWorktreeAddCommand(normalized, destinationDirectory, options.source);
 
   if (dryRun) {
     logger.step(`Would run git ${command.args.join(" ")}`);
     return;
+  }
+  if (options.source.kind === "local" && options.source.fastForward !== undefined) {
+    fastForwardLocalBranch(options.source.fastForward, logger);
   }
   // Resolved before the add: a post-checkout hook can commit onto the new branch during it.
   const startCommit =

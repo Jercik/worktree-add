@@ -1,11 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
-import { fetchRemoteBranch } from "./fetch-remote-branch.js";
+import { resolveBranchSource } from "./resolve-branch-source.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 
-vi.mock("./git.js");
+vi.mock("../git/git.js");
 
-const gitModule = await import("./git.js");
+const gitModule = await import("../git/git.js");
 const { fetchOriginBranch, localBranchExists, normalizeBranchName, remoteBranchExists } = gitModule;
 
 const createLogger = (): StatusLogger => ({
@@ -15,7 +15,7 @@ const createLogger = (): StatusLogger => ({
   warn: vi.fn<StatusLogger["warn"]>(),
 });
 
-describe("fetchRemoteBranch", () => {
+describe("resolveBranchSource", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(normalizeBranchName).mockImplementation((name: string): string => name);
@@ -27,16 +27,13 @@ describe("fetchRemoteBranch", () => {
     const logger = createLogger();
 
     expect(
-      fetchRemoteBranch("codex/implement-new-transform-from-workflow.md", {
+      resolveBranchSource("codex/implement-new-transform-from-workflow.md", {
+        offline: false,
+        allowStale: false,
         dryRun: true,
         logger,
       }),
-    ).toStrictEqual({
-      status: "exists",
-      localExists: true,
-      divergence: undefined,
-      fastForward: undefined,
-    });
+    ).toStrictEqual({ kind: "local", fastForward: undefined });
 
     expect(logger.step).toHaveBeenCalledWith(
       "Would fetch origin/codex/implement-new-transform-from-workflow.md",

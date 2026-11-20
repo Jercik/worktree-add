@@ -6,7 +6,7 @@ vi.mock("./git.js");
 const gitModule = await import("./git.js");
 const createWorktreeModule = await import("./create-worktree.js");
 
-const { git, localBranchExists, normalizeBranchName, remoteBranchExists } = gitModule;
+const { git, normalizeBranchName } = gitModule;
 const { createWorktree } = createWorktreeModule;
 
 const noop = (message: string): void => {
@@ -24,18 +24,16 @@ describe("createWorktree", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     vi.mocked(git).mockReturnValue("");
-    vi.mocked(localBranchExists).mockReturnValue(false);
     vi.mocked(normalizeBranchName).mockImplementation((value: string) => value);
-    vi.mocked(remoteBranchExists).mockReturnValue(false);
   });
 
   it("renders the local-branch dry-run command without executing git", async () => {
-    vi.mocked(localBranchExists).mockReturnValue(true);
     const logger = createLogger();
 
     await createWorktree("feature/a", "/repo-a", {
       sourceRoot: "/repo",
       onCreated: vi.fn<() => void>(),
+      source: { kind: "local", fastForward: undefined },
       dryRun: true,
       logger,
     });
@@ -45,12 +43,12 @@ describe("createWorktree", () => {
   });
 
   it("executes the remote-branch worktree argv", async () => {
-    vi.mocked(remoteBranchExists).mockReturnValue(true);
     const logger = createLogger();
 
     await createWorktree("feature/a", "/repo-a", {
       sourceRoot: "/repo",
       onCreated: vi.fn<() => void>(),
+      source: { kind: "origin" },
       logger,
     });
 
