@@ -41,6 +41,18 @@ export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
     superprojectRoot === undefined ? path.dirname(repoRoot) : path.dirname(superprojectRoot),
     `${repoName}-${branchDirectorySegment}`,
   );
+  const pathFromDestinationToRepo = path.relative(destinationDirectory, repoRoot);
+  if (
+    pathFromDestinationToRepo !== ".." &&
+    !pathFromDestinationToRepo.startsWith(`..${path.sep}`) &&
+    !path.isAbsolute(pathFromDestinationToRepo)
+  ) {
+    throw new Error(
+      `Destination '${destinationDirectory}' holds the checkout you are running from.\n` +
+        `Refusing to replace it for branch '${branch}', which would discard that checkout.\n` +
+        "Use a branch name that maps to a different directory, or move this checkout first.",
+    );
+  }
 
   return { branch, repoRoot, destinationDirectory };
 }

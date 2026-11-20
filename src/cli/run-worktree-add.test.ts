@@ -301,6 +301,25 @@ describe("runWorktreeAdd cleanup after a setup failure", () => {
   );
 });
 
+describe("runWorktreeAdd when the destination is the current checkout", () => {
+  it("refuses to replace the worktree it runs from", async () => {
+    const { sandbox, repoRoot } = await createRepository({ withCommit: true });
+    const currentWorktree = path.join(sandbox, "app-feature-x");
+    git("worktree", "add", "--quiet", "-b", "feature/x", currentWorktree, { cwd: repoRoot });
+    await fs.writeFile(path.join(currentWorktree, "work.txt"), "uncommitted\n");
+    process.chdir(currentWorktree);
+
+    await expect(runWorktreeAdd("feature-x", { yes: true })).rejects.toThrow(
+      `Destination '${currentWorktree}' holds the checkout you are running from.`,
+    );
+
+    expect(trash).not.toHaveBeenCalled();
+    await expect(fs.readFile(path.join(currentWorktree, "work.txt"), "utf8")).resolves.toBe(
+      "uncommitted\n",
+    );
+  });
+});
+
 describe("runWorktreeAdd in a repository with no commits yet", () => {
   // Which of the two outcomes applies depends on the installed git.
   const oldGitVersion = findGitLackingUnbornHeadSupport();
