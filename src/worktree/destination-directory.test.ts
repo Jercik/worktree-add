@@ -94,22 +94,24 @@ describe("handleExistingDirectory", () => {
     expect(logger.success).toHaveBeenCalledWith("Directory moved to trash successfully");
   });
 
-  it("logs error details and throws when trash operation fails", async () => {
+  it("throws with the trash error as its cause when trash operation fails", async () => {
     vi.mocked(fileExists).mockResolvedValue(true);
     vi.mocked(confirm).mockResolvedValue(true);
     const trashError = new Error("Permission denied");
-    trashError.stack = "Error: Permission denied";
     vi.mocked(trash).mockRejectedValue(trashError);
     const logger = createLogger();
 
     await expect(
       handleExistingDirectory("/test/path", { interactive: true, logger }),
-    ).rejects.toThrow("Failed to move existing directory to trash: Permission denied");
+    ).rejects.toMatchObject({
+      message: "Failed to move existing directory to trash: Permission denied",
+      cause: trashError,
+    });
 
     expect(fileExists).toHaveBeenCalledWith("/test/path");
     expect(confirm).toHaveBeenCalledWith(expect.stringContaining("already exists"));
     expect(trash).toHaveBeenCalledWith("/test/path");
-    expect(logger.detail).toHaveBeenCalledWith("Error details: Error: Permission denied");
+    expect(logger.detail).not.toHaveBeenCalled();
   });
 
   it("handles non-Error exceptions from trash operation", async () => {
@@ -121,8 +123,6 @@ describe("handleExistingDirectory", () => {
     await expect(
       handleExistingDirectory("/test/path", { interactive: true, logger }),
     ).rejects.toThrow("Failed to move existing directory to trash: String error");
-
-    expect(logger.detail).toHaveBeenCalledWith("Error details: String error");
   });
 
   it("includes recovery hint in confirmation message", async () => {
