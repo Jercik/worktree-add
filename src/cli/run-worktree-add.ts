@@ -69,12 +69,11 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
     ) {
       return;
     }
-    await createWorktree(context.branch, context.destinationDirectory, {
+    await createWorktree(source, context.destinationDirectory, {
       sourceRoot: context.repoRoot,
       onCreated(worktree) {
         createdWorktree = worktree;
       },
-      source,
       dryRun,
       logger,
     });

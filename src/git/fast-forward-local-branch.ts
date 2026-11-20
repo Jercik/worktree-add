@@ -3,13 +3,13 @@ import { extractDiagnosticLine } from "./extract-diagnostic-line.js";
 import { git } from "./git.js";
 
 export interface BranchFastForward {
-  readonly branch: string;
   readonly from: string;
   readonly to: string;
 }
 
 export function fastForwardLocalBranch(
-  { branch, from, to }: BranchFastForward,
+  branch: string,
+  { from, to }: BranchFastForward,
   logger: StatusLogger,
 ): void {
   logger.detail(`Fast-forwarding '${branch}' from ${from} to ${to}.`);

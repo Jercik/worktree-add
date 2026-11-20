@@ -33,12 +33,13 @@ export function resolveBranchSource(
 ): BranchSource {
   const normalized = normalizeBranchName(branch);
   if (localBranchExists(normalized)) {
-    return { kind: "local", fastForward: planLocalFastForward(normalized, options) };
+    const fastForward = fetchAndCompareWithOrigin(normalized, options);
+    return { kind: "local", branch: normalized, fastForward };
   }
   return resolveNewBranchSource(normalized, options);
 }
 
-function planLocalFastForward(
+function fetchAndCompareWithOrigin(
   branch: string,
   { dryRun, logger }: ResolveBranchSourceOptions,
 ): BranchFastForward | undefined {
@@ -97,7 +98,7 @@ function planLocalFastForward(
   const relation = classifyBranchDivergence(counts);
   switch (relation) {
     case "behind": {
-      return { branch, from: localHead, to: remoteHead };
+      return { from: localHead, to: remoteHead };
     }
     case "even": {
       // Defensive: rev-list should report differences when heads differ,
@@ -142,7 +143,7 @@ function resolveNewBranchSource(branch: string, options: ResolveBranchSourceOpti
       );
     }
     assertHeadCanStartBranch();
-    return { kind: "head" };
+    return { kind: "head", branch };
   }
 
   if (!remoteExists) {
@@ -153,12 +154,12 @@ function resolveNewBranchSource(branch: string, options: ResolveBranchSourceOpti
         throw new Error(formatStaleStartPointMessage(branch, staleStartPoint));
       }
     }
-    return { kind: "head" };
+    return { kind: "head", branch };
   }
 
   if (dryRun) {
     logger.step(`Would fetch origin/${branch}`);
-    return { kind: "origin" };
+    return { kind: "origin", branch };
   }
   try {
     logger.step(`Fetching origin/${branch} …`);
@@ -172,7 +173,7 @@ function resolveNewBranchSource(branch: string, options: ResolveBranchSourceOpti
       { cause: error },
     );
   }
-  return { kind: "origin" };
+  return { kind: "origin", branch };
 }
 
 function assertHeadCanStartBranch(): void {

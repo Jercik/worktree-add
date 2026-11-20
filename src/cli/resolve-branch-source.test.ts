@@ -33,7 +33,11 @@ describe("resolveBranchSource", () => {
         dryRun: true,
         logger,
       }),
-    ).toStrictEqual({ kind: "local", fastForward: undefined });
+    ).toStrictEqual({
+      kind: "local",
+      branch: "codex/implement-new-transform-from-workflow.md",
+      fastForward: undefined,
+    });
 
     expect(logger.step).toHaveBeenCalledWith(
       "Would fetch origin/codex/implement-new-transform-from-workflow.md",

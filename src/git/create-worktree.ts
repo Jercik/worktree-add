@@ -1,15 +1,19 @@
 import { canSeedCheckout, checkoutTrackedFiles } from "./checkout-tracked-files.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
-import { git, normalizeBranchName, readBranchConfig, resolveCommit } from "./git.js";
+import { git, readBranchConfig, resolveCommit } from "./git.js";
 import type { BranchFastForward } from "./fast-forward-local-branch.js";
 import { fastForwardLocalBranch } from "./fast-forward-local-branch.js";
 import type { BranchConfig } from "./parse-branch-config.js";
 
 export type BranchSource =
-  | { readonly kind: "local"; readonly fastForward: BranchFastForward | undefined }
-  | { readonly kind: "origin" }
-  | { readonly kind: "head" };
+  | {
+      readonly kind: "local";
+      readonly branch: string;
+      readonly fastForward: BranchFastForward | undefined;
+    }
+  | { readonly kind: "origin"; readonly branch: string }
+  | { readonly kind: "head"; readonly branch: string };
 
 export interface CreatedBranch {
   readonly name: string;
@@ -32,15 +36,15 @@ interface WorktreeAddCommand {
 }
 
 function selectWorktreeAddCommand(
-  normalized: string,
-  destinationDirectory: string,
   source: BranchSource,
+  destinationDirectory: string,
 ): WorktreeAddCommand {
+  const { branch } = source;
   switch (source.kind) {
     case "local": {
       // The bare name checks the branch out; a full `refs/heads/` ref would detach HEAD.
       return {
-        args: ["worktree", "add", "--", destinationDirectory, normalized],
+        args: ["worktree", "add", "--", destinationDirectory, branch],
         newBranchStartPoint: undefined,
       };
     }
@@ -51,17 +55,17 @@ function selectWorktreeAddCommand(
           "add",
           "--track",
           "-b",
-          normalized,
+          branch,
           "--",
           destinationDirectory,
-          `origin/${normalized}`,
+          `origin/${branch}`,
         ],
-        newBranchStartPoint: `refs/remotes/origin/${normalized}`,
+        newBranchStartPoint: `refs/remotes/origin/${branch}`,
       };
     }
     case "head": {
       return {
-        args: ["worktree", "add", "-b", normalized, "--", destinationDirectory],
+        args: ["worktree", "add", "-b", branch, "--", destinationDirectory],
         newBranchStartPoint: "HEAD",
       };
     }
@@ -73,27 +77,26 @@ function selectWorktreeAddCommand(
 }
 
 export async function createWorktree(
-  branch: string,
+  source: BranchSource,
   destinationDirectory: string,
   options: {
     sourceRoot: string;
     onCreated: (worktree: CreatedWorktree) => void;
-    source: BranchSource;
     dryRun?: boolean;
     logger?: StatusLogger;
   },
 ): Promise<void> {
   const logger = options.logger ?? fallbackStatusLogger;
   const dryRun = options.dryRun ?? false;
-  const normalized = normalizeBranchName(branch);
-  const command = selectWorktreeAddCommand(normalized, destinationDirectory, options.source);
+  const { branch } = source;
+  const command = selectWorktreeAddCommand(source, destinationDirectory);
 
   if (dryRun) {
     logger.step(`Would run git ${command.args.join(" ")}`);
     return;
   }
-  if (options.source.kind === "local" && options.source.fastForward !== undefined) {
-    fastForwardLocalBranch(options.source.fastForward, logger);
+  if (source.kind === "local" && source.fastForward !== undefined) {
+    fastForwardLocalBranch(branch, source.fastForward, logger);
   }
   // Resolved before the add: a post-checkout hook can commit onto the new branch during it.
   const startCommit =
@@ -101,21 +104,21 @@ export async function createWorktree(
       ? undefined
       : resolveCommit(command.newBranchStartPoint);
   const preexistingConfig: BranchConfig =
-    startCommit === undefined ? new Map<string, readonly string[]>() : readBranchConfig(normalized);
+    startCommit === undefined ? new Map<string, readonly string[]>() : readBranchConfig(branch);
   const seedCheckout =
-    (startCommit ?? resolveCommit(normalized)) !== undefined && canSeedCheckout(options.sourceRoot);
+    (startCommit ?? resolveCommit(branch)) !== undefined && canSeedCheckout(options.sourceRoot);
   if (seedCheckout) {
     command.args.splice(2, 0, "--no-checkout");
   }
   logger.step(`git ${command.args.join(" ")}`);
   git(...command.args);
 
-  const ref = `refs/heads/${normalized}`;
+  const ref = `refs/heads/${branch}`;
   options.onCreated({
     directory: destinationDirectory,
     createdBranch:
       startCommit !== undefined && resolveCommit(ref) === startCommit
-        ? { name: normalized, ref, commit: startCommit, preexistingConfig }
+        ? { name: branch, ref, commit: startCommit, preexistingConfig }
         : undefined,
   });
   if (seedCheckout) {
