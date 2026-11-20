@@ -6,6 +6,7 @@ import {
   getRepositoryName,
   getSuperprojectRoot,
 } from "../git/worktree-discovery.js";
+import { isPathInside } from "../worktree/is-path-inside.js";
 
 interface WorktreeContext {
   readonly branch: string;
@@ -41,12 +42,7 @@ export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
     superprojectRoot === undefined ? path.dirname(repoRoot) : path.dirname(superprojectRoot),
     `${repoName}-${branchDirectorySegment}`,
   );
-  const pathFromDestinationToRepo = path.relative(destinationDirectory, repoRoot);
-  if (
-    pathFromDestinationToRepo !== ".." &&
-    !pathFromDestinationToRepo.startsWith(`..${path.sep}`) &&
-    !path.isAbsolute(pathFromDestinationToRepo)
-  ) {
+  if (isPathInside(destinationDirectory, repoRoot)) {
     throw new Error(
       `Destination '${destinationDirectory}' holds the checkout you are running from.\n` +
         `Refusing to replace it for branch '${branch}', which would discard that checkout.\n` +

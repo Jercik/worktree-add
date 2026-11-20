@@ -5,6 +5,7 @@ import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 import { copyLocalEntry } from "./copy-local-entry.js";
 import { isGeneratedPath } from "./is-generated-path.js";
+import { isPathInside } from "./is-path-inside.js";
 
 const hasErrorCode = (error: unknown, ...codes: string[]): boolean =>
   error instanceof Error && "code" in error && codes.includes(String(error.code));
@@ -88,12 +89,7 @@ export async function copyUntrackedFiles(
 
   for (const relativePath of untrackedEntries) {
     const resolvedSourcePath = path.resolve(repoRoot, relativePath);
-    const relativeToRoot = path.relative(repoRoot, resolvedSourcePath);
-    const escapesRepoRoot =
-      path.isAbsolute(relativeToRoot) ||
-      relativeToRoot === ".." ||
-      relativeToRoot.startsWith(`..${path.sep}`);
-    if (escapesRepoRoot) {
+    if (!isPathInside(repoRoot, resolvedSourcePath)) {
       logger.warn(`Skipping ${relativePath} (path escapes repo root).`);
       continue;
     }

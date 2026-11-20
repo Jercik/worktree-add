@@ -309,9 +309,10 @@ describe("runWorktreeAdd when the destination is the current checkout", () => {
     await fs.writeFile(path.join(currentWorktree, "work.txt"), "uncommitted\n");
     process.chdir(currentWorktree);
 
-    await expect(runWorktreeAdd("feature-x", { yes: true })).rejects.toThrow(
-      `Destination '${currentWorktree}' holds the checkout you are running from.`,
-    );
+    const refusal = runWorktreeAdd("feature-x", { yes: true });
+
+    await expect(refusal).rejects.toThrow("holds the checkout you are running from.");
+    await expect(refusal).rejects.toThrow(currentWorktree);
 
     expect(trash).not.toHaveBeenCalled();
     await expect(fs.readFile(path.join(currentWorktree, "work.txt"), "utf8")).resolves.toBe(
