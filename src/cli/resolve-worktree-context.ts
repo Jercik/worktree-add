@@ -1,5 +1,5 @@
 import path from "node:path";
-import { exitWithMessage, normalizeBranchName, toSafePathSegment } from "../git/git.js";
+import { normalizeBranchName, toSafePathSegment } from "../git/git.js";
 import {
   findWorktreeByBranchName,
   getCurrentWorktreeRoot,
@@ -17,7 +17,7 @@ interface WorktreeContext {
 export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
   const branch = normalizeBranchName(branchRaw);
   if (branch.length === 0) {
-    exitWithMessage(
+    throw new Error(
       "Branch name is empty.\n" +
         "Examples: `feature/foo`, `origin/feature/foo`, `refs/heads/feature/foo`.\n" +
         "Note: `origin/` without a branch name is not valid.",
@@ -26,7 +26,7 @@ export function resolveWorktreeContext(branchRaw: string): WorktreeContext {
 
   const existingWorktree = findWorktreeByBranchName(branch);
   if (existingWorktree) {
-    exitWithMessage(
+    throw new Error(
       `Branch '${branch}' is already checked out in: ${existingWorktree}\n` +
         "You cannot add another worktree for the same branch.\n" +
         "Open that worktree instead or remove it before retrying.\n" +

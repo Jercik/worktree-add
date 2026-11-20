@@ -169,12 +169,6 @@ export async function fileExists(p: string): Promise<boolean> {
   }
 }
 
-export function exitWithMessage(message: string): never {
-  console.error(message);
-  // eslint-disable-next-line unicorn/no-process-exit -- This is a CLI helper function
-  process.exit(1);
-}
-
 async function prompt(message: string): Promise<string> {
   const rl = readline.createInterface({
     input: process.stdin,

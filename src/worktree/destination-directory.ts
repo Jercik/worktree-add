@@ -1,6 +1,6 @@
 import path from "node:path";
 import trash from "trash";
-import { fileExists, confirm, exitWithMessage, git } from "../git/git.js";
+import { fileExists, confirm, git } from "../git/git.js";
 import type { StatusLogger } from "../output/create-status-logger.js";
 import { fallbackStatusLogger } from "../output/create-status-logger.js";
 
@@ -111,7 +111,7 @@ export async function handleExistingDirectory(
   }
 
   if (promptRefusal !== undefined) {
-    exitWithMessage(formatPromptRefusal(directoryName, promptRefusal));
+    throw new Error(formatPromptRefusal(directoryName, promptRefusal));
   }
 
   if (!assumeYes) {
@@ -121,8 +121,7 @@ export async function handleExistingDirectory(
 
     if (!proceed) {
       console.error("Operation cancelled.");
-      // eslint-disable-next-line unicorn/no-process-exit -- User requested cancellation
-      process.exit(0);
+      return false;
     }
   }
 
@@ -153,8 +152,9 @@ export async function handleExistingDirectory(
   } catch (error) {
     const details = error instanceof Error ? (error.stack ?? error.message) : String(error);
     logger.detail(`Error details: ${details}`);
-    exitWithMessage(
+    throw new Error(
       `Failed to move existing directory to trash: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error },
     );
   }
 
@@ -168,8 +168,9 @@ export async function handleExistingDirectory(
   } catch (error) {
     const details = error instanceof Error ? (error.stack ?? error.message) : String(error);
     logger.detail(`Error details: ${details}`);
-    exitWithMessage(
+    throw new Error(
       `Failed to prune stale worktree registration for '${directoryName}'. Run 'git worktree prune' and retry.`,
+      { cause: error },
     );
   }
 

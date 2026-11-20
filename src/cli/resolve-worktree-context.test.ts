@@ -7,7 +7,7 @@ const gitModule = await import("../git/git.js");
 const worktreeDiscoveryModule = await import("../git/worktree-discovery.js");
 const resolveWorktreeContextModule = await import("./resolve-worktree-context.js");
 
-const { exitWithMessage, normalizeBranchName, toSafePathSegment } = gitModule;
+const { normalizeBranchName, toSafePathSegment } = gitModule;
 const { findWorktreeByBranchName, getCurrentWorktreeRoot, getRepositoryName, getSuperprojectRoot } =
   worktreeDiscoveryModule;
 const { resolveWorktreeContext } = resolveWorktreeContextModule;
@@ -15,9 +15,6 @@ const { resolveWorktreeContext } = resolveWorktreeContextModule;
 describe("resolveWorktreeContext", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(exitWithMessage).mockImplementation((message: string): never => {
-      throw new Error(message);
-    });
     vi.mocked(findWorktreeByBranchName).mockReturnValue(undefined);
     vi.mocked(normalizeBranchName).mockImplementation((value: string) => value);
     vi.mocked(toSafePathSegment).mockImplementation((value: string) => value.replaceAll("/", "-"));

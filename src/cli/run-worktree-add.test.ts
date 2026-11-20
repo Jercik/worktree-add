@@ -331,16 +331,9 @@ describe("runWorktreeAdd when the local branch has diverged from origin", () => 
     });
     git("push", "--quiet", "origin", `${remote}:refs/heads/feature/x`, { cwd: repoRoot });
     await fs.mkdir(path.join(sandbox, "app-feature-x"));
-    vi.spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("process.exit");
-    });
 
-    await expect(runWorktreeAdd("feature/x", { yes: true })).rejects.toThrow("process.exit");
-
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining(
-        "Local branch 'feature/x' and origin/feature/x have diverged (ahead by 1 and behind by 1).",
-      ),
+    await expect(runWorktreeAdd("feature/x", { yes: true })).rejects.toThrow(
+      "Local branch 'feature/x' and origin/feature/x have diverged (ahead by 1 and behind by 1).",
     );
     expect(trash).not.toHaveBeenCalled();
   });
@@ -355,14 +348,9 @@ describe("runWorktreeAdd when an existing destination is not replaced", () => {
     });
     git("push", "--quiet", "origin", `${ahead}:refs/heads/feature/behind`, { cwd: repoRoot });
     await fs.mkdir(path.join(sandbox, "app-feature-behind"));
-    vi.spyOn(process, "exit").mockImplementation(() => {
-      throw new Error("process.exit");
-    });
 
-    await expect(runWorktreeAdd("feature/behind", {})).rejects.toThrow("process.exit");
-
-    expect(console.error).toHaveBeenCalledWith(
-      expect.stringContaining("Refusing to prompt in non-interactive mode."),
+    await expect(runWorktreeAdd("feature/behind", {})).rejects.toThrow(
+      "Refusing to prompt in non-interactive mode.",
     );
     expect(git("log", "-1", "--format=%s", "feature/behind", { cwd: repoRoot })).toBe("initial");
   });

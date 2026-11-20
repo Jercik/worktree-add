@@ -3,7 +3,6 @@ import { resolveOpenTarget } from "../app/resolve-open-target.js";
 import { handleExistingDirectory } from "../worktree/destination-directory.js";
 import { copyUntrackedFiles } from "../worktree/untracked-file-copy.js";
 import { setupProject } from "../project/setup.js";
-import { exitWithMessage } from "../git/git.js";
 import { createWorktree } from "../git/create-worktree.js";
 import type { CreatedWorktree } from "../git/create-worktree.js";
 import { fastForwardLocalBranch } from "../git/fast-forward-local-branch.js";
@@ -76,15 +75,16 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
           const message = error instanceof Error ? error.message : String(error);
           const prefix = `Failed to fetch origin/${context.branch}: `;
           const failure = message.startsWith(prefix) ? message : `${prefix}${message}`;
-          return exitWithMessage(
+          throw new Error(
             `${failure}\n` +
               "If you expected this to work, check your network/credentials and retry.\n" +
               "If you want a new local branch from HEAD instead, pass --offline.",
+            { cause: error },
           );
         }
       })();
       if (remoteStatus.status === "unknown" && !remoteStatus.localExists && !options.offline) {
-        exitWithMessage(
+        throw new Error(
           `Could not reach origin to check whether '${context.branch}' exists, and the branch does not exist locally.\n` +
             "Refusing to create a new branch from HEAD in this ambiguous state.\n" +
             `Re-run with --offline to force creating a new local '${context.branch}' from the current HEAD.`,
@@ -92,7 +92,7 @@ export async function runWorktreeAdd(branchRaw: string, options: CliOptions): Pr
       }
       if (remoteStatus.status === "diverged") {
         const { ahead, behind } = remoteStatus.divergence;
-        exitWithMessage(
+        throw new Error(
           formatDivergedBranchMessage({
             branch: context.branch,
             ahead,
